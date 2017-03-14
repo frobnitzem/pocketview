@@ -1,52 +1,21 @@
-
-// props : { title : String, doc : [] }
-class ATbl extends React.Component {
-  constructor(props) {
-    super(props);  
-    this.state = { selected: 0 };
-  }
-  
-  onClick(idx, event) {
-    event.preventDefault();
-    this.setState({
-      selected: idx
+// For now, just renders 1 per row.
+// props : { title : String,
+//           doc   : 'a,
+//           winsz : [Int,Int],
+//           minsz : [Int,Int],
+//           totsz : [Int,Int],
+//           fn    :  'a -> ReactElem }
+export function ArrTbl(props) {
+    let items = props.doc.map( (x) => {
+        return <div className="row"> {props.fn(x)} </div>
     });
-  }
-  
-  renderTitles() {
-      var objs = [];
-      this.props.doc.forEach(function(val) {
-          objs.push(<div className="sector_indent area_light_text trans_link spot_link">{val}</div>);
-      });
-      return <div> {objs} </div>;
-  }
-
-  renderContent() {
-  }
-
-  render() {
-    return ( <table style={width: "95%"}>
-               <tr>
-                 <td className="area_med_color arrhead"></td>
-                 <td className="arrtitle">{this.props.title}</td>
-                 <td className="area_med_color rcap"></td>
-               </tr>
-               <tr>
-                 <td className="area_med_color"></td>
-                 <td colspan="3" style={"padding-left": "5px"}>
-                   { this.renderTitles() }
-                 </td>
-               </tr>
-               <tr>
-                 <td className="area_med_color botcap"></td>
-                 <td></td>
-                 <td></td>
-               </tr>
-             </table>
-            );
-  }
+    return ( <div className="content">
+               <div className="capsule"> <div className="title">
+                    { props.title }
+               </div> </div>
+               <div className="capsule"><div className="table">
+                 { items }
+               </div></div>
+             </div>
+           );
 }
-
-//<div class="table" style="width:100%;margin-bottom:10px;">
-//  <div class="row">
-//    <div class="cell" style="width:50%;">

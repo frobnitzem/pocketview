@@ -1,6 +1,4 @@
-//import "./array.jsx";
-import { Tabs } from "./views/tabs.jsx";
-import { Display } from "./display.jsx";
+import { Display } from "./views/display.jsx";
 
 // Leading causes of death in the City of New York.
 // Dataset courtesy of:
@@ -30,7 +28,8 @@ function Retrieve(title, path) {
   });
 }
 
-ReactDOM.render( <Tabs title={"System"} doc={doc} />, document.getElementById('containment') );
+ReactDOM.render( <Display title={"System"} doc={doc} />,
+                 document.getElementById('containment') );
 //var Completed = Retrieve("Completed", "https://sque.predictivestatmech.org/api/v1/completed/");
 //ReactDOM.render( <Completed />, document.getElementById('containment') );
 

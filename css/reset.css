@@ -3,9 +3,7 @@ form, fieldset, input, p, blockquote, table, th, td, embed, object,span {
     padding: 0px;
     margin: 0px; 
     vertical-align:top;
-    font-family: arial, Verdana, Helvetica, sans-serif;
-    text-transform:uppercase;
-    letter-spacing:-1px;
+    font-family: "Osaka-mono", Monaco, monospace;
     }
 td {vertical-align:top}
 table {
@@ -29,3 +27,12 @@ caption, th {
 h1, h2, h3, h4, h5, h6 {
     font-size: 1.0em;
     }
+button {
+    margin: inherit;
+    border: inherit;
+    padding: inherit;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+}
+
