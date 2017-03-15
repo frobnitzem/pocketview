@@ -21,6 +21,19 @@ Assumptions and Design Principles
    in the hierarchy.
 6. Some updates to the underlying data model may occur,
    but should be relatively uncommon (mostly at top-level).
+7. On the calculation of object sizes:
+   - Each object may 'wrap' others, which are treated
+     as a collection of boxes.
+   - The key number for each is the amount of height x width
+     taken up by the wrapper itself.
+   - This is a fixed constant for the display type used.
+     => Every display must be able to calculate this!
+   - The default behavior for displays is to show
+     all included data if they can do so.
+     "totsz" is the size of the fully displayed version.
+   - If not, they should
+     show only the wrapper element, and allow the user to navigate.
+     "minsz" is the size of the minified, wrapper-only version.
 
 Example data structure:
  { 'nav1' : { ... },

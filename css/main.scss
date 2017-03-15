@@ -1,3 +1,8 @@
+@import 'colors';
+
+$title-font: 20pt FinalNew, serif;
+$title-color: white;
+
 /****** main ******/
 @font-face {
   font-family: FinalNew;
@@ -12,15 +17,18 @@ body {
   background-position:center top;
   background-attachment:fixed;
   margin:0px;
-  font-size:14px;
 }
 
-table {
-    width=100%;
+table, tbody, tr {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    display: block;
 }
 
 div#containment {
   width: 100%;
+  overflow: hidden;
   margin-left:auto;
   margin-right:auto;
 }
@@ -37,30 +45,59 @@ div.content::after {
   display: table;
 }
 
+/* These fixed heights are large enough to hold 1 line
+ * of the 14pt monospace used here.
+ */
 .token {
   vertical-align: middle;
   text-align: center;
   color: #eee;
+  height: 18px;
 }
 .text {
   vertical-align: middle;
   overflow-y: auto;
   color: #ddd;
+  height: 18px;
 }
 
+/* titles should be at least 35px, which is large enough to hold the
+ * 20pt FinalNew here.
+ */
 .title {
-  font-family: FinalNew, serif;
-  font-weight: bolder;
-  font-size: 2em;
+  font: $title-font;
+  color: $title-color;
+  padding: 5px;
   background: none;
 }
 
 .link {
-    background-color: lightblue;
+    background-color: #66e;
     color: black;
     vertical-align: middle;
     height: 100%;
     width: 100%;
+    padding: 0 5px;
+}
+
+.link:hover {
+    background-color:white;
+}
+
+/* not currently used */
+.button, a.button {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  padding: 10px 15px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  text-decoration: none;
+  text-align: center;
+  background-color: #99c;
+  border: none;
+  cursor: pointer;
 }
 
 /****** box nav ******/
@@ -74,70 +111,70 @@ div.content::after {
   border: 0px;
   height: 40px;
   width: 40px;
-  background: blue;
+  background-color: #44f;
 }
 #box12 {
   min-width: 200px;
 }
 #box12 > * {
   /* divs in first row */
-  margin: 0 5px;
+  margin-right: 5px;
   vertical-align: middle;
   display: inline-block;
   height: 40px;
 }
 div.lhspace {
-  background-color: blue;
+  background-color: #44f;
   min-width: 20px;
   width: 120px; /* computed */
-  position: absolute;
-  left: -5px;
 }
 div.htitle {
-  font-family: FinalNew, serif;
-  font-weight: bolder;
-  color: white;
-  padding: 0 1em;
-  position: absolute;
+  font: $title-font;
+  color: $title-color;
+  padding: 0 5px;
   top: 12px;
   right: 35px;
 }
 div.rcap {
-  background-color: blue;
+  background-color: #44f;
   width: 30px;
   border-radius: 0 15px 15px 0;
+  padding: 0;
   position: absolute;
   right: 0;
 }
 #box21 {
   /* bottom left corner / vertical nav */
-  width: 40px; /* computed */
+  width: 60px; /* computed */
   margin: 0 10px;
 }
 #box21 > * {
   margin-bottom: 5px;
   display: block;
   width: 100%;
-  padding: 5px 0;
+  padding: 0 0;
   text-align: center;
+}
+#box21 .link {
+  height: 18px;
+  padding: 5px 0;
 }
 div.tvspace {
   height: 20px;
-  background-color: blue;
+  background-color: #44f;
 }
 div.bcap {
-  height: 60px; /* computed */
-  background-color: blue;
+  min-height: 60px; /* height computed */
+  background-color: #44f;
   border-radius: 0 0 50px 50px;
-  /*position: absolute;
-  bottom: 0;*/
+  margin: 0;
 }
 #box22 {
-  padding: 15px 15px;
+  padding: 15px 0 0 15px;
   position: relative;
 }
 div.elbow {
-    background:blue;
+    background-color: #44f;
     width:20px;
     height:20px;
     float: left;
@@ -167,22 +204,22 @@ div.capsule > * {
 div.capsule::before {
   content:"= ";
   height:100%;
-  width:0.8em;
-  margin-right: 0.25em;
-  color:blue;
-  background-color:blue;
+  width:10px;
+  margin-right:3px;
+  color: #44f;
+  background-color: #44f;
   display:inline-block;
-  border-radius: 1.2em 0 0 1.2em;
+  border-radius: 35px 0 0 35px;
   vertical-align: middle;
 }
 div.capsule::after {
   content:" =";
   height:100%;
-  width:0.8em;
-  margin-left: 0.25em;
-  border-radius: 0 1.2em 1.2em 0;
-  color:blue;
-  background-color:blue;
+  width:10px;
+  margin-left:3px;
+  border-radius: 0 35px 35px 0;
+  color: #44f;
+  background-color: #44f;
   display:inline-block;
   vertical-align: middle;
 }
@@ -190,20 +227,27 @@ div.capsule::after {
 /****** layouts ******/
 .vspace { height: 20px; display: block; }
 .hspace { width: 20px; display: inline-block; }
-.table { display: table; }
-.tabs  { display: table-row; }
+.table { display: table; width: 100%; }
+.table > * { display: table-row; }
 .cell  { display: table-cell;
          text-align: center;
-         padding: 0 1em;
+         padding: 0 6px;
 }
+
+.tabs  { display: table-row; }
 .tabs > .cell {
   border-left: 1em solid #000;
   border-right: 1em solid #000;
 }
 
+.vertical {
+  transform: rotate(90deg);
+  transform-origin: left top 0;
+}
+
 /****** selections ******/
 [aria-selected="true"], [aria-expanded="true"] {
-    background-color: #ddd;
+    background-color: #c3c;
 }
 
 

@@ -4,6 +4,7 @@ form, fieldset, input, p, blockquote, table, th, td, embed, object,span {
     margin: 0px; 
     vertical-align:top;
     font-family: "Osaka-mono", Monaco, monospace;
+    font-size: 12pt;
     }
 td {vertical-align:top}
 table {
@@ -35,4 +36,7 @@ button {
     width: 100%;
     height: 100%;
 }
-
+a {
+  text-decoration: none;
+  outline: none;
+}

@@ -1,3 +1,5 @@
+import { planDisplay } from './display.jsx';
+
 // props : { title : String,
 //           doc   : { 'title' : ReactElement },
 //           winsz : [Int,Int],
