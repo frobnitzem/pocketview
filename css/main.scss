@@ -55,10 +55,18 @@ div.content::after {
   height: 18px;
 }
 .text {
-  vertical-align: middle;
+  display: inline-block;
   overflow-y: auto;
+  text-align: justify;
+  margin: 0 0 0 auto;
+  padding: 14px;
+  line-height: 21px;
   color: #ddd;
-  height: 18px;
+}
+.line {
+  vertical-align: top;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 /* titles should be at least 35px, which is large enough to hold the

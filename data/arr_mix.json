@@ -1,0 +1,4 @@
+["a mixed type array", 0, {
+    "folks": 5000,
+    "say": "Don't mix types"
+}, false, [99, "or else"]]

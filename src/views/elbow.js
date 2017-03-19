@@ -1,6 +1,7 @@
-import { toggleSorted } from "../lib.js";
-import { max2, add2, titleWidth, linkWidth } from "../lib.js";
-import { planDisplay } from './display.jsx';
+import React from 'react'
+
+import { max2, add2, titleSize, linkWidth, toggleSorted } from "../lib/helpers"
+import { planDisplay } from './display'
 
 // props : { title : String,
 //           plan  : { 'title' : ReactElement },
@@ -113,10 +114,11 @@ export function planElbow(title, doc) {
         let ret = planDisplay(key, doc[key])
         plan[key] = ret[0];
         max2(minsz, ret[1]);
-        add2(totsz, ret[2]);
+        add2(totsz, ret[1]);
     }
+    let tsz = titleSize(title);
     let col1_w = name_width < 60 ? 60 : name_width;
-    let col2_w = 20 + 5 + titleWidth(title) + 5 + 30;
+    let col2_w = 20 + 5 + tsz[0] + 5 + 30;
 
     let row1_h = 120;
     let row2_h = 25 + (28+5)*names + 60;
@@ -135,6 +137,6 @@ export function planElbow(title, doc) {
     var disp = <Elbow title={title} plan={plan}
                   winsz={[640,480]}
                   fixsz={ [row1_h, col1_w, row1_h+row2_h-60, col1_w+col2_w-20] } />
-    return [disp, minsz, totsz];
+    return [disp, totsz];
 }
 

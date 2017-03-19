@@ -1,5 +1,6 @@
 {
   "name": "pocketview",
+  "private": true,
   "version": "0.0.1",
   "description": "A JSON viewer to keep in your back pocket.",
   "repository": {
@@ -11,6 +12,16 @@
     "email": "predictivestatmech@gmail.com"
   },
   "license": "MIT",
+  "scripts": {
+    "test": "ava \"src/**/*.test.js\" --verbose",
+    "watch:test": "npm run test -- --watch"
+  },
+  "ava": {
+    "babel": "inherit",
+    "require": [
+      "./test/setup-test-env.js"
+    ]
+  },
   "babel": {
     "presets": [
       "react",
@@ -18,7 +29,20 @@
     ]
   },
   "devDependencies": {
+    "ava": "^0.18.2",
+    "axios": "^0.15.3",
     "babel-core": "^6.23.1",
-    "babel-loader": "^6.4.0"
+    "babel-polyfill": "6.9.1",
+    "babel-preset-es2015": "6.9.0",
+    "babel-preset-react": "6.5.0",
+    "babel-preset-stage-2": "6.5.0",
+    "babel-register": "^6.24.0",
+    "canvas": "^1.6.4",
+    "enzyme": "^2.7.1",
+    "jsdom": "^9.12.0",
+    "react": "^15.4.2",
+    "react-addons-test-utils": "^15.4.2",
+    "react-dom": "^15.4.2",
+    "test": "^0.6.0"
   }
 }

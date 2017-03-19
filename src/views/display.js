@@ -1,7 +1,10 @@
-import { Tabs } from "./tabs.jsx";
-import { Elbow, planElbow } from "./elbow.jsx";
-import { ArrTbl, planArrTbl } from "./array.jsx";
-import { textWidth } from "../lib.js";
+import React from 'react'
+
+import { Tabs } from "./tabs"
+import { Elbow, planElbow } from "./elbow"
+import { ArrTbl, planArrTbl } from "./array"
+import { textWidth } from "../lib/helpers"
+import { planText } from "./text"
 
 // [] -> Array
 // {} -> Object
@@ -59,14 +62,11 @@ function count_obj(doc) {
 }
 
 // Calculate display attributes for each leaf node
-// for which a 'good' display function exists.
+// assuming it can be rendered in its entirety.
 //
 // Returns the following:
 // [ disp,  // e.g. <ArrTbl  f=id />
-//   minsz, // e.g. [ 10, 10 ] -- h x w, minimum to display element
-//          // This is actually the size of the largest sub-element
-//          // inside the container.
-//   totsz  // e.g. [ 40, 60 ] -- preference (also describes req'd area)
+//   sz,    // e.g. [ 10, 10 ] -- h x w required to display element
 // ]
 
 // Reactify-s the JSON data by transforming it into
@@ -77,31 +77,21 @@ export function planDisplay(title, doc) {
         //var num = count_arr(doc);
         //if(is_pure(num)) { // make better plans...
         //} 
+        console.log("Planning array sz " + doc.length)
         return planArrTbl(title, doc);
     case "Object":
         return planElbow(title, doc);
     case "String":
-        if(doc.match(/\n/)) {
-            var lines = 0;
-            var wid = 0;
-            doc.split(/\r?\n/).forEach( (line) => {
-                let w = textWidth(line);
-                lines += 1;
-                wid = wid >= w ? wid : w;
-            });
-            return [<div className="text"> {doc} </div>,
-                     [lines*30, wid], [lines*30, wid]
-                   ]
+        if(doc.length > 30 || doc.match(/\r?\n/)) {
+            return planText(title, doc)
         }
     case "Number":
     case "Boolean":
     case "Null":
-        let wid = textWidth(doc) + 15;
-        return [<div className="token"> {doc} </div>,
-                 [30, wid], [30, wid]
-               ]
+        let wid = textWidth(doc) + 30;
+        return [<div className="token">{doc}</div>, [30+21, wid] ]
     default:
-        return [ <span className="unknown" />, [0,0], [0,0] ]
+        return [ <span className="unknown" />, [0,0] ]
     }
 }
 
@@ -121,9 +111,6 @@ export var Display = React.createClass({
     },
 
     updateDimensions() {
-        this.setState({width: width, height: height});
-
-        // if you are using ES2015 I'm pretty sure you can do this: this.setState({width, height});
         this.setState({ winsz: [window.innerWidth,
                                 window.innerHeight].map(lowerbound)
                       });

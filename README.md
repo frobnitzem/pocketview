@@ -82,6 +82,7 @@ Quick Start
 ```shell
 $ git clone https://github.com/frobnitzem/pocketview
 $ cd pocketview
+$ npm install --save-dev
 $ webpack
 ```
 

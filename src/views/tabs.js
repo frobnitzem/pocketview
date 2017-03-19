@@ -1,4 +1,5 @@
-import { planDisplay } from './display.jsx';
+import React from 'react'
+import { planDisplay } from './display'
 
 // props : { title : String,
 //           doc   : { 'title' : ReactElement },

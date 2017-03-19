@@ -3,3 +3,4 @@ css/*.map
 js/bundle.js
 .sass-cache
 node_modules
+npm-debug.log
