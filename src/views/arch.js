@@ -3,11 +3,10 @@ import React from 'react'
 import { max2, add2, titleSize, linkWidth, toggleSorted } from "../lib/helpers"
 import { planDisplay } from './display'
 
-// props : { title : String,
-//           plan  : { 'title' : ReactElement },
-//           winsz : [Int,Int],
-//           fixwid : Int }
-export var Elbow = React.createClass({
+// props : { plan  : planElem,
+//           winsz : [Int,Int]
+//         }
+export var Arch = React.createClass({
   getInitialState() {
     return { expanded: [] };
   },
@@ -25,7 +24,8 @@ export var Elbow = React.createClass({
   _renderTitles() {
       var _this = this;
       var keys = [];
-      Object.keys(this.props.plan).forEach(function(idx) {
+      const { plan } = this.props;
+      Object.keys(plan.sub).forEach(function(idx) {
           toggleSorted(keys, idx);
       }); // sort em
       return keys.map(function(idx) {
@@ -41,16 +41,15 @@ export var Elbow = React.createClass({
   },
   
   // Table of expanded elements
-  // TODO: re-factor this into a grid-display function.
   _renderContent() {
-      var props = this.props;
-      let wid = props.winsz[0] - props.fixsz[1] - 15;
-      let ht  = ( props.winsz[1] - props.fixsz[0] - 15 )
+      const { plan, winsz } = this.props;
+      let wid = winsz[0] - plan.fixsz[0] - 15;
+      let ht  = ( winsz[1] - plan.fixsz[1] - 15 )
                     / this.state.expanded.length;
       let cols = this.state.expanded.map(function(idx) {
           return (
               <div className="row" key={idx}> {
-                  React.cloneElement(props.plan[idx], {
+                  React.cloneElement(plan.sub[idx], {
                           winsz : [wid, ht],
                   })
               } </div>
@@ -64,10 +63,11 @@ export var Elbow = React.createClass({
   },
 
   render() {
-    let wid = this.props.winsz[0] - this.props.fixsz[3];
-    let ht  = this.props.winsz[1] - this.props.fixsz[2] + 60;
+    const { plan, winsz } = this.props;
+    let wid = winsz[0] - plan.fixsz[2];
+    let ht  = winsz[1] - plan.fixsz[3] + 60;
     let sz = <p style={{color:"black",verticalAlign:"bottom"}}>
-                {this.props.winsz[0]+" x "+this.props.winsz[1]}</p>;
+                {winsz[0]+" x "+winsz[1]}</p>;
     return ( <table className="box_nav"><tbody>
       <tr>
         <th id="box11"></th>
@@ -76,7 +76,7 @@ export var Elbow = React.createClass({
           {sz}
           &nbsp;</div>
           <div className="htitle">
-            { this.props.title }
+            { plan.title }
           </div>
           <div className="rcap">&nbsp;</div>
         </th>
@@ -88,7 +88,7 @@ export var Elbow = React.createClass({
           <div className="bcap" style={{height:ht+"px"}}>&nbsp;</div>
         </td>
         <td id="box22">
-          <div className='elbow'>
+          <div className='arch'>
             <div className='elbow_cut'></div>
           </div>
           { this._renderContent() }
@@ -99,22 +99,22 @@ export var Elbow = React.createClass({
   }
 });
 
-export function planElbow(title, doc) {
+export function planArch(path, doc) {
+    const title = path[path.length-1] || "";
     var minsz = [0,0];
     var totsz = [0,0];
 
     var name_width = 0;
     var names = 0;
-    var plan = {};
+    var sub = {};
     for(var key in doc) {
         let width = linkWidth(key);
         name_width = width > name_width ? width : name_width;
         names += 1;
 
-        let ret = planDisplay(key, doc[key])
-        plan[key] = ret[0];
-        max2(minsz, ret[1]);
-        add2(totsz, ret[1]);
+        sub[key] = planDisplay(path.concat(key), doc[key])
+        max2(minsz, sub[key].sz);
+        totsz[1] += sub[key].sz[1];
     }
     let tsz = titleSize(title);
     let col1_w = name_width < 60 ? 60 : name_width;
@@ -128,15 +128,18 @@ export function planElbow(title, doc) {
     add2(minsz, content_pad);
     add2(totsz, content_pad);
 
-    max2(minsz, [row2_h, col2_w]);
-    max2(totsz, [row2_h, col2_w]);
+    max2(minsz, [col2_w, row2_h]);
+    max2(totsz, [col2_w, row2_h]);
 
-    add2(minsz, [row1_h, col1_w]);
-    add2(totsz, [row1_h, col1_w]);
+    add2(minsz, [col1_w, row1_h]);
+    add2(totsz, [col1_w, row1_h]);
 
-    var disp = <Elbow title={title} plan={plan}
-                  winsz={[640,480]}
-                  fixsz={ [row1_h, col1_w, row1_h+row2_h-60, col1_w+col2_w-20] } />
-    return [disp, totsz];
+    let plan = {
+            sz: totsz, path, sub,
+            fixsz: [col1_w, row1_h, col1_w+col2_w-20, row1_h+row2_h-60]
+        };
+    const elem = <Arch title={title} key={path.join(".")}
+                       plan={plan} winsz={[300,150]} />
+    return Object.assign(plan, { elem } )
 }
 

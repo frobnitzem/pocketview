@@ -3,21 +3,18 @@ import React, {PropTypes} from 'react'
 import { max2, add2, titleSize, linkWidth, textWidth } from '../lib/helpers'
 import { planDisplay } from './display'
 
-var identity = x => x
-
 export class ArrTbl extends React.Component {
   render() {
-    const props = this.props
-    let items = []
+    const { plan } = this.props
+    const items = plan.sub.map((s,i) =>
+        <div key={i.toString()} className="row">{ s }</div>)
 
-    for(var i=0; i<props.doc.length; i++) {
-        items.push(<div key={i.toString()} className="row">
-                        { props.doc[i] } </div>)
-    }
+    const title = plan.path[plan.path.length-1] || "[0]"
+
     return ( <div className="content">
-               { props.title &&
+               { !title.match(/^\[[0-9]*\]$/) &&
                <div className="capsule"> <div className="title">
-                    { props.title }
+                    { title }
                </div> </div> }
                <div className="capsule"><div className="table">
                  { items }
@@ -28,36 +25,37 @@ export class ArrTbl extends React.Component {
 }
 
 ArrTbl.propTypes = {
-    title : PropTypes.string,
-    doc   : PropTypes.array,
-    winsz : PropTypes.array.isRequired, // [Number, Number]
-    fn    : PropTypes.func.isRequired
-}
-
-// Specifies the default values for props:
-ArrTbl.defaultProps = {
-    fn: identity
+    plan  : PropTypes.object,          // planElem
+    winsz : PropTypes.array.isRequired // [Number, Number]
 }
 
 // Calculate wrapper size.
-export function planArrTbl(title, doc) {
-    let mysz = [title ? 35 : 0, 13*2];
+export function planArray(path, doc) {
+    //var num = count_arr(doc);
+    //if(is_pure(num)) { // make better plans...
+    //} 
+    const title = path[path.length-1] || "";
+    const mysz = [13*2, title ? 35 : 0];
 
     var minsz = title ? titleSize(title) : [0,0];
-    var children = [];
+    var sub = [];
 
-    doc.forEach( u => {
-        let ret = planDisplay("", u);
-        children.push(ret[0]);
-        max2(minsz, ret[1]);
+    doc.forEach((u,i) => {
+        let ret = planDisplay(path.concat('['+i+']'), u);
+        sub.push(ret);
+        max2(minsz, ret.sz);
     });
 
-    var totsz = [ doc.length*18, minsz[1] ];
+    var totsz = [ minsz[0], doc.length*18 ];
 
     add2(minsz, mysz);
     add2(totsz, mysz);
-    const disp = <ArrTbl title={title} winsz={[0,0]} doc={children}
-                         totsz={totsz} fn={identity}></ArrTbl>
-    return [disp, totsz];
+
+    const plan = {
+            sz:   totsz,
+            path, sub
+          };
+    const elem = <ArrTbl winsz={[300,150]} plan={plan} key={path.join(".")} />
+    return Object.assign(plan, {elem})
 }
 

@@ -1,35 +1,38 @@
-import React, {PropTypes} from 'react'
+import React, {PropTypes, createElement} from 'react'
 
 import { max2, add2, titleSize, textWidth } from '../lib/helpers'
 import { typeset } from '../lib/typeset/typeset'
 
 export class Text extends React.Component {
     render() {
-        const props = this.props
+        const { winsz, plan, children } = this.props
+        const title = plan.path[plan.path.length-1]
 
-        return <div className="content" style={{ width:props.sz[0],
-                                                 height:props.sz[1] }}>
-                 { props.title &&
+        return <div className="content" style={{ width: winsz[0],
+                                                 height: winsz[1] }}>
+                 { title &&
                    <div className="capsule"> <div className="title">
-                     { props.title }
+                     { title }
                    </div></div>
                  }
-                 { props.doc }
+                 { children }
                </div>
     }
 }
 
 Text.propTypes = {
-    title : PropTypes.string,
-    sz    : PropTypes.array.isRequired,
-    doc   : PropTypes.element.isRequired
+    plan  : PropTypes.object,
+    winsz : PropTypes.array.isRequired,
+    children : PropTypes.any.isRequired
 }
 
 // Line lengths should be between 45 and 90 characters
 // or 2-3 alphabets (use 2.6 or so), font between 15-25 px
 // vert. spacing 120–145% of the point size (line-height: 1.35;)
-export function planText(title, doc) {
+export function planText(path, doc) {
     const width = 350
+    const title = path[path.length-1]
+
     var ret = typeset(doc, 'justify', [width], 3)
     var lines = ret[1].length
 
@@ -47,6 +50,11 @@ export function planText(title, doc) {
     //});
     console.log("Planned text: ", lines, sz)
 
-    return [ <Text title={title} doc={ret[0]} sz={sz} />, sz ]
+    const plan = {
+        sz, path
+    }
+    return Object.assign(plan, {
+                elem: createElement(Text, {winsz:[300,150], plan}, ret[0])
+    })
 }
 

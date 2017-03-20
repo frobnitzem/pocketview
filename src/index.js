@@ -1,7 +1,14 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { render } from 'react-dom';
+import { createStore } from 'redux'
+import { Provider } from 'react-redux'
+
 import axios from 'axios';
-import { Display } from "./views/display.js";
+
+import { planDisplay } from "./views/display.js";
+
+import App from './containers/App'
+import reducer from './reducers'
 
 // Leading causes of death in the City of New York.
 // Dataset courtesy of:
@@ -53,8 +60,12 @@ var simple_doc = {
     sub: { a: 1, b: 2 }
 }
 
-ReactDOM.render( <Display title={"System"} doc={ simple_doc } />,
-                 document.getElementById('containment') );
-//var Completed = Retrieve("Completed", "https://sque.predictivestatmech.org/api/v1/completed/");
-//ReactDOM.render( <Completed />, document.getElementById('containment') );
+//const plan = planDisplay(["System"], simple_doc)
+// TODO: create initial state from plan.
+const store = createStore(reducer)
 
+render( <Provider store={store}>
+          <App winsz={[600,400]} />
+        </Provider>,
+        document.getElementById('containment')
+      )

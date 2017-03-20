@@ -1,0 +1,51 @@
+.nav {
+  overflow: hidden;
+  position: relative;
+}
+
+.lvert {
+  color:white;
+  vertical-align: middle;
+  transform: rotate(-90deg);
+  transform-origin: bottom left 0;
+  border: dotted gray 1px;
+  padding: 0;
+  position: absolute;
+}
+
+.lblock {
+  border: solid orange 0px;
+  /*-webkit-border-image: -webkit-linear-gradient(left, orange, salmon);*/
+  position: absolute;
+  animation-name: hgrow;
+  animation-duration: 0.3s;
+  animation-timing-function: ease-out;
+}
+
+/* Fixes the width of the contents during transformation. */
+.contents {
+  margin: 10px; 
+}
+
+.rvert {
+  color:white;
+  transform: rotate(90deg);
+  transform-origin: top left 0;
+  border: dotted gray 1px;
+  padding: 0;
+  position: absolute;
+}
+
+.rblock {
+  border: solid salmon 0px;
+  position: absolute;
+  bottom:0;
+  right:0;
+}
+
+/* The animation code */
+@keyframes hgrow {
+    from {right: 20px; width: 0;}
+    to {left: 0px; width: 90%;}
+}
+

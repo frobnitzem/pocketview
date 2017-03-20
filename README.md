@@ -85,10 +85,3 @@ $ cd pocketview
 $ npm install --save-dev
 $ webpack
 ```
-
-Contributors
-------------
-
-Original inspiration for css styling from
-[Leathan Lund](http://www.king-con.com/sto/console/).
-

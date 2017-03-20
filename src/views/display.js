@@ -1,10 +1,9 @@
 import React from 'react'
 
-import { Tabs } from "./tabs"
-import { Elbow, planElbow } from "./elbow"
-import { ArrTbl, planArrTbl } from "./array"
 import { textWidth } from "../lib/helpers"
 import { planText } from "./text"
+import { planArch } from "./arch"
+import { planArray } from "./array"
 
 // [] -> Array
 // {} -> Object
@@ -61,72 +60,42 @@ function count_obj(doc) {
     return num;
 }
 
-// Calculate display attributes for each leaf node
-// assuming it can be rendered in its entirety.
-//
-// Returns the following:
-// [ disp,  // e.g. <ArrTbl  f=id />
-//   sz,    // e.g. [ 10, 10 ] -- h x w required to display element
-// ]
+function tokey(path) {
+    return path.join(".");
+}
 
 // Reactify-s the JSON data by transforming it into
 // a display, modeled as a tree of React elements.
-export function planDisplay(title, doc) {
+//
+// Calculate display attributes for each leaf node
+// assuming it can be rendered in its entirety.
+//
+// Returns an object of type planElem
+export function planDisplay(path, doc) {
     switch(realTypeOf(doc)) {
     case "Array":
-        //var num = count_arr(doc);
-        //if(is_pure(num)) { // make better plans...
-        //} 
-        console.log("Planning array sz " + doc.length)
-        return planArrTbl(title, doc);
+        return planArray(path, doc);
     case "Object":
-        return planElbow(title, doc);
+        return planArch(path, doc);
     case "String":
         if(doc.length > 30 || doc.match(/\r?\n/)) {
-            return planText(title, doc)
+            return planText(path, doc)
         }
     case "Number":
     case "Boolean":
     case "Null":
-        let wid = textWidth(doc) + 30;
-        return [<div className="token">{doc}</div>, [30+21, wid] ]
+        doc = doc.toString();
+        const wid = textWidth(doc) + 30;
+        return { elem: <div key={tokey(path)} className="token">{
+                         doc }</div>,
+                 sz: [wid, 21],
+                 path: path
+               }
     default:
-        return [ <span className="unknown" />, [0,0] ]
+        return { elem: <span key={tokey(path)} className="unknown" />,
+                 sz: [0,0],
+                 path: path
+               }
     }
 }
 
-function lowerbound(a) {
-    return a < 300 ? 300 : a;
-}
-
-// This is a top-level component.  Please do not use unless
-// the display size is not known beforehand.
-// { 'title' : String, 'doc' : {} }
-export var Display = React.createClass({
-    getInitialState() {
-        return ({ // width x height
-            winsz:  [window.innerWidth, window.innerHeight].map(lowerbound),
-            plan:   planDisplay(this.props.title, this.props.doc)
-        });
-    },
-
-    updateDimensions() {
-        this.setState({ winsz: [window.innerWidth,
-                                window.innerHeight].map(lowerbound)
-                      });
-    },
-
-    componentDidMount() {
-        this.updateDimensions();
-        window.addEventListener("resize", this.updateDimensions);
-    },
-
-    componentWillUnmount() {
-        window.removeEventListener("resize", this.updateDimensions);
-    },
-
-    render() {
-        return React.cloneElement(this.state.plan[0],
-                                  { winsz: this.state.winsz });
-    }
-});

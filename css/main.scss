@@ -1,4 +1,5 @@
 @import 'colors';
+@import 'nav';
 
 $title-font: 20pt FinalNew, serif;
 $title-color: white;
@@ -77,6 +78,10 @@ div.content::after {
   color: $title-color;
   padding: 5px;
   background: none;
+}
+
+.navItem {
+    display: inline-block;
 }
 
 .link {
