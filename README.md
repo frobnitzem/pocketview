@@ -71,9 +71,14 @@ Step 5: add special styling for errors / warnings
 Stack
 -----
 
-- React
 - Babel
+- React
+- Redux
+- Ava
+- Enzyme
 - Webpack
+- [Bin-Packing](https://github.com/jakesgordon/bin-packing)
+- [Typeset](https://github.com/bramstein/typeset)
 
 
 Quick Start

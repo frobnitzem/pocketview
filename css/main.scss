@@ -52,6 +52,7 @@ div.content::after {
 .token {
   vertical-align: middle;
   text-align: center;
+  white-space: nowrap;
   color: #eee;
   height: 18px;
 }
@@ -208,32 +209,33 @@ div.elbow_cut {
 /****** capsule ******/
 /* ex: <div class="capsule">Title</div> */
 div.capsule {
-  display:table-row;
+  display:table;
 }
 div.capsule > * {
   vertical-align: middle;
+  white-space: nowrap;
   display:table-cell;
 }
 div.capsule::before {
   content:"= ";
   height:100%;
-  width:10px;
+  width: 90%;
   margin-right:3px;
   color: #44f;
   background-color: #44f;
-  display:inline-block;
+  display:table-cell;
   border-radius: 35px 0 0 35px;
   vertical-align: middle;
 }
 div.capsule::after {
   content:" =";
   height:100%;
-  width:10px;
+  width:auto;
   margin-left:3px;
   border-radius: 0 35px 35px 0;
   color: #44f;
   background-color: #44f;
-  display:inline-block;
+  display:table-cell;
   vertical-align: middle;
 }
 

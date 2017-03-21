@@ -1,21 +1,17 @@
 import React, {PropTypes} from 'react'
 
+import Title from './title'
 import { max2, add2, titleSize, linkWidth, textWidth } from '../lib/helpers'
 import { planDisplay } from './display'
 
 export class ArrTbl extends React.Component {
   render() {
-    const { plan } = this.props
+    const { plan, toggle } = this.props
     const items = plan.sub.map((s,i) =>
-        <div key={i.toString()} className="row">{ s }</div>)
-
-    const title = plan.path[plan.path.length-1] || "[0]"
+        <div key={i.toString()} className="row">{ s.elem }</div>)
 
     return ( <div className="content">
-               { !title.match(/^\[[0-9]*\]$/) &&
-               <div className="capsule"> <div className="title">
-                    { title }
-               </div> </div> }
+               <Title path={plan.path} toggle={toggle} />
                <div className="capsule"><div className="table">
                  { items }
                </div></div>
@@ -25,8 +21,9 @@ export class ArrTbl extends React.Component {
 }
 
 ArrTbl.propTypes = {
-    plan  : PropTypes.object,          // planElem
-    winsz : PropTypes.array.isRequired // [Number, Number]
+    plan  : PropTypes.object,           // planElem
+    winsz : PropTypes.array.isRequired, // [Number, Number]
+    toggle : PropTypes.func
 }
 
 // Calculate wrapper size.
@@ -39,6 +36,7 @@ export function planArray(path, doc) {
 
     var minsz = title ? titleSize(title) : [0,0];
     var sub = [];
+    minsz[1] = 0; // height of title not included
 
     doc.forEach((u,i) => {
         let ret = planDisplay(path.concat('['+i+']'), u);

@@ -1,0 +1,11 @@
+Contributing Authors
+--------------------
+
+* David M. Rogers <predictivestatmech@gmail.com>
+
+* Original inspiration for css styling from
+  [Leathan Lund](http://www.king-con.com/sto/console/).
+
+* Much credit goes to the community, including react, redux,
+  and ava libraries, as well as npm and webpack tools.
+

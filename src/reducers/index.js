@@ -1,8 +1,33 @@
 import { combineReducers } from 'redux'
 import views from './views'
 
-export default views
+import { NAV_SHOW } from '../constants/ViewStates'
+
+// make a higher-level reducer
 //combineReducers({ views })
+
+// creates a reducer, using plan to make the initial state
+export default function(plan) {
+    let i = -1
+    const navs = Object.keys(plan.sub).map(key => {
+                        i += 1
+                        return { id: i, state: NAV_SHOW, plan: plan.sub[key] }
+                 })
+    console.log(navs)
+    const initialState = {
+       path:  plan.path,
+       grid:  [],
+       navs,
+       nextID: i+1
+    }
+
+    return function(state, action) {
+        if (typeof state === 'undefined') {
+            return initialState
+        }
+        return views(state, action)
+    }
+}
 
 /* The reducer manages a set of hierarchy objects by managing
  * transitions between 3 states:

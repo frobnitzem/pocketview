@@ -15,7 +15,8 @@ const plan10 = {
 
 test('Text renders title and contents', t => {
   const sub = [ <span className="line">A single line.</span> ]
-  const ret = shallow( createElement(Text, {winsz:[300,150], plan:plan10},
+  const ret = shallow( createElement(Text, { winsz:[300,150], plan:plan10,
+                                             toggle: () => {} },
                                      sub) );
   //t.true(ret.hasClass(Text));
   t.true(ret.find('.capsule').exists());

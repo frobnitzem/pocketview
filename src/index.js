@@ -2,13 +2,12 @@ import React from 'react';
 import { render } from 'react-dom';
 import { createStore } from 'redux'
 import { Provider } from 'react-redux'
+import { planDisplay } from "./views/display.js";
 
 import axios from 'axios';
 
-import { planDisplay } from "./views/display.js";
-
 import App from './containers/App'
-import reducer from './reducers'
+import mk_reducer from './reducers'
 
 // Leading causes of death in the City of New York.
 // Dataset courtesy of:
@@ -60,9 +59,9 @@ var simple_doc = {
     sub: { a: 1, b: 2 }
 }
 
-//const plan = planDisplay(["System"], simple_doc)
-// TODO: create initial state from plan.
-const store = createStore(reducer)
+const title = "System"
+const plan = planDisplay([title], simple_doc)
+const store = createStore(mk_reducer(plan))
 
 render( <Provider store={store}>
           <App winsz={[600,400]} />

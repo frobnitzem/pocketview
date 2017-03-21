@@ -49,7 +49,7 @@ export var Arch = React.createClass({
       let cols = this.state.expanded.map(function(idx) {
           return (
               <div className="row" key={idx}> {
-                  React.cloneElement(plan.sub[idx], {
+                  React.cloneElement(plan.sub[idx].elem, {
                           winsz : [wid, ht],
                   })
               } </div>

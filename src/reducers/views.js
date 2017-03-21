@@ -3,28 +3,9 @@ import React from 'react'
 import * as types from '../constants/ActionTypes'
 import { NAV_SHOW, VIEW_SHOW, VIEW_PIN } from '../constants/ViewStates'
 
-const item0 = {
-   id:   0,
-   plan: { elem: <div className="token"> Initial Content </div>,
-           sz: [120, 21],
-           path: ["Main", "Initial"]
-         },
-   state: NAV_SHOW
-}
-
-const initialState = {
-   path:  ["Main"],
-   grid:  [],
-   navs: [item0]
-}
-
 export default function views(state, action) {
     var ns = {};
     var e;
-    if (typeof state === 'undefined') {
-        return initialState
-    }
-
     console.log("Handling: " + state, action)
 
     switch (action.type) {

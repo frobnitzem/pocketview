@@ -2,6 +2,7 @@ import React from 'react'
 
 import { textWidth } from "../lib/helpers"
 import { planText } from "./text"
+import { planToken } from "./token"
 import { planArch } from "./arch"
 import { planArray } from "./array"
 
@@ -84,13 +85,7 @@ export function planDisplay(path, doc) {
     case "Number":
     case "Boolean":
     case "Null":
-        doc = doc.toString();
-        const wid = textWidth(doc) + 30;
-        return { elem: <div key={tokey(path)} className="token">{
-                         doc }</div>,
-                 sz: [wid, 21],
-                 path: path
-               }
+        return planToken(path, doc)
     default:
         return { elem: <span key={tokey(path)} className="unknown" />,
                  sz: [0,0],
