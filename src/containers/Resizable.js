@@ -29,12 +29,11 @@ export default class Display extends Component {
     }
 
     render() {
-        return <div plan={this.state.plan[0]} winsz={this.state.winsz} />
-        return React.cloneElement(this.props.child,
+        return React.cloneElement(this.props.children[0],
                                   { winsz: this.state.winsz });
     }
 }
 
 Display.propTypes = {
-    child: PropTypes.element.isRequired
+    children: PropTypes.element.isRequired
 }

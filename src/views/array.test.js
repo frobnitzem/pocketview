@@ -6,11 +6,18 @@ import {shallow, mount} from 'enzyme';
 import {renderToStaticMarkup} from 'react-dom/server';
 import { ArrTbl, planArray } from './array';
 
-const fn1 = <p key={1}> 1 </p>;
-const fn2 = <p key={2}> 2 </p>;
+const plan1 = {elem: <p key={1}> 1 </p>,
+               path: ['X', 'Y'],
+               sz:   [50,50]
+              }
+const plan2 = {elem: <p key={2}> 2 </p>,
+               path: ['X', 'Z'],
+               sz:   [60,50]
+              }
 const plan9 = {
-            sub: [fn1, fn2],
+            sub: [plan1, plan2],
             sz: [100, 100],
+            tsz: [100, 137],
             path: [],
         }
 

@@ -82,7 +82,7 @@ function area(r, w,h) {
     return w < r*h ? r*h*h : w*w/r;
 }
 
-ColLayout = function(n, r) {
+export var ColLayout = function(n, r) {
     this.init(n, r);
 };
 
@@ -177,4 +177,3 @@ ColLayout.prototype = {
       return x;
   }
 }
-

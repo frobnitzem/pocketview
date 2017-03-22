@@ -1,30 +1,18 @@
 @import 'colors';
+@import 'text';
 @import 'nav';
-
-$title-font: 20pt FinalNew, serif;
-$title-color: white;
+@import 'capsule';
+@import 'arch';
 
 /****** main ******/
-@font-face {
-  font-family: FinalNew;
-  src: url(../fonts/finalnew.ttf);
-} 
-
 body {
   min-height:90%;
-  color:#ffffff;
-  background-color:#020202;
+  color: white;
+  background-color: black;
   background-repeat:no-repeat;
   background-position:center top;
   background-attachment:fixed;
   margin:0px;
-}
-
-table, tbody, tr {
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    display: block;
 }
 
 div#containment {
@@ -35,9 +23,9 @@ div#containment {
 }
 
 div.content {
-  overflow-x: auto;
-  overflow-y: auto;
-  display:block;
+  overflow: hidden;
+  display: block;
+  position: relative;
 }
 div.content::after {
   /* prevent floats overflowing content */
@@ -46,56 +34,14 @@ div.content::after {
   display: table;
 }
 
-/* These fixed heights are large enough to hold 1 line
- * of the 14pt monospace used here.
- */
-.token {
-  vertical-align: middle;
-  text-align: center;
-  white-space: nowrap;
-  color: #eee;
-  height: 18px;
-}
-.text {
-  display: inline-block;
-  overflow-y: auto;
-  text-align: justify;
-  margin: 0 0 0 auto;
-  padding: 14px;
-  line-height: 21px;
-  color: #ddd;
-}
-.line {
-  vertical-align: top;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-/* titles should be at least 35px, which is large enough to hold the
- * 20pt FinalNew here.
- */
-.title {
-  font: $title-font;
-  color: $title-color;
-  padding: 5px;
-  background: none;
-}
-
-.navItem {
-    display: inline-block;
-}
-
 .link {
-    background-color: #66e;
+    background-color: $link-color;
     color: black;
     vertical-align: middle;
-    height: 100%;
-    width: 100%;
-    padding: 0 5px;
 }
-
 .link:hover {
     background-color:white;
+    cursor:pointer;
 }
 
 /* not currently used */
@@ -106,147 +52,22 @@ div.content::after {
   padding: 10px 15px;
   font-size: 14px;
   font-weight: bold;
-  color: #000;
+  color: black;
   text-decoration: none;
   text-align: center;
-  background-color: #99c;
+  background-color: $purple;
   border: none;
   cursor: pointer;
 }
 
-/****** box nav ******/
-.box_nav th, .box_nav td {
-    position: relative;
-}
-/*.box_nav th:first-child {*/
-#box11 {
-  /* top-left corner */
-  border-top-left-radius: 40px;
-  border: 0px;
-  height: 40px;
-  width: 40px;
-  background-color: #44f;
-}
-#box12 {
-  min-width: 200px;
-}
-#box12 > * {
-  /* divs in first row */
-  margin-right: 5px;
-  vertical-align: middle;
-  display: inline-block;
-  height: 40px;
-}
-div.lhspace {
-  background-color: #44f;
-  min-width: 20px;
-  width: 120px; /* computed */
-}
-div.htitle {
-  font: $title-font;
-  color: $title-color;
-  padding: 0 5px;
-  top: 12px;
-  right: 35px;
-}
-div.rcap {
-  background-color: #44f;
-  width: 30px;
-  border-radius: 0 15px 15px 0;
-  padding: 0;
-  position: absolute;
-  right: 0;
-}
-#box21 {
-  /* bottom left corner / vertical nav */
-  width: 60px; /* computed */
-  margin: 0 10px;
-}
-#box21 > * {
-  margin-bottom: 5px;
-  display: block;
-  width: 100%;
-  padding: 0 0;
-  text-align: center;
-}
-#box21 .link {
-  height: 18px;
-  padding: 5px 0;
-}
-div.tvspace {
-  height: 20px;
-  background-color: #44f;
-}
-div.bcap {
-  min-height: 60px; /* height computed */
-  background-color: #44f;
-  border-radius: 0 0 50px 50px;
-  margin: 0;
-}
-#box22 {
-  padding: 15px 0 0 15px;
-  position: relative;
-}
-div.elbow {
-    background-color: #44f;
-    width:20px;
-    height:20px;
-    float: left;
-    position:absolute;
-    left:0;
-    top:0;
-}
-div.elbow_cut {
-    position:absolute;
-    background-color:black;
-    width:20px;
-    height:20px;
-    bottom:0;
-    right:0;
-    border-top-left-radius:50px;
-}
-
-/****** capsule ******/
-/* ex: <div class="capsule">Title</div> */
-div.capsule {
-  display:table;
-}
-div.capsule > * {
-  vertical-align: middle;
-  white-space: nowrap;
-  display:table-cell;
-}
-div.capsule::before {
-  content:"= ";
-  height:100%;
-  width: 90%;
-  margin-right:3px;
-  color: #44f;
-  background-color: #44f;
-  display:table-cell;
-  border-radius: 35px 0 0 35px;
-  vertical-align: middle;
-}
-div.capsule::after {
-  content:" =";
-  height:100%;
-  width:auto;
-  margin-left:3px;
-  border-radius: 0 35px 35px 0;
-  color: #44f;
-  background-color: #44f;
-  display:table-cell;
-  vertical-align: middle;
-}
 
 /****** layouts ******/
 .vspace { height: 20px; display: block; }
 .hspace { width: 20px; display: inline-block; }
-.table { display: table; width: 100%; }
+.table  { display: table; width: 100%; }
 .table > * { display: table-row; }
-.cell  { display: table-cell;
-         text-align: center;
-         padding: 0 6px;
+.cell   { display: table-cell;
+          text-align: center;
 }
 
 .tabs  { display: table-row; }
@@ -262,7 +83,7 @@ div.capsule::after {
 
 /****** selections ******/
 [aria-selected="true"], [aria-expanded="true"] {
-    background-color: #c3c;
+    background-color: $sel-color;
 }
 
 

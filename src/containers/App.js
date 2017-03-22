@@ -9,12 +9,17 @@ import Grid from './Grid'
 
 import * as ViewActions from '../actions'
 
-const App = ({title, navs, grid, winsz, actions}) => (
-    <div>
-        <Nav  navs={navs} title={title} actions={actions} winsz={[500,200]} />
-        <Grid grid={grid} toggle={actions.toggleView} winsz={[500,500]} />
+// percent of space occupied by nav
+const nrat    = 0.22
+
+const App = ({title, navs, grid, winsz, actions}) => {
+    const w = winsz[0];
+    const h = Math.min(Math.max(winsz[1]*nrat, 100), 1000);
+    return <div>
+        <Nav  navs={navs} title={title} actions={actions} winsz={[w,h]} />
+        <Grid grid={grid} toggle={actions.toggleView} winsz={[w,winsz[1]-h]} />
     </div>
-)
+}
 
 App.propTypes = {
     title: PropTypes.string.isRequired,

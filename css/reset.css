@@ -4,8 +4,11 @@ form, fieldset, input, p, blockquote, table, th, td, embed, object,span {
     margin: 0px; 
     vertical-align: top;
     font-family: Osaka;
-    font-size: 12pt;
+    font-size: 14pt;
     }
+span {
+    vertical-align: middle;
+}
 td {vertical-align:top}
 table {
     border-collapse: collapse;

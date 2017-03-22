@@ -1,5 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 
+export const capsule_wid = 13*2;
+export const margin = [5*2, 5*2];
+export const title_ht = 32;
+export const line_ht = 31;
+
 export function toggleSorted(array, value) {
     var start = 0;
     var end = array.length;
@@ -49,16 +54,23 @@ function getTextWidth(text, font) {
 }
 
 export function titleSize(text) {
-    return [getTextWidth(text, "20pt FinalNew, serif")+10, 35];
+    var tsz = [getTextWidth(text, "20pt FinalNew, serif")
+                        +margin[0]+capsule_wid,
+               title_ht];
+    add2(tsz, margin);
+    return tsz;
 }
 export function linkWidth(text) {
-    return getTextWidth(text, "12pt Osaka") + 10;
+    return getTextWidth(text, "14pt Osaka") + margin[0];
+}
+export function navWidth(text) {
+    return getTextWidth(text, "14pt Osaka") + margin[0];
 }
 export function textWidth(text) {
-    return getTextWidth(text, "12pt Osaka");
+    return getTextWidth(text, "14pt Osaka");
 }
 export function textSize(text) {
-    return [textWidth(text), 21];
+    return [textWidth(text), line_ht];
 }
 
 export function max2(a, b) {

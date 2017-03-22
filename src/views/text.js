@@ -2,8 +2,11 @@ import React, {PropTypes, createElement} from 'react'
 
 import Title from './title'
 
-import { max2, add2, titleSize, textWidth } from '../lib/helpers'
+import { line_ht, margin, max2, add2,
+         titleSize, textWidth } from '../lib/helpers'
 import { typeset } from '../lib/typeset/typeset'
+
+const text_pad = [13*2, 5*2];
 
 export class Text extends React.Component {
     render() {
@@ -34,13 +37,14 @@ export function planText(path, doc) {
     var ret = typeset(doc, 'justify', [width], 3)
     var lines = ret[1].length
 
-    var sz = [ Math.max.apply(null, ret[1]) + 30,
-               21*lines + 30 ]
-    if(title) {
-        const tsz = titleSize(title)
-        sz[0] = Math.max(sz[0], tsz[0])
-        //sz[1] += tsz[1] // automatically taken care of...
-    }
+    var sz = [ Math.max.apply(null, ret[1]), line_ht*lines ]
+    add2(sz, text_pad)
+    add2(sz, margin)
+
+    var tsz = titleSize(title)
+    tsz[0] = Math.max(tsz[0], sz[0])
+    tsz[1] += sz[1] - margin[1]/2
+
     //doc.split(/\r?\n/).forEach( (line) => {
     //    let w = textWidth(line);
     //    lines += 1;
@@ -49,7 +53,7 @@ export function planText(path, doc) {
     //console.log("Planned text: ", lines, sz)
 
     const plan = {
-        sz, path
+        sz, tsz, path
     }
     return Object.assign(plan, {
         elem: createElement(Text, {winsz:[300,150], plan}, ret[0])

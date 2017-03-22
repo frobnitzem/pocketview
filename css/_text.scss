@@ -1,0 +1,78 @@
+/* titles should be at least 35px, which is large enough to hold the
+ * 20pt FinalNew here.
+ */
+.title {
+  font: $title-font;
+  color: $title-color;
+  padding: 1px 5px;
+  /*background: none;*/
+}
+
+/* These fixed heights are large enough to hold 1 line
+ * of the 14pt monospace used here.
+ */
+.token {
+  margin: 5px;
+  vertical-align: middle;
+  text-align: center;
+  white-space: nowrap;
+  color: $text-color;
+  height: 24px;
+}
+/* <div class="keytoken"><span class="title">key</span><span>val</span></div> */
+.keytoken {
+    height: 32px;
+    margin: 5px;
+    display: table;
+    > * {
+        display: table-cell;
+        vertical-align: middle;
+    };
+    :first-child {
+        color: black;
+        height: 32px;
+        padding: 0 4px 0 10px;
+        border-radius: 35px 0 0 35px;
+        background-color: $nav-color;
+        vertical-align: middle;
+        margin-right: 6px;
+        display: inline-block;
+        white-space: nowrap;
+    };
+    >*:last-child::after {
+        content: "";
+        height: 32px;
+        width: 10px;
+        margin-left: 6px;
+        border-radius: 0 35px 35px 0;
+        background-color: $nav-color;
+        vertical-align: middle;
+        display: inline-block;
+    };
+}
+
+.key {
+  vertical-align: middle;
+  text-align: center;
+  white-space: nowrap;
+  color: white;
+  height: 21px;
+  padding: 5px;
+}
+
+.text {
+  display: inline-block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  text-align: justify;
+  margin: 5px;
+  padding: 5px 13px;
+  line-height: 31px;
+  color: $text-color;
+}
+
+.line {
+  vertical-align: top;
+  display: block;
+  white-space: nowrap;
+}

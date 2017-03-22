@@ -1,17 +1,30 @@
-$darkish: #03268b;
-$medish: #7ec2fc;
-$lightish: #bceefd;
+$dark: #03268b;
+$med: #7ec2fc;
+$light: #bceefd;
+$section2: #29d3d1;
+$section3: #73ee70;
 
-$section2ish: #29d3d1;
-$section3ish: #73ee70;
-$orangeish: #f90;
-$grayBlueish: #99c;
-$salmonish: #c66;
-$tanish: #fc8;
-$blueish: #99f;
-$peachish: #f96;
-$purpleish: #c69;
-$pinkish: #c9c;
-$whiteish: #fff;
-$redish: #f55;
+$orange: #f90;
+$grayBlue: #99c;
+$salmon: #c66;
+$tan: #fc8;
+$blue: #99f;
+$peach: #f96;
+$purple: #c69;
+$pink: #c9c;
+$white: #fff;
+$red: #f55;
 
+$sel-color: $pink;
+$text-color: #d5d5d5;
+$title-color: white;
+$nav-color: $blue;
+$nav2-color: $grayBlue;
+$link-color: $light;
+
+@font-face {
+  font-family: FinalNew;
+  src: url(../fonts/finalnew.ttf);
+} 
+
+$title-font: 20pt FinalNew, serif;

@@ -5,16 +5,19 @@
 
 .lvert {
   color:white;
-  vertical-align: middle;
   transform: rotate(-90deg);
   transform-origin: bottom left 0;
-  border: dotted gray 1px;
   padding: 0;
   position: absolute;
 }
+.lvert:hover {
+  /*color:$purple;*/
+  /*text-shadow: 2px 2px 4px white;*/
+  cursor:pointer;
+}
 
 .lblock {
-  border: solid orange 0px;
+  border: solid $nav-color 0px;
   /*-webkit-border-image: -webkit-linear-gradient(left, orange, salmon);*/
   position: absolute;
   animation-name: hgrow;
@@ -31,13 +34,12 @@
   color:white;
   transform: rotate(90deg);
   transform-origin: top left 0;
-  border: dotted gray 1px;
   padding: 0;
   position: absolute;
 }
 
 .rblock {
-  border: solid salmon 0px;
+  border: solid $nav2-color 0px;
   position: absolute;
   bottom:0;
   right:0;
@@ -45,7 +47,13 @@
 
 /* The animation code */
 @keyframes hgrow {
-    from {right: 20px; width: 0;}
-    to {left: 0px; width: 90%;}
+    from { right: 0px; width: 0%; }
+    to   { left: 0px;  width: 100%; }
 }
 
+.navItem {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 10px;
+    margin: 3px;
+}

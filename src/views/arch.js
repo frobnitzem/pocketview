@@ -1,145 +1,130 @@
-import React from 'react'
+import React, { PropTypes } from 'react'
 
-import { max2, add2, titleSize, linkWidth, toggleSorted } from "../lib/helpers"
+import Title from './title'
+
+import { max2, add2, titleSize, navWidth, toggleSorted,
+         capsule_wid, title_ht, margin } from "../lib/helpers"
 import { planDisplay } from './display'
+import { planCols } from '../lib/layout'
+
+const vpad   = 18
+const vborder2 = 5
 
 // props : { plan  : planElem,
 //           winsz : [Int,Int]
 //         }
-export var Arch = React.createClass({
-  getInitialState() {
-    return { expanded: [] };
-  },
-  
-  onClick(idx, event) {
-    event.preventDefault();
+export class Arch extends React.Component {
+  /*componentDidMount() {
+      const { plan } = this.props
+      const wid = plan.sz[0] - margin[0]
+      const title = plan.path[plan.path.length-1]
+      //const cols = plan.cols -- need to get set of x-vals
+      const twid = titleSize(title)[0] - capsule_wid
+      const tstart = wid - capsule_wid/2 - 5 - twid
+      const cpt  = title_ht + vborder2 // curve 'horizontal run' 
+      const cpt2 = cpt*vpad/(vpad+title_ht)
+      // cpt2/vpad === cpt/(vpad+title_ht)
+      console.log(twid, tstart, cpt, cpt2)
 
-    var e = this.state.expanded;
-    toggleSorted(e, idx);
-    this.setState({
-        expanded: e
-    });
-  },
-  
-  _renderTitles() {
-      var _this = this;
-      var keys = [];
-      const { plan } = this.props;
-      Object.keys(plan.sub).forEach(function(idx) {
-          toggleSorted(keys, idx);
-      }); // sort em
-      return keys.map(function(idx) {
-          let expanded = _this.state.expanded.includes(idx) ? "true" : "false";
-          return (
-              <div className="link" key={idx} role="row"
-                   aria-expanded={expanded}
-                   onClick={_this.onClick.bind(_this, idx)} >
-                {idx}
-              </div>
-          );
-      });
-  },
-  
-  // Table of expanded elements
-  _renderContent() {
-      const { plan, winsz } = this.props;
-      let wid = winsz[0] - plan.fixsz[0] - 15;
-      let ht  = ( winsz[1] - plan.fixsz[1] - 15 )
-                    / this.state.expanded.length;
-      let cols = this.state.expanded.map(function(idx) {
-          return (
-              <div className="row" key={idx}> {
-                  React.cloneElement(plan.sub[idx].elem, {
-                          winsz : [wid, ht],
-                  })
-              } </div>
-          );
-      });
-      return (
-              <div className="table">
-                { cols }
-              </div>
-      );
-  },
+      let ctx = this.canvas.getContext('2d')
+      // draw arches...
+      ctx.clearRect(0, 0, wid, title_ht+vpad);
+      ctx.beginPath();
+      ctx.moveTo(0, title_ht+vpad);
+      if(cpt < tstart) {
+          ctx.quadraticCurveTo(0, 0, cpt, 0);
+          ctx.lineTo(twid, 0);
+      } else {
+          ctx.quadraticCurveTo(0, 0, tstart, 0);
+      }
+      ctx.lineTo(tstart, title_ht);
+      if(cols[0][1]+cpt2 < tstart) {
+          ctx.lineTo(cols[0][1]+cpt2, title_ht);
+          ctx.quadraticCurveTo(cols[0][1]+cpt2, title_ht+vpad,
+                               cols[0][1], title_ht+vpad);
+      } else {
+          ctx.quadraticCurveTo(tstart, title_ht+vpad,
+                               cols[0][1], title_ht+vpad);
+      }
+      ctx.closePath();
+      ctx.fillStyle="#FF55FF";
+      ctx.fill();
+
+      ctx.fillStyle="#FFF";
+      ctx.font="20px FinalNew, serif";
+      ctx.fillText("Hello World!",tstart+5,0);
+  }*/
+
+  renderChildren() {
+      const { plan } = this.props
+      let children = []
+      var i = -2
+      for(var k in plan.sub) {
+          const ch = plan.sub[k]
+          i += 2;
+          children.push(
+              <div className="archNav" key={i} style={{
+                          position: "absolute",
+                          left: ch.x[0], top: ch.y,
+                          width: ch.x[1]-ch.x[0]-margin[0],
+                          height: ch.h - margin[1]
+                        }}>{k}</div>
+          )
+          children.push(
+              <div key={i+1} style={{
+                          position: "absolute",
+                          margin: "5px",
+                          left: ch.x[1], top: ch.y,
+                          width: ch.w[1]-margin[0],
+                          height: ch.h-margin[1]
+               }}>{
+                  React.cloneElement(ch.elem, { winsz: [ch.w, ch.h] })
+              }</div>
+          )
+      }
+      return children
+  }
 
   render() {
-    const { plan, winsz } = this.props;
-    let wid = winsz[0] - plan.fixsz[2];
-    let ht  = winsz[1] - plan.fixsz[3] + 60;
-    let sz = <p style={{color:"black",verticalAlign:"bottom"}}>
-                {winsz[0]+" x "+winsz[1]}</p>;
-    return ( <table className="box_nav"><tbody>
-      <tr>
-        <th id="box11"></th>
-        <th id="box12">
-          <div className="lhspace" style={{width:wid+"px"}}>
-          {sz}
-          &nbsp;</div>
-          <div className="htitle">
-            { plan.title }
-          </div>
-          <div className="rcap">&nbsp;</div>
-        </th>
-      </tr>
-      <tr>
-        <td id="box21" style={{width:"60px"}} role="treegrid" aria-readonly="true">
-          <div className="tvspace">&nbsp;</div>
-          { this._renderTitles() }
-          <div className="bcap" style={{height:ht+"px"}}>&nbsp;</div>
-        </td>
-        <td id="box22">
-          <div className='arch'>
-            <div className='elbow_cut'></div>
-          </div>
-          { this._renderContent() }
-        </td>
-      </tr>
-    </tbody></table>
-    );
+    const { plan, winsz, toggle } = this.props;
+    const title = plan.path[plan.path.length-1]
+
+             /*<canvas ref={e => { this.canvas = e; }}
+               style={{width: plan.tsz[0], height: title_ht+vpad}}
+               className="arch" onClick={toggle}>{title}</canvas>*/
+    return <div className="content" style={{width: plan.tsz[0],
+                                            height:plan.tsz[1]}}>
+             <Title path={plan.path} toggle={toggle} />
+             <div style={{width:plan.tsz[0],
+                          height:plan.tsz[1]-title_ht-vpad,
+                          position:"relative"
+                    }}>{ this.renderChildren() }</div>
+           </div>
   }
-});
+}
+Arch.propTypes = {
+    plan:  PropTypes.object.isRequired,
+    winsz: PropTypes.array.isRequired,
+    toggle: PropTypes.func
+}
 
 export function planArch(path, doc) {
-    const title = path[path.length-1] || "";
-    var minsz = [0,0];
-    var totsz = [0,0];
+    const title = path[path.length-1]
 
-    var name_width = 0;
-    var names = 0;
-    var sub = {};
+    var sub = {}
     for(var key in doc) {
-        let width = linkWidth(key);
-        name_width = width > name_width ? width : name_width;
-        names += 1;
-
         sub[key] = planDisplay(path.concat(key), doc[key])
-        max2(minsz, sub[key].sz);
-        totsz[1] += sub[key].sz[1];
     }
-    let tsz = titleSize(title);
-    let col1_w = name_width < 60 ? 60 : name_width;
-    let col2_w = 20 + 5 + tsz[0] + 5 + 30;
+    var sz = planCols(sub)
 
-    let row1_h = 120;
-    let row2_h = 25 + (28+5)*names + 60;
-
-    let content_pad = [15, 15];
-
-    add2(minsz, content_pad);
-    add2(totsz, content_pad);
-
-    max2(minsz, [col2_w, row2_h]);
-    max2(totsz, [col2_w, row2_h]);
-
-    add2(minsz, [col1_w, row1_h]);
-    add2(totsz, [col1_w, row1_h]);
+    var tsz = titleSize(title) // includes margins
+    sz[0] = Math.max(tsz[0], sz[0])
+    sz[1] += tsz[1] + vpad
 
     let plan = {
-            sz: totsz, path, sub,
-            fixsz: [col1_w, row1_h, col1_w+col2_w-20, row1_h+row2_h-60]
+            sz, tsz: sz, path, sub
         };
-    const elem = <Arch title={title} key={path.join(".")}
-                       plan={plan} winsz={[300,150]} />
+    const elem = <Arch key={path.join(".")} plan={plan} winsz={[300,150]} />
     return Object.assign(plan, { elem } )
 }
 

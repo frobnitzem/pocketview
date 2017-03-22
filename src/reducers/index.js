@@ -44,6 +44,7 @@ export default function(plan) {
  *     path : [String]  -- title path of elem (or [0], [1], etc. for array)
  *     elem : Component -- complete render component
  *     sz  : [Int,Int]  -- size required for complete render
+ *     tsz : [Int,Int]  -- size required for complete render with title
  *   ? sub : [] | {}    -- traversable sub-plans (if obj or array)
  * }
  * The store must re-wrap these elements to save additional info:

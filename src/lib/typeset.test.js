@@ -13,7 +13,7 @@ test('typeset returns a list of spans with text', t => {
                     <div className="text"> { ret[0] } </div>
                  );
     const n = (html.match(/span/g) || []).length;
-    t.is(n, 20);
+    t.is(n, 22);
 })
 
 

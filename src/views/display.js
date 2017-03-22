@@ -84,8 +84,8 @@ export function planDisplay(path, doc) {
         }
     case "Number":
     case "Boolean":
-    case "Null":
         return planToken(path, doc)
+    case "Null":
     default:
         return { elem: <span key={tokey(path)} className="unknown" />,
                  sz: [0,0],

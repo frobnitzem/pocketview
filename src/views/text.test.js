@@ -13,13 +13,14 @@ const plan10 = {
   sz: [299,151],
 }
 
-test('Text renders title and contents', t => {
+test('Text renders contents', t => {
   const sub = [ <span className="line">A single line.</span> ]
   const ret = shallow( createElement(Text, { winsz:[300,150], plan:plan10,
                                              toggle: () => {} },
                                      sub) );
   //t.true(ret.hasClass(Text));
-  t.true(ret.find('.capsule').exists());
+  t.true(ret.is(".content"))
+  //t.true(ret.find('.content').exists());
 });
 
 test('Text plans and renders content', t => {

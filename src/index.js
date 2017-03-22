@@ -60,11 +60,11 @@ var simple_doc = {
 }
 
 const title = "System"
-const plan = planDisplay([title], simple_doc)
+const plan = planDisplay([title], doc)
 const store = createStore(mk_reducer(plan))
 
 render( <Provider store={store}>
-          <App winsz={[600,400]} />
+          <App winsz={[600,700]} />
         </Provider>,
         document.getElementById('containment')
       )

@@ -59,7 +59,7 @@ Example:
 
 ******************************************************************************/
 
-GrowingPacker = function(w, h) {
+export var GrowingPacker = function(w, h) {
   this.init(w, h);
 };
 
@@ -69,9 +69,7 @@ GrowingPacker.prototype = {
     //console.log("avail: " + w+" x "+h);
     this.maxw = w;
     this.maxh = h;
-    this.root = { x: 0, y: 0, w: 0, h: 0,
-                  right: { w: 0, h: 0},
-                  left:  { w: 0, h: 0} };
+    this.root = { x: 0, y: 0, w: 0, h: 0 };
   },
 
 
@@ -80,9 +78,6 @@ GrowingPacker.prototype = {
   },
 
   add: function(block) {
-    if(!this.root.used) {
-        block.fit = this.growDown(block.w, block.h);
-    }
     const node = this.findNode(this.root, block.w, block.h);
     if (node)
       block.fit = this.splitNode(node, block.w, block.h);
@@ -140,7 +135,8 @@ GrowingPacker.prototype = {
     };
     if(h > this.root.h) { // grow both directions
         this.root.down = { x: 0, y: this.root.h,
-                           w: this.root.w, h: h - this.root.h };
+                           w: this.root.w - w,
+                           h: h - this.root.h };
         this.root.h = h;
     }
     //console.log(this.root.w+ " x " + this.root.h);
@@ -159,7 +155,8 @@ GrowingPacker.prototype = {
     };
     if(w > this.root.w) {
         this.root.right = { x: this.root.w, y: 0,
-                            w: w - this.root.w, h: this.root.h };
+                            w: w - this.root.w,
+                            h: this.root.h-h };
         this.root.w = w;
     }
     //console.log(this.root.w+ " x " + this.root.h);
