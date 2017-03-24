@@ -1,4 +1,4 @@
-import React, {PropTypes} from 'react'
+import React, {PropTypes, cloneElement} from 'react'
 
 import Title from './title'
 import { max2, add2, titleSize, linkWidth, textWidth } from '../lib/helpers'
@@ -11,9 +11,11 @@ export class ArrTbl extends React.Component {
   render() {
     const { plan, toggle, winsz } = this.props
     const items = plan.sub.map((s,i) =>
-        <div key={i.toString()} className={plan.display}>{ s.elem }</div>)
+        <div key={i.toString()} className={plan.display}>{
+            cloneElement(s.elem, { winsz: s.sz }) }</div>)
+    var style = {width: winsz[0], height: winsz[1]}
 
-    return ( <div className="content">
+    return ( <div className="content" style={style}>
                <Title path={plan.path} toggle={toggle} wid={plan.tsz[0]} />
                <div className="capsule"><div className="table">
                  { items }
@@ -30,7 +32,7 @@ ArrTbl.propTypes = {
 }
 
 // Calculate wrapper size.
-export function planArray(path, doc) {
+export function planArray(path, doc, winsz) {
     //var num = count_arr(doc);
     //if(is_pure(num)) { // TODO: make better plans...
     //} 
@@ -41,7 +43,7 @@ export function planArray(path, doc) {
     var totsz = [0,0], maxsz = [0,0];
     var display;
     doc.forEach((u,i) => {
-        let ret = planDisplay(path.concat('['+i+']'), u);
+        let ret = planDisplay(path.concat(i.toString()), u, winsz);
         sub.push(ret);
         add2(totsz, ret.sz);
         max2(maxsz, ret.sz);

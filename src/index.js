@@ -52,19 +52,19 @@ function Retrieve(title, path) {
   });
 }
 
-var simple_doc = {
-    str: "A test string",
-    tok: false,
-    arr: [1,2,3,4],
-    sub: { a: 1, b: 2 }
-}
+// percent of space occupied by nav
+const nrat   = 0.22
+const winsz  = [600,700] // minumum height = 300!
+let h      = Math.min(Math.max(winsz[1]*nrat, 100), 1000)
+h = Math.ceil((h-30)/53)*53 + 30 // exactly fit an integer number of rows
+const gridsz = [winsz[0], winsz[1]-h]
 
 const title = "System"
-const plan = planDisplay([title], doc)
-const store = createStore(mk_reducer(plan))
+const plan = planDisplay([title], doc, gridsz)
+const store = createStore(mk_reducer(plan, winsz, gridsz))
 
 render( <Provider store={store}>
-          <App winsz={[600,700]} />
+          <App />
         </Provider>,
         document.getElementById('containment')
       )

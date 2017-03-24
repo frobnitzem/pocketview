@@ -58,13 +58,13 @@ export function typeset(text, type, lineLengths, tolerance) {
     let widths = [];
 
     // Emit spans for each line.
-    lines.forEach( function(line) {
+    lines.forEach( function(line, i) {
         const spaceShrink = 12 / 9,
               spaceStretch = 12 / 6,
               r = line.ratio * (line.ratio < 0 ? spaceShrink : spaceStretch);
 
         // REQUIRES .line { display: inline-block; white-space: nowrap; }
-        spans.push(<span className="line"
+        spans.push(<span className="line" key={i}
                          style={{wordSpacing: r.toFixed(3) + 'px'}}
                    >{ line.value }</span>)
         widths.push(line.width);

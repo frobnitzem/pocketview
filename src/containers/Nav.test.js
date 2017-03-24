@@ -5,21 +5,23 @@ import {shallow, mount} from 'enzyme';
 import { NAV_SHOW, VIEW_SHOW, VIEW_PIN } from '../constants/ViewStates'
 import Nav from './Nav'
 
-const cpt = <div className="unique" plan={{id: 1, path:['a']}} />
+const cpt = <div className="unique" plan={{id: 1, path:['Stale', 'a']}} />
 
-const plan9 = { id: 1,
-                plan: { path:[],
+const plan9 = { '9': {
+                  path:['Stale'],
                   elem:cpt,
-                  sz:[100,100]
+                  w: 100,
+                  h: 100,
+                  state: NAV_SHOW
                 },
-                state: NAV_SHOW
-            }
+              }
+
 const win = [640,480]
 
 //sinon.spy(Foo.prototype, 'componentDidMount');
 const setup = propOverrides => {
   const props = Object.assign({
-    navs: [ ],
+    navs: {},
     winsz: win,
     title: "Awesome Nav",
     actions: {
@@ -38,7 +40,6 @@ const setup = propOverrides => {
 
 test('Nav renders', t => {
     const { output } = setup()
-    //t.true(output.is('.nav'))
     t.true(output.hasClass('nav'));
 })
 

@@ -46,7 +46,7 @@ export default class Nav extends Component {
 
 Nav.propTypes = {
     title:   PropTypes.string,
-    navs:    PropTypes.array.isRequired, // [ planItem ]
+    navs:    PropTypes.object.isRequired, // { id:planElem }
     winsz:   PropTypes.array.isRequired, // [Int, Int]
     actions: PropTypes.object.isRequired
 }

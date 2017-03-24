@@ -2,7 +2,7 @@ import test from 'ava'
 import React from 'react';
 import {shallow} from 'enzyme';
 
-import { Grid } from './grid'
+import { Grid } from './Grid'
 
 function setup() {
     const props = {

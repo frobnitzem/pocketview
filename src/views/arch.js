@@ -1,4 +1,4 @@
-import React, { PropTypes } from 'react'
+import React, { PropTypes, cloneElement } from 'react'
 
 import Title from './title'
 
@@ -78,7 +78,7 @@ export class Arch extends React.Component {
                           width: ch.w[1]-margin[0],
                           height: ch.h-margin[1]
                }}>{
-                  React.cloneElement(ch.elem, { winsz: [ch.w, ch.h] })
+                  cloneElement(ch.elem, { winsz: [ch.w[1], ch.h] })
               }</div>
           )
       }
@@ -108,12 +108,12 @@ Arch.propTypes = {
     toggle: PropTypes.func
 }
 
-export function planArch(path, doc) {
+export function planArch(path, doc, winsz) {
     const title = path[path.length-1]
 
     var sub = {}
     for(var key in doc) {
-        sub[key] = planDisplay(path.concat(key), doc[key])
+        sub[key] = planDisplay(path.concat(key), doc[key], winsz)
     }
     var sz = planCols(sub)
 

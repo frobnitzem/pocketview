@@ -23,38 +23,40 @@ function msort(blocks) {
  * using packer and packer.cols
  */
 
-/* Takes an array of [{plan: planElem, ... }]-s
+/* Takes an obj of {id: planElem}-s
  * and a maximum window size.
+ *
  * Creates a grid layout for it by either
  * adding new properties to each object:
- *          { w: Number, h: Number, x: Number, y: Number }
+ *          { x: Number, y: Number }
  * or else moving the object to a 'reject' list,
  *
  *   after adding { w: Number, h: Number }
  *   and sorting the elems by decreasing size.
+ *
+ * This routine uses tsz, since it's assumed the grid
+ * display renders titles.
  */
-export function addGrid(elems, sz) {
-    elems.forEach(function(it) {
-        it.w = it.plan.sz[0]
-        it.h = it.plan.sz[1]
-    })
+export function addGrid(grid, sz) {
+    let elems = []
+    for(var k in grid) {
+        elems.push( { k, w: grid[k].tsz[0], h: grid[k].tsz[1] } )
+    }
     msort(elems)
     let pack = new GrowingPacker(sz[0], sz[1])
     pack.fit(elems)
 
-    let reject = []
-    for(var i=0; i<elems.length; i++) {
-        let it = elems[i]
+    let reject = {}
+    elems.forEach(function(it) {
+        const k = it.k
         if(it.fit) {
-            it.x = it.fit.x
-            it.y = it.fit.y
-            delete it.fit
+            grid[k].x = it.fit.x
+            grid[k].y = it.fit.y
         } else {
-            reject.push(it)
-            elems.splice(i, 1)
-            i--
+            reject[k] = grid[k]
+            delete grid[k]
         }
-    }
+    })
 
     return reject
 }
@@ -70,6 +72,8 @@ export function addGrid(elems, sz) {
  * }
  * (x,y are >= 0 and <= totsz)
  * returns totsz: [width, height]
+ *
+ * Columns have their own titles, so it uses sz, rather than tsz.
  */
 export function planCols(subs) {
     var blocks = []

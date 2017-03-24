@@ -1,20 +1,40 @@
 import test from 'ava'
-import React from 'react';
-import {render, shallow, mount} from 'enzyme';
+import React from 'react'
+import ReactDOM from 'react-dom'
+
+import { Provider } from 'react-redux'
+import configureStore from 'redux-mock-store'
 
 import { NAV_SHOW, VIEW_SHOW, VIEW_PIN } from '../constants/ViewStates'
-import { Scroll } from './scroll'
+import { Scroll } from './Scroll'
+
+
+const mockStore = configureStore()
+const initialState = { grid: {} }
+
+import {render, shallow, mount} from 'enzyme'
+
+test.skip('renders without crashing', t => {
+  const div = document.createElement('div')
+  const store = mockStore(initialState)
+  ReactDOM.render(
+    <Provider store={store}>
+      <Scroll />
+    </Provider>,
+    div
+  )
+})
+
 
 function setup() {
   const props = {
-    navs: [ {
-      id: 0,
-      plan: { path: ['a'],
+    navs: {
+      '0': { path: ['a'],
               elem: <div className="unique" />,
-              sz: [5,5]
+              w: 5, h: 5,
+              state: NAV_SHOW
             },
-      state: NAV_SHOW
-    } ],
+    },
     winsz: [300,150],
     addView: id => console.log("addView: "+id)
   }
@@ -31,6 +51,7 @@ function click(output, n) {
 }
 
 // seems like a bug in the testing libraries...
+// (it's the difficulty of loading the redux store)
 test.skip('has a .scroll class name', t => {
     const output = setup()
     console.log(output)
@@ -40,6 +61,6 @@ test.skip('has a .scroll class name', t => {
 
 test.skip('renders children when passed in', t => {
     const output = setup()
-    t.true(output.contains());
+    t.true(output.contains())
 });
 

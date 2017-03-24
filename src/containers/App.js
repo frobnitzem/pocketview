@@ -9,28 +9,27 @@ import Grid from './Grid'
 
 import * as ViewActions from '../actions'
 
-// percent of space occupied by nav
-const nrat    = 0.22
-
-const App = ({title, navs, grid, winsz, actions}) => {
-    const w = winsz[0];
-    const h = Math.min(Math.max(winsz[1]*nrat, 100), 1000);
+const App = ({title, navs, grid, winsz, gridsz, actions}) => {
     return <div>
-        <Nav  navs={navs} title={title} actions={actions} winsz={[w,h]} />
-        <Grid grid={grid} toggle={actions.toggleView} winsz={[w,winsz[1]-h]} />
+        <Nav  navs={navs} title={title} actions={actions}
+              winsz={[winsz[0], winsz[1]-gridsz[1]]} />
+        <Grid grid={grid} toggle={actions.toggleView} winsz={gridsz} />
     </div>
 }
 
 App.propTypes = {
     title: PropTypes.string.isRequired,
-    navs: PropTypes.array.isRequired,
-    grid: PropTypes.array.isRequired,
+    navs: PropTypes.object.isRequired, // { id: planElem }
+    grid: PropTypes.object.isRequired, // { id: planElemPlus }
     winsz: PropTypes.array.isRequired,
+    gridsz: PropTypes.array.isRequired,
     actions: PropTypes.object.isRequired
 }
 
 const mapStateToProps = state => ({
     title: state.path[state.path.length-1] || "",
+    winsz: state.winsz,
+    gridsz: state.gridsz,
     navs: state.navs,
     grid: state.grid
 })

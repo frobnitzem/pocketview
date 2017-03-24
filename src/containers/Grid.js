@@ -2,20 +2,29 @@ import React, { cloneElement, Component, PropTypes } from 'react'
 
 import * as types from '../constants/ViewStates'
 
-// TODO: clone element when id is first defined...
 export default class Grid extends Component {
+  layout_items(grid, toggle) {
+      var children = []
+      for(var id in grid) {
+          const g = grid[id]
+          children.push(<div key={id} style={{position:"absolute",
+                                              left:g.x, top:g.y}}>{
+                cloneElement(g.elem, { toggle: () => toggle(id),
+                                       winsz: g.tsz })
+             }</div>)
+      }
+      return children
+  }
   render() {
     const { grid, toggle, winsz } = this.props
     return <div className="grid" style={{width:winsz[0], height:winsz[1]}}>{
-             grid.map(g => cloneElement(g.plan.elem, {
-                                          toggle: () => toggle(g.id) })
-               )
+             this.layout_items(grid, toggle)
            }</div>
   }
 }
 
 Grid.propTypes = {
-    grid: PropTypes.array.isRequired,
+    grid: PropTypes.object.isRequired,
     winsz: PropTypes.array.isRequired,
     toggle: PropTypes.func.isRequired
 }

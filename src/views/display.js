@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { textWidth } from "../lib/helpers"
+import { textWidth, titleSize } from "../lib/helpers"
 import { planText } from "./text"
 import { planToken } from "./token"
 import { planArch } from "./arch"
@@ -14,7 +14,7 @@ import { planArray } from "./array"
 // false -> Boolean
 // null -> Null
 // /[]/ -> RexExp
-function realTypeOf(obj) {
+export function realTypeOf(obj) {
     return Object.prototype.toString.call(obj).slice(8, -1);
 };
 
@@ -72,25 +72,27 @@ function tokey(path) {
 // assuming it can be rendered in its entirety.
 //
 // Returns an object of type planElem
-export function planDisplay(path, doc) {
+export function planDisplay(path, doc, winsz) {
     switch(realTypeOf(doc)) {
     case "Array":
-        return planArray(path, doc);
+        return planArray(path, doc, winsz);
     case "Object":
-        return planArch(path, doc);
+        return planArch(path, doc, winsz);
     case "String":
         if(doc.length > 30 || doc.match(/\r?\n/)) {
-            return planText(path, doc)
+            return planText(path, doc, winsz)
         }
     case "Number":
     case "Boolean":
-        return planToken(path, doc)
+        return planToken(path, doc, winsz)
     case "Null":
     default:
         return { elem: <span key={tokey(path)} className="unknown" />,
+                 tsz: [0,0],
                  sz: [0,0],
                  path: path
                }
+               //tsz: titleSize(path[path.length-1]),
     }
 }
 
