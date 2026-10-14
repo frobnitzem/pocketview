@@ -31,31 +31,40 @@
  * arches and chips take the complementary end of the base scale; key
  * capsules, a third background, are green. Accents are kept for value text,
  * buttons and the urgent colour.
+ *
+ * Text is always a content tone or an accent. Arches and chips are
+ * inverse-mode surfaces, so their labels use the other mode's content tone
+ * (base01 on light arches, base1 on dark ones). The exception is text on
+ * a filled accent (key capsules, badges, the urgent bar, the send button):
+ * no content tone is legible on those, so it uses a base tone, as Solarized
+ * does for selections.
  */
 [data-theme="solar-dark"] {
   --bg: #002b36; --panel: #073642; --raised: #0a4251; --line: #586e75;    /* base03, base02 */
   --ink: #839496; --str: #93a1a1; --muted: #586e75;                       /* base0, base1, base01 */
   --frame: #fdf6e3; --frame-1: #eee8d5; --frame-2: #93a1a1;               /* base3, base2, base1 */
-  --on-frame: #002b36;
-  --nav: #eee8d5; --on-nav: #002b36; --badge: #93a1a1;                    /* chips: base2, base1 */
-  --key: #859900; --on-key: #002b36;                                      /* green */
+  --on-frame: #586e75; --title-ink: #93a1a1;                             /* base01 (light-mode content), base1 */
+  --nav: #eee8d5; --on-nav: #586e75;                                      /* chips: base2, text base01 */
+  --badge: #93a1a1; --on-badge: #002b36;                                  /* filled: see note */
+  --key: #859900; --on-key: #002b36;                                      /* green accent */
   --num: #2aa198; --lit: #268bd2;                                         /* cyan, blue */
   --send: #268bd2; --send-hover: #4aa3e0; --on-send: #fdf6e3;
   --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
-  --urgent: #dc322f; --focus-title: #fdf6e3;
+  --urgent: #dc322f; --on-urgent: #fdf6e3; --focus-title: #b58900;      /* yellow */
   color-scheme: dark;
 }
 [data-theme="solar-light"] {
   --bg: #fdf6e3; --panel: #eee8d5; --raised: #e6dfc9; --line: #93a1a1;    /* base3, base2 */
   --ink: #657b83; --str: #586e75; --muted: #93a1a1;                       /* base00, base01, base1 */
   --frame: #002b36; --frame-1: #073642; --frame-2: #586e75;               /* base03, base02, base01 */
-  --on-frame: #fdf6e3;
-  --nav: #073642; --on-nav: #fdf6e3; --badge: #586e75;                    /* chips: base02, base01 */
-  --key: #c2d35b; --on-key: #002b36; --code-key: #859900;                 /* green, lightened */
+  --on-frame: #93a1a1; --title-ink: #586e75;                             /* base1 (dark-mode content), base01 */
+  --nav: #073642; --on-nav: #93a1a1;                                      /* chips: base02, text base1 */
+  --badge: #586e75; --on-badge: #fdf6e3;                                  /* filled: see note */
+  --key: #c2d35b; --on-key: #002b36; --code-key: #859900;                 /* green accent, lightened */
   --num: #2aa198; --lit: #268bd2;
   --send: #268bd2; --send-hover: #1a73b5; --on-send: #fdf6e3;
   --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
-  --urgent: #dc322f; --focus-title: #002b36;
+  --urgent: #dc322f; --on-urgent: #fdf6e3; --focus-title: #b58900;      /* yellow */
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -131,7 +140,7 @@ button { font: inherit; color: inherit; }
 .settings::backdrop { background: rgba(0,0,0,.6); }
 .settings form { padding: 0 18px 16px; }
 .settings header { display: flex; align-items: center; margin: 0 -18px 12px; padding: 0 8px 0 18px;
-                   background: var(--urgent); color: var(--on-frame); height: var(--bar); }
+                   background: var(--urgent); color: var(--on-urgent, var(--on-frame)); height: var(--bar); }
 .settings h2 { font: 600 18px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; margin: 0; flex: 1; }
 .settings h3 { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--urgent);
                margin: 18px 0 8px; }
@@ -179,7 +188,9 @@ button { font: inherit; color: inherit; }
 .pv-title { background: var(--bg); padding: 0 10px; font-family: Antonio, sans-serif; font-weight: 600;
   letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-align: center; }
-.pv-title.depth-0 { color: var(--frame); } .pv-title.depth-1 { color: var(--frame-1); } .pv-title.depth-2 { color: var(--frame-2); }
+.pv-title.depth-0 { color: var(--title-ink, var(--frame)); }
+.pv-title.depth-1 { color: var(--title-ink, var(--frame-1)); }
+.pv-title.depth-2 { color: var(--title-ink, var(--frame-2)); }
 .pv-title.focus { color: var(--focus-title, var(--nav)); }
 .pv-key, .pv-crumb, .pv-segment, .pv-chip { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .05em;
   text-transform: uppercase; color: var(--on-frame); white-space: nowrap; overflow: hidden; }
@@ -194,7 +205,7 @@ button { font: inherit; color: inherit; }
 .pv-chip b { background: var(--nav); color: var(--on-nav, var(--on-frame)); border-radius: 999px 0 0 999px; padding: 0 9px 0 13px; line-height: 28px;
   overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; font-weight: inherit; }
 .pv-chip b:only-child { border-radius: 999px; }
-.pv-chip i { font-style: normal; background: var(--badge); border-radius: 0 999px 999px 0; padding: 0 11px 0 7px;
+.pv-chip i { font-style: normal; background: var(--badge); color: var(--on-badge, var(--on-frame)); border-radius: 0 999px 999px 0; padding: 0 11px 0 7px;
   margin-left: 3px; line-height: 28px; flex: none; }
 .pv-token { font: 18px/28px "Source Serif 4", serif; color: var(--str); white-space: nowrap; }
 .pv-tag { font: 16px/22px "Source Serif 4", serif; color: var(--str); border: 1.5px solid var(--frame-2);

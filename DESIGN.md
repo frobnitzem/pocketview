@@ -311,6 +311,13 @@ events) and a release.
     - Key capsules act as a third background: Solarized green in dark mode,
       and a lightened green in light mode.
     - Accents are kept for value text, buttons and the urgent colour.
+    - Text is always a content tone or an accent. Labels on arches and
+      chips use the other mode's content tone (base01 on light arches,
+      base1 on dark ones). Titles are emphasized content, and the focused
+      title is yellow.
+    - Exception: text on a filled accent (key capsules, badges, the urgent
+      bar, the send button) uses a base tone, as Solarized does for
+      selections, because no content tone is legible there.
 - Strings are drawn without quotes, whether as tokens, text, tags or chips.
 - A key capsule is as tall as its value. Its corners keep the same 14px
   radius, so a tall capsule reads as a rounded rectangle, and the label
