@@ -26,11 +26,15 @@ export function renderLine(line: Line, index: number, options: RenderOptions, do
   });
   if (mode === 'css') {
     // CSS justification only widens spaces, so shrinking needs explicit
-    // word-spacing; set it slightly short and let justify absorb the rest.
+    // word-spacing. Set the line 1px short and let justify absorb the rest:
+    // DOM and canvas widths can differ by a fraction of a pixel (hinting).
     const align = line.justify ? 'justify' : 'left';
     el.style.textAlign = align;
     el.style.textAlignLast = align;
-    if (line.wordSpacing !== 0) el.style.wordSpacing = `${(line.wordSpacing - 0.25).toFixed(3)}px`;
+    if (line.justify) {
+      const gaps = Math.max(1, line.items.length - 1);
+      el.style.wordSpacing = `${(line.wordSpacing - 1 / gaps).toFixed(3)}px`;
+    }
     el.textContent = line.text;
   } else {
     for (const item of line.items) {
