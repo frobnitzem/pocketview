@@ -55,6 +55,7 @@ export class Planner {
 
   plan(focusPtr: string, vp: Viewport): Plan {
     const focus = find(this.tree, focusPtr) ?? this.tree;
+    this.measurer.setDepthLimit(focus.depth + this.theme.maxDepth);
     const marks: Mark[] = [];
     const height = focus.kind === 'object' && !isLeaf(focus)
       ? this.planObject(focus, vp, marks)
@@ -188,7 +189,8 @@ export class Planner {
         const arch = i === 0 || i === shown.length - 1 ? 'LB' : 'LT';
         this.placeFrame(row.node, opt.v, x, yy, arch, marks);
       } else {
-        marks.push({ kind: 'key', ptr: row.node.ptr, text: row.node.label, rect: { x, y: yy, w: rows.keyW, h: t.rowH } });
+        // The key capsule is as tall as its value (a rounded rectangle when tall).
+        marks.push({ kind: 'key', ptr: row.node.ptr, text: row.node.label, rect: { x, y: yy, w: rows.keyW, h: m.rowHeight(row) } });
         this.placeValue(row.node, opt, x + rows.keyW + t.gap, yy, marks);
       }
       yy += m.rowHeight(row) + t.gap;

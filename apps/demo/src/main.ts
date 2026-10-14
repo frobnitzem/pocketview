@@ -5,7 +5,7 @@ import { mountArch } from './arch';
 import { createEditor } from './editor';
 import { parseInput, type InputMode } from './parse';
 import { SAMPLES } from './samples';
-import { loadSettings, saveSettings, type Settings } from './settings';
+import { applyTheme, loadSettings, saveSettings, THEMES, type Settings, type Theme } from './settings';
 import type { Json } from '@pocketview/core';
 import { KEY_FONT, LayoutView } from './layout-view';
 import { FONT, TextView } from './view';
@@ -13,6 +13,7 @@ import { FONT, TextView } from './view';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const settings: Settings = loadSettings();
+applyTheme(settings.theme);
 const app = $('app');
 const status = $('status');
 const modeSelect = $<HTMLSelectElement>('mode');
@@ -96,6 +97,14 @@ $('settings-open').addEventListener('click', () => dialog.showModal());
 dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
 diag.addEventListener('change', () => { settings.diagnostics = diag.checked; saveSettings(settings); show(); });
 ragged.addEventListener('change', () => { settings.align = ragged.checked ? 'left' : 'justify'; saveSettings(settings); show(); });
+const themeSelect = $<HTMLSelectElement>('opt-theme');
+for (const t of THEMES) themeSelect.add(new Option(t.label, t.id));
+themeSelect.value = settings.theme;
+themeSelect.addEventListener('change', () => {
+  settings.theme = themeSelect.value as Theme;
+  applyTheme(settings.theme);
+  saveSettings(settings);
+});
 for (const sample of SAMPLES) {
   const b = document.createElement('button');
   b.type = 'button';

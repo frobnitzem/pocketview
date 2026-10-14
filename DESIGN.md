@@ -225,6 +225,9 @@ Plugins add variants for objects that match a schema, e.g. GeoJSON → map,
   `depthDiscount` = 0.7 as much, so a parent's own rows win over its
   grandchildren. Ties go to earlier children.
 
+**Depth bound.** Nodes more than `maxDepth` = 4 levels below the focus are
+always collapsed to chips. Focusing deeper reveals them.
+
 **Current simplifications (core v1):**
 - **Single column.** Children stack in one column; nested frames are `L*`,
   with `*B` for the first and last frame in a column.
@@ -264,6 +267,11 @@ Status:
 
 ## Rendering and animation
 
+**Roadmap:** v1 draws each plan immediately, which feels fast and
+responsive. Animation between plans is deferred to v3. Next comes polishing
+v1, then the integration story (embedding, pushing new JSON, titles, focus
+events) and a release.
+
 - React 19 + Motion. Each `Mark` becomes a keyed element, and `layoutId` =
   JSON Pointer.
 - When the focus changes, an element that turns from a `chip` into a
@@ -286,8 +294,21 @@ Status:
   label, the settings gear and the format selector.
 - Text is set without paragraph indents. Each paragraph is followed by an
   extra 0.5em of space (`paragraphSpacing` in `packages/typeset`).
-- Modal dialogs (settings) are framed in the "urgent" salmon colour, so they
-  read as interruptions, distinct from the amber structure.
+- Modal dialogs (settings) are framed in the "urgent" colour (salmon in the
+  pastel scheme), so they read as interruptions, distinct from the structure.
+- Colour schemes, chosen in settings: **pastel** (the default: amber, peach
+  and pastel green frames, lavender keys, a beachy aqua send button),
+  **lux** (orange, violet and cyan light trails on deep green, steel-gray
+  keys), and **Solarized dark** and **light**. Every colour is a CSS
+  variable set per `[data-theme]`.
+- Strings are drawn without quotes, whether as tokens, text, tags or chips.
+- A key capsule is as tall as its value. Its corners keep the same 14px
+  radius, so a tall capsule reads as a rounded rectangle, and the label
+  sits on the value's first line.
+- A focused array or leaf has no frame: its T bar and breadcrumbs take the
+  chip colour, matching the chip you clicked to get there.
+- Labels truncated to fit (titles, chips, keys, crumbs, segments) show
+  their full text on hover.
 - No live updates. A round blue send button with a right arrow (or
   Ctrl/Cmd+Enter) parses the input and re-plans the view.
 - Input format: auto, JSON, YAML or text. Auto tries JSON, then YAML if it

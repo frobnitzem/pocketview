@@ -4,7 +4,7 @@
  */
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { ancestors, buildTree, walk, type Json, type Metrics, type TreeNode } from '../src/index';
+import { ancestors, buildTree, defaultTheme, find, walk, type Json, type Metrics, type TreeNode } from '../src/index';
 import { Planner, type Mark, type Plan } from '../src/plan';
 
 // Deterministic fake metrics: no fonts needed.
@@ -59,6 +59,14 @@ function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: 
       const b = frames[j]!.rect;
       expect(!overlaps(a, b) || contains(a, b) || contains(b, a), `frames ${frames[i]!.ptr} / ${frames[j]!.ptr}`).toBe(true);
     }
+  }
+  // Depth bound: nothing more than maxDepth levels below the focus is shown
+  // (the scalar items of a tags display sit one level further).
+  const limit = focus.depth + defaultTheme.maxDepth;
+  for (const m of plan.marks) {
+    if (m.kind === 'crumb' || m.kind === 'menu' || m.kind === 'chip' || m.kind === 'segment') continue;
+    const node = find(tree, m.ptr)!;
+    expect(node.depth - (m.kind === 'tag' ? 1 : 0), `${m.kind} ${m.ptr} too deep`).toBeLessThanOrEqual(limit);
   }
   // 4. The path is visible: every ancestor of the focus is a crumb or in the menu.
   const inPath = new Set<string>();

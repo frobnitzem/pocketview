@@ -12,8 +12,8 @@ const theme = EditorView.theme({
   '.cm-scroller': { fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace', lineHeight: '1.5' },
   '.cm-content': { caretColor: 'var(--accent)' },
   '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--muted)', border: 'none' },
-  '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'rgba(255,255,255,0.04)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: 'rgba(168,163,230,0.3) !important' },
+  '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'color-mix(in srgb, var(--ink) 5%, transparent)' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: 'color-mix(in srgb, var(--key) 32%, transparent) !important' },
   '&.cm-focused': { outline: 'none' },
 }, { dark: true });
 

@@ -40,6 +40,8 @@ export interface Theme {
    * own rows over its grandchildren.
    */
   depthDiscount: number;
+  /** Nodes more than this many levels below the focus are always collapsed. */
+  maxDepth: number;
   root: ArchGeometry & { sideR: number };
   frame: ArchGeometry;
 }
@@ -66,6 +68,7 @@ export const defaultTheme: Theme = {
   listMax: 960,
   keep: 16,
   depthDiscount: 0.7,
+  maxDepth: 4,
   root: { bar: 36, side: 108, sideR: 12, outer: 44, inner: 16 },
   frame: { bar: 24, side: 8, outer: 22, inner: 10 },
 };

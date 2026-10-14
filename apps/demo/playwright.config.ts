@@ -7,5 +7,5 @@ export default defineConfig({
     baseURL: 'http://localhost:5174',
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {},
   },
-  webServer: { command: 'pnpm build && pnpm preview', url: 'http://localhost:5174', reuseExistingServer: true, timeout: 120_000 },
+  webServer: { command: 'pnpm build && pnpm preview', url: 'http://localhost:5174', reuseExistingServer: false, timeout: 120_000 },
 });

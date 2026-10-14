@@ -57,6 +57,7 @@ export class LayoutView {
     this.metrics = browserMetrics();
     this.planner = new Planner(buildTree(value, label), this.metrics);
     this.focus = '';
+    this.plan = null; // a new document: never reuse the previous drawing
     this.observer.observe(this.scroller);
     const t0 = performance.now();
     this.render();
@@ -87,8 +88,18 @@ export class LayoutView {
     root.className = 'pv-layout';
     root.style.width = `${this.plan.width}px`;
     root.style.height = `${this.plan.height}px`;
+    // A focused array or leaf has no frame of its own: its T bar takes the
+    // colour of the chip that stood for it.
+    root.classList.toggle('unframed', this.plan.marks.some((m) => m.kind === 'frame' && m.arch === 'T'));
     for (const mark of this.plan.marks) root.append(this.draw(mark));
     this.scroller.replaceChildren(root);
+    // Labels cut short by their box get their full text as a tooltip.
+    for (const label of root.querySelectorAll<HTMLElement>('.pv-title, .pv-chip b, .pv-key span, .pv-crumb span, .pv-segment span')) {
+      if (label.scrollWidth > label.clientWidth + 0.5) {
+        const box = label.closest<HTMLElement>('.pv-layout > *')!;
+        box.title = label.textContent ?? '';
+      }
+    }
   }
 
   private draw(mark: Mark): Element {

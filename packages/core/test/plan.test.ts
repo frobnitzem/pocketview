@@ -32,7 +32,7 @@ describe('planner', () => {
     expect(plan.overflow).toBe(false);
     expect(plan.marks.filter((m) => m.kind === 'chip' || m.kind === 'segment')).toEqual([]);
     expect(plan.marks.find((m) => m.kind === 'frame' && m.ptr === '')).toMatchObject({ arch: 'LTR' });
-    expect(plan.marks.filter((m) => m.kind === 'tag').map((m) => m.text)).toEqual(['“json”', '“yaml”', '“viewer”']);
+    expect(plan.marks.filter((m) => m.kind === 'tag').map((m) => m.text)).toEqual(['json', 'yaml', 'viewer']);
     const nested = plan.marks.filter((m) => m.kind === 'frame' && m.ptr !== '');
     expect(nested.map((m) => m.ptr)).toEqual(['/author', '/scripts']);
   });
@@ -42,6 +42,23 @@ describe('planner', () => {
     const segments = plan.marks.filter((m) => m.kind === 'segment');
     expect(segments.length).toBeGreaterThan(0);
     expect(plan.overflow).toBe(false);
+  });
+
+  it('collapses everything more than maxDepth levels below the focus', () => {
+    const doc: Json = { a: { b: { c: { d: { e: { f: 1 } } } } } };
+    const plan = new Planner(buildTree(doc), fakeMetrics).plan('', { w: 1400, h: 1000 });
+    expect(plan.marks.find((m) => m.ptr === '/a/b/c/d' && m.kind === 'frame')).toBeTruthy();
+    expect(plan.marks.find((m) => m.ptr === '/a/b/c/d/e')).toMatchObject({ kind: 'chip' });
+    const deeper = new Planner(buildTree(doc), fakeMetrics).plan('/a', { w: 1400, h: 1000 });
+    expect(deeper.marks.find((m) => m.ptr === '/a/b/c/d/e')).toMatchObject({ kind: 'frame' });
+  });
+
+  it('makes key capsules as tall as their values', () => {
+    const plan = new Planner(buildTree(PKG, 'package'), fakeMetrics).plan('', { w: 1200, h: 900 });
+    const key = plan.marks.find((m) => m.kind === 'key' && m.ptr === '/description')!;
+    const text = plan.marks.find((m) => m.kind === 'text' && m.ptr === '/description')!;
+    expect(key.rect.h).toBe(text.rect.h);
+    expect(key.rect.h).toBeGreaterThan(28);
   });
 
   it('puts ancestors in breadcrumbs, with a menu when they do not fit', () => {

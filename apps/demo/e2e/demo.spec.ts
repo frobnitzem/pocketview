@@ -60,6 +60,58 @@ test('collapses into segments and chips when small, and they navigate', async ({
   await expect(page.locator('.pv-crumb').first()).toHaveText('object');
 });
 
+test('switching between layout examples always redraws', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await example(page, 'An array of records (JSON)');
+  await expect(page.locator('.pv-title', { hasText: /^0$/ })).toBeVisible();
+  await example(page, 'An object (YAML)');
+  await expect(page.locator('.pv-title').first()).toHaveText('object');
+  await example(page, 'An array of records (JSON)');
+  await expect(page.locator('.pv-title').first()).toHaveText('0');
+  // Typing new input and sending also redraws.
+  await page.evaluate(() => (window as any).pocketview.setInput('{"fresh": "document"}'));
+  await page.click('#send');
+  await expect(page.locator('.pv-key')).toHaveText(['fresh']);
+});
+
+test('strings are drawn without quotes; key capsules match their value height', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await example(page, 'An object (YAML)');
+  await expect(page.locator('.pv-token', { hasText: '0.2.0' })).toHaveText('0.2.0');
+  await expect(page.locator('.pv-tag').first()).toHaveText('json');
+  const key = await page.locator('.pv-key', { hasText: /^keywords$/ }).boundingBox();
+  const lic = await page.locator('.pv-key', { hasText: /^license$/ }).boundingBox();
+  expect(lic!.height).toBe(28);
+  expect(key!.height).toBeGreaterThanOrEqual(28);
+});
+
+test('clipped labels get a tooltip; a focused string takes the chip colour', async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 320 });
+  await ready(page);
+  const long = 'an_extraordinarily_long_key_that_cannot_possibly_fit';
+  await page.evaluate((k) => (window as any).pocketview.setInput(JSON.stringify({
+    [k]: { x: 1 }, a: 'some text', b: 'more', c: 'and more', d: 4, e: 5, f: 6, g: 7, h: 8,
+  })), long);
+  await page.click('#send');
+  await page.waitForSelector('.pv-layout');
+  await expect(page.locator(`[title^="${long}"]`)).toHaveCount(1); // label, plus its badge
+  await page.locator('.pv-key', { hasText: /^a$/ }).click();
+  await expect(page.locator('.pv-layout')).toHaveClass(/unframed/);
+});
+
+test('colour schemes switch from the settings menu', async ({ page }) => {
+  await ready(page);
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const before = await bg();
+  await page.click('#settings-open');
+  await page.selectOption('#opt-theme', 'solar-light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'solar-light');
+  expect(await bg()).toBe('rgb(253, 246, 227)');
+  expect(await bg()).not.toBe(before);
+});
+
 test('desktop: the input pane folds to the left and back', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await ready(page);

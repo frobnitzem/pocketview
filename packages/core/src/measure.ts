@@ -79,7 +79,7 @@ export function badge(node: TreeNode): string {
 /** How a leaf reads as a one-line token. */
 export function tokenText(node: TreeNode): string {
   switch (node.kind) {
-    case 'string': return `“${node.value as string}”`;
+    case 'string': return node.value as string; // strings are drawn without quotes
     case 'object': return '{ }';
     case 'array': return '[ ]';
     default: return String(node.value);
@@ -88,11 +88,18 @@ export function tokenText(node: TreeNode): string {
 
 export class Measurer {
   private readonly memo = new Map<string, unknown>();
+  /** Children deeper than this are always collapsed (set by the planner). */
+  private limit = Infinity;
 
   constructor(readonly metrics: Metrics, readonly theme: Theme) {}
 
   snap(w: number): number {
     return Math.max(0, Math.floor(w / this.theme.unit) * this.theme.unit);
+  }
+
+  /** Collapse every node deeper than `depth` (absolute). */
+  setDepthLimit(depth: number): void {
+    this.limit = depth;
   }
 
   private cached<T>(key: string, compute: () => T): T {
@@ -121,7 +128,7 @@ export class Measurer {
   /** Options for a node drawn as a value: a token, text, tags, a list, or a frame. */
   value(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`v|${node.ptr}|${W}`, () => {
+    return this.cached(`v|${this.limit}|${node.ptr}|${W}`, () => {
       if (node.kind === 'object' && !isLeaf(node)) return this.frame(node, W);
       if (node.kind === 'array' && !isLeaf(node)) return this.array(node, W);
       return this.leaf(node, W);
@@ -171,7 +178,7 @@ export class Measurer {
   /** Options for an object drawn in a nested arch frame, at full width. */
   frame(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`f|${node.ptr}|${W}`, () => {
+    return this.cached(`f|${this.limit}|${node.ptr}|${W}`, () => {
       const t = this.theme;
       const g = t.frame;
       const inner = W - g.side - 2 * t.pad;
@@ -192,7 +199,7 @@ export class Measurer {
   /** The Pareto front of ways to show a container's children as rows. */
   rows(node: TreeNode, maxW: number, mode: CollapseMode): Rows[] {
     const W = this.snap(maxW);
-    return this.cached(`r|${mode}|${node.ptr}|${W}`, () => {
+    return this.cached(`r|${mode}|${this.limit}|${node.ptr}|${W}`, () => {
       const t = this.theme;
       const keyW = this.keyWidth(node);
       const valueW = W - keyW - t.gap;
@@ -205,8 +212,8 @@ export class Measurer {
         // Collapsing costs a share of a chip row (estimated), or nothing in a side bar.
         const chipCost = mode === 'sidebar' ? 0 : ((this.chipWidth(c, W) + t.gap) * (t.chipH + t.gap)) / Math.max(1, W);
         const options: Point<Row>[] = [{ h: chipCost, s: 0, data: { node: c, opt: null } }];
-        const shown = c.kind === 'object' && !isLeaf(c)
-          ? this.frame(c, W)
+        const shown = c.depth > this.limit ? []
+          : c.kind === 'object' && !isLeaf(c) ? this.frame(c, W)
           : valueW >= 3 * t.unit ? this.value(c, valueW) : [];
         for (const o of shown) {
           const row = { node: c, opt: o };

@@ -8,6 +8,11 @@
   (outermost LTR frame with breadcrumbs, side-bar segments and chips;
   nested arch frames; rows, tags, text and scroll boxes). Arch paths for all
   six variants. Property tests for the navigation contracts.
+- Strings are drawn without quotes; key capsules are as tall as their
+  values; nodes more than 4 levels below the focus are collapsed.
+- Demo: colour schemes (pastel, lux, Solarized dark and light); tooltips
+  on truncated labels; a focused string's bar takes the chip colour; fixed
+  the view sometimes keeping the previous document after switching examples.
 - Demo: objects and arrays are laid out and navigable (click a chip,
   segment, title, key or breadcrumb; Esc goes up). The input pane folds to
   the left on desktop.
