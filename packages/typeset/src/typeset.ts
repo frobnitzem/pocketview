@@ -14,6 +14,8 @@ export interface TypesetOptions {
   indent?: number;
   /** Indent the first paragraph too (books usually don't). */
   indentFirst?: boolean;
+  /** Extra vertical space after each paragraph but the last, in px. */
+  paragraphSpacing?: number;
   /** Tolerances tried in order before falling back to emergency breaking. */
   tolerances?: number[];
   breakOptions?: Partial<Omit<BreakOptions, 'tolerance'>>;
@@ -42,6 +44,10 @@ export interface Line {
   wordSpacing: number;
   /** x of the first word (the paragraph indent, on a paragraph's first line). */
   indent: number;
+  /** Top of the line, from the top of the text (includes paragraph spacing). */
+  y: number;
+  /** Last line of its paragraph. */
+  endsParagraph: boolean;
   /** How the breaks of this line's paragraph were found. */
   quality: Quality;
 }
@@ -108,13 +114,19 @@ export function prepare(text: string, options: TypesetOptions): Prepared {
     if (hit) return hit;
     const lines: Line[] = [];
     let quality: Quality = 'optimal';
-    for (const para of paragraphs) {
+    let y = 0;
+    paragraphs.forEach((para, p) => {
       const ws = widths.slice(Math.min(lines.length, widths.length - 1));
       const set = breakParagraph(para.text, para.fmt, para.nodes, ws);
-      lines.push(...set);
+      for (const line of set) {
+        line.y = y;
+        y += options.lineHeight;
+        lines.push(line);
+      }
+      if (p < paragraphs.length - 1) y += options.paragraphSpacing ?? 0;
       quality = worse(quality, set[0]?.quality ?? 'optimal');
-    }
-    const result = { lines, height: lines.length * options.lineHeight, quality };
+    });
+    const result = { lines, height: y, quality };
     cache.set(key, result);
     return result;
   }
@@ -205,6 +217,8 @@ function makeLine(
     justify,
     wordSpacing: justify ? (width - natural) / gaps : 0,
     indent: words[0]?.x ?? 0,
+    y: 0, // set by layout()
+    endsParagraph,
     quality,
   };
 }

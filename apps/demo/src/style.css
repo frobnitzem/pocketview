@@ -4,7 +4,7 @@
   --str: #f3eee4; --num: #ffc95c; --lit: #8fb8ff;
   --send: #2f7cf6; --send-hover: #4b8ff8;
   --q-loose: #e9a24f; --q-emergency: #ff7a45; --q-overfull: #ff4d6d;
-  --bar: 36px; --side: 12px; --elbow: 28px;
+  --bar: 36px; --side: 12px; --outer: 44px; --inner: 14px;
   --urgent: #ff8a7a; /* salmon: modal and alert frames */
   color-scheme: dark;
 }
@@ -20,17 +20,16 @@ button { font: inherit; color: inherit; }
   grid-template-areas: "editor view";
 }
 
-/* The editor sits in an RT arch: a top bar three times as thick as the
-   thin right side bar (bar : side = 3 : 1). */
+/* The editor sits in an RT arch (drawn by arch.ts as one SVG path): a top
+   bar three times as thick as the thin right side bar (bar : side = 3 : 1),
+   a half-circle cap at the bar's open end and a curved outer elbow. */
 .editor-pane { grid-area: editor; display: grid; min-width: 0; margin: 8px 0 8px 8px; position: relative;
                grid-template-columns: minmax(0, 1fr) var(--side); grid-template-rows: var(--bar) 1fr auto; }
-.pane-head { grid-column: 1 / 3; background: var(--frame); display: flex; align-items: center; gap: 8px;
-             padding: 0 calc(var(--side) + 4px) 0 14px; border-radius: 999px var(--elbow) 0 0;
-             position: relative; color: #000; }
-.pane-head::after { /* concave inner corner of the elbow */
-  content: ""; position: absolute; right: var(--side); top: var(--bar); width: 14px; height: 14px;
-  background: radial-gradient(circle at 0 100%, transparent 13.5px, var(--frame) 14px); }
-.pane-side { grid-column: 2; grid-row: 2 / 4; background: var(--frame); }
+.editor-pane > svg.arch { position: absolute; inset: 0; width: 100%; height: 100%; fill: var(--frame);
+                          pointer-events: none; }
+.editor-pane > :not(svg) { position: relative; }
+.pane-head { grid-column: 1 / 3; display: flex; align-items: center; gap: 8px; color: #000;
+             padding: 0 calc(var(--outer) - 6px) 0 calc(var(--bar) / 2); }
 .label { font: 600 17px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; margin-right: auto; }
 .pane-head select { font: 600 15px Antonio, sans-serif; letter-spacing: .06em; text-transform: uppercase;
   background: #000; color: var(--frame); border: none; border-radius: 999px; padding: 3px 10px; }
@@ -97,7 +96,7 @@ button { font: inherit; color: inherit; }
   .sheet-toggle { display: grid; }
   .sheet-toggle svg { transition: transform .2s; }
   .app.collapsed .sheet-toggle svg { transform: rotate(180deg); }
-  .pane-head { padding-left: 6px; }
+  .pane-head { padding-left: 8px; }
   .pane-foot { min-height: 56px; padding-bottom: env(safe-area-inset-bottom); }
   .view { padding: 20px 12px 32px; }
   .diagnostics .pv-line[data-quality]::after { display: none; }

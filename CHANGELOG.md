@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Input pane arch drawn as one SVG path: half-circle cap on the left, curved
+  outer elbow at the top right.
+- Text: no paragraph indents; 0.5em of space after each paragraph.
+  `@pocketview/typeset` gains `paragraphSpacing`, and lines carry their `y`
+  position and an `endsParagraph` flag.
+
 ## 0.2.0 (2026-10-14)
 
 First release of the rewrite. The 2017 prototype is on the `archive` branch.

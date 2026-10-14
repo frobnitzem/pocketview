@@ -10,6 +10,7 @@ export const FONT_SIZE = 18;
 export const LINE_HEIGHT = 28;
 export const FONT = `${FONT_SIZE}px "Source Serif 4"`;
 const MEASURE = 36 * FONT_SIZE; // ~70 characters: a comfortable reading line
+const PARAGRAPH_SPACING = FONT_SIZE / 2; // 0.5em below each paragraph
 const GUTTER = 16;
 const OVERSCAN = 30; // lines rendered above and below the visible window
 
@@ -57,7 +58,7 @@ export class TextView {
       lineHeight: LINE_HEIGHT,
       hyphenate: englishUS,
       align: settings.align,
-      indent: settings.align === 'justify' ? 1.5 * FONT_SIZE : 0,
+      paragraphSpacing: PARAGRAPH_SPACING,
     });
     this.scroller.append(this.column);
     this.scroller.scrollTop = 0;
@@ -79,7 +80,7 @@ export class TextView {
     const width = Math.max(120, Math.min(MEASURE, Math.floor(avail)));
     if (width === this.width && this.par) return;
     const oldLines = this.par?.lines.length ?? 0;
-    const topLine = this.scroller.scrollTop / LINE_HEIGHT;
+    const topLine = this.par ? lineAt(this.par.lines, this.scroller.scrollTop - this.column.offsetTop) : 0;
     this.width = width;
     this.par = this.prepared.layout(width);
     this.column.style.width = `${width}px`;
@@ -89,7 +90,8 @@ export class TextView {
     this.rendered.clear();
     if (oldLines > 0) {
       // Keep the reader at the same place in the text.
-      this.scroller.scrollTop = (topLine * this.par.lines.length / oldLines) * LINE_HEIGHT;
+      const line = this.par.lines[Math.min(this.par.lines.length - 1, Math.round(topLine * this.par.lines.length / oldLines))];
+      this.scroller.scrollTop = (line?.y ?? 0) + this.column.offsetTop;
     }
     this.paint();
   }
@@ -103,20 +105,32 @@ export class TextView {
     const par = this.par;
     if (!par) return;
     const top = this.scroller.scrollTop - this.column.offsetTop;
-    const first = Math.max(0, Math.floor(top / LINE_HEIGHT) - OVERSCAN);
-    const last = Math.min(par.lines.length, Math.ceil((top + this.scroller.clientHeight) / LINE_HEIGHT) + OVERSCAN);
+    const first = Math.max(0, lineAt(par.lines, top) - OVERSCAN);
+    const last = Math.min(par.lines.length, lineAt(par.lines, top + this.scroller.clientHeight) + 1 + OVERSCAN);
     for (const [i, el] of this.rendered) {
       if (i < first || i >= last) { el.remove(); this.rendered.delete(i); }
     }
     for (let i = first; i < last; i++) {
       if (this.rendered.has(i)) continue;
       const line = par.lines[i]!;
-      const el = renderLine(line, i, { lineHeight: LINE_HEIGHT });
+      const el = renderLine(line, { lineHeight: LINE_HEIGHT });
       if (line.quality !== 'optimal') decorate(el, line);
       this.column.append(el);
       this.rendered.set(i, el);
     }
   }
+}
+
+/** Index of the line at height `y` (lines are sorted by y). */
+function lineAt(lines: readonly Line[], y: number): number {
+  let lo = 0;
+  let hi = lines.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (lines[mid]!.y <= y) lo = mid;
+    else hi = mid - 1;
+  }
+  return Math.max(0, lo);
 }
 
 function decorate(el: HTMLElement, line: Line): void {

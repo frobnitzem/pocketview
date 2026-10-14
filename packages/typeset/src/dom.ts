@@ -11,15 +11,15 @@ export interface RenderOptions {
   className?: string;
 }
 
-/** One absolutely positioned line element, for line `index` of a paragraph. */
-export function renderLine(line: Line, index: number, options: RenderOptions, doc: Document = document): HTMLElement {
+/** One absolutely positioned line element, placed at `line.y`. */
+export function renderLine(line: Line, options: RenderOptions, doc: Document = document): HTMLElement {
   const { lineHeight, mode = 'css' } = options;
   const el = doc.createElement('div');
   el.className = 'pv-line';
   Object.assign(el.style, {
     position: 'absolute',
     left: `${line.indent}px`,
-    top: `${index * lineHeight}px`,
+    top: `${line.y}px`,
     width: `${line.width - line.indent}px`,
     height: `${lineHeight}px`,
     whiteSpace: 'nowrap',
@@ -60,6 +60,6 @@ export function renderLines(par: Paragraph, options: RenderOptions, doc: Documen
     lineHeight: `${options.lineHeight}px`,
     fontKerning: 'normal',
   });
-  par.lines.forEach((line, i) => root.appendChild(renderLine(line, i, options, doc)));
+  for (const line of par.lines) root.appendChild(renderLine(line, options, doc));
   return root;
 }

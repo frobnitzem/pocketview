@@ -1,6 +1,7 @@
 import '@fontsource/antonio/600.css';
 import '@fontsource/source-serif-4/400.css';
 import './style.css';
+import { mountArch } from './arch';
 import { createEditor } from './editor';
 import { parseInput, type InputMode } from './parse';
 import { SAMPLES } from './samples';
@@ -15,6 +16,9 @@ const status = $('status');
 const modeSelect = $<HTMLSelectElement>('mode');
 const dialog = $<HTMLDialogElement>('settings');
 const first = SAMPLES[0];
+
+// Keep in step with --bar, --side, --outer and --inner in style.css.
+mountArch($('editor-pane'), { bar: 36, side: 12, outer: 44, inner: 14 });
 
 const editor = createEditor($('editor'), first.text, first.mode, () => show());
 const view = new TextView($('view'), settings);

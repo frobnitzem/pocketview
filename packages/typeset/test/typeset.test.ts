@@ -140,6 +140,13 @@ describe('paragraphs', () => {
     expect(par.quality).toBe('emergency');
   });
 
+  it('adds paragraph spacing between paragraphs, not after the last', () => {
+    const par = prepare('One two three.\nFour five six.', { ...opts, paragraphSpacing: 9 }).layout(400);
+    expect(par.lines.map((l) => l.y)).toEqual([0, 29]);
+    expect(par.lines.map((l) => l.endsParagraph)).toEqual([true, true]);
+    expect(par.height).toBe(49);
+  });
+
   it('indents paragraphs after the first', () => {
     const par = prepare('One two three.\nFour five six.', { ...opts, indent: 24 }).layout(400);
     expect(par.lines.map((l) => l.indent)).toEqual([0, 24]);

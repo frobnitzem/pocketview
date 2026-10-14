@@ -247,8 +247,12 @@ Every variant must obey these. Each is checked by property-based tests
   inline), view on the right.
 - Mobile: the view fills the screen, and the editor is a bottom sheet that
   collapses vertically.
-- The input pane is itself an `RT` arch with a thin side: the top bar holds
-  the label, the settings gear and the format selector.
+- The input pane is itself an `RT` arch with a thin side, drawn as one SVG
+  path: a half-circle cap at the bar's open (left) end, a curved outer elbow
+  at the top right, and a small concave inner corner. The top bar holds the
+  label, the settings gear and the format selector.
+- Text is set without paragraph indents. Each paragraph is followed by an
+  extra 0.5em of space (`paragraphSpacing` in `packages/typeset`).
 - Modal dialogs (settings) are framed in the "urgent" salmon colour, so they
   read as interruptions, distinct from the amber structure.
 - No live updates. A round blue send button with a right arrow (or
