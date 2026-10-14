@@ -146,34 +146,33 @@ also limits how many size options each node can produce.
 
 ## The marked tree
 
-The planner's output, which is also the renderer's only input:
+The planner's output, which is also the renderer's only input
+(`packages/core/src/plan.ts`):
 
 ```ts
-type Path = (string | number)[];
 type Rect = { x: number; y: number; w: number; h: number };
-type Arch = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T';
+type ArchVariant = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T';
 
-type Slot =
-  | { kind: 'frame'; arch: Arch }
-  | { kind: 'row' } | { kind: 'title' }
-  | { kind: 'border'; bar: 'top' | 'bottom' }
-  | { kind: 'sidebar' } | { kind: 'chip' }
-  | { kind: 'scroll'; contentHeight: number }
-  | { kind: 'crumb' } | { kind: 'menu' };
+type Mark =                                    // every mark has a JSON Pointer `ptr`
+  | { kind: 'frame'; arch: ArchVariant; geom: ArchGeometry; depth: number }
+  | { kind: 'title'; text: string; scale: number }  // a frame's own key, in its bar
+  | { kind: 'key'; text: string }                   // key chip of a row
+  | { kind: 'token'; text: string; type: Kind }     // one-line value
+  | { kind: 'text'; text: string; scroll: boolean; contentHeight: number }
+  | { kind: 'tag'; text: string; type: Kind }       // item of an array of scalars
+  | { kind: 'chip'; text: string; badge: string }   // collapsed child, inside
+  | { kind: 'segment'; text: string; badge: string }// collapsed child, side bar
+  | { kind: 'crumb'; text: string }                 // ancestor, top bar
+  | { kind: 'menu'; items: { ptr; text }[] };        // ancestors that didn't fit
 
-interface Mark {
-  path: Path;
-  variant: string; // plugin variant id, e.g. "core/text.justified"
-  slot: Slot;
-  rect: Rect;      // absolute, in viewport coordinates
-}
-
-type MarkedTree = Map<string /* JSON Pointer */, Mark>;
+interface Plan { focus: string; marks: Mark[]; width: number; height: number; overflow: boolean }
 ```
 
-Nodes missing from the map are not shown. Paths are encoded as JSON
-Pointers, which gives the renderer stable keys to animate between two
-marked trees.
+Marks are a flat list, each with a `rect` in viewport coordinates and the
+JSON Pointer of its node. A node can have several marks (a row's `key` and
+its `token`), and nodes without marks are not shown. Pointers give the
+renderer stable keys to animate between two plans. `chip`, `segment`,
+`crumb`, `title` and `key` marks are navigable: clicking one focuses its node.
 
 ## Variants and plugins
 
@@ -206,8 +205,34 @@ Built-in variants:
 Plugins add variants for objects that match a schema, e.g. GeoJSON → map,
 `{type:"image", data:base64}` → image, molfile → molecule.
 
-`measure` returns the Pareto set of (w, h, shown), capped at K options (≈8).
-A parent merges its children's sets, then prunes back to K options.
+**How measuring works (implemented in `packages/core/src/measure.ts`):**
+- **Memoized per width.** For a node and a maximum width, the engine
+  returns the Pareto front of options over (height, shown). Results are
+  memoized per (node, width), with widths snapped to an 8px unit. The
+  "bottom-up sweep" is therefore lazy: only the widths the planner reaches
+  are computed.
+- **A container is a knapsack over its rows.** Each child is either shown
+  (any option from its own front: a token, text, text in a scroll box,
+  tags, a nested frame, or a list) or collapsed (a chip, whose cost is
+  estimated as a share of a chip row; or a side-bar segment, which costs no
+  content height). Fronts are merged child by child, keeping the Pareto
+  front. Heights are then made exact, including the chip rows.
+- **Thinning.** A front is cut down to about K = 16 points by splitting
+  its height range into buckets and keeping the best point in each, so a
+  good option survives at every scale of height.
+- **"Shown".** A scalar counts 1. Text counts 1–4, by length, and only
+  partly when in a scroll box. Content one level deeper counts
+  `depthDiscount` = 0.7 as much, so a parent's own rows win over its
+  grandchildren. Ties go to earlier children.
+
+**Current simplifications (core v1):**
+- **Single column.** Children stack in one column; nested frames are `L*`,
+  with `*B` for the first and last frame in a column.
+- **Side-bar segments only on the focused frame.** Nested frames collapse
+  children to chips.
+- **No scroll boxes for arrays** (lists collapse instead).
+- **No overflow ranges** for very long arrays yet. If even everything
+  collapsed does not fit, the plan overflows and the view scrolls.
 
 ## Navigation contracts
 
@@ -228,6 +253,14 @@ Every variant must obey these. Each is checked by property-based tests
 6. **Small edits make small changes.** Moving focus to a visible child, or
    back up one level, keeps every mark that is still visible in the same
    variant where possible. This keeps animations calm.
+
+Status:
+- **1 and 2 hold by construction** in `packages/core`.
+- **3–5 are property-tested** in `packages/core/test/contracts.test.ts`, at
+  the root and with the focus anywhere, along with two more checks: frames
+  nest (two frames are disjoint, or one contains the other), and planning is
+  deterministic.
+- **6 is not yet enforced**; it matters once there is animation.
 
 ## Rendering and animation
 
@@ -293,7 +326,7 @@ tests of typesetting and frames).
 
 ```
 packages/typeset   Knuth–Plass + hyphenation + measurement cache
-packages/core      variants, measure, plan, contracts (no DOM)
+packages/core      measure, plan, arch paths, contracts (no DOM)
 packages/render    React + Motion renderer of a MarkedTree
 packages/plugins   schema-matched high-level variants
 apps/demo          gh-pages site

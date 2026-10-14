@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- `@pocketview/core`, the layout engine: a lazy bottom-up measure that keeps
+  a Pareto front of (height, shown) per node and width, and a top-down
+  planner that produces the marked tree for any focus and viewport
+  (outermost LTR frame with breadcrumbs, side-bar segments and chips;
+  nested arch frames; rows, tags, text and scroll boxes). Arch paths for all
+  six variants. Property tests for the navigation contracts.
+- Demo: objects and arrays are laid out and navigable (click a chip,
+  segment, title, key or breadcrumb; Esc goes up). The input pane folds to
+  the left on desktop.
+
 - Input pane arch drawn as one SVG path: half-circle cap on the left, curved
   outer elbow at the top right.
 - Text: no paragraph indents; 0.5em of space after each paragraph.

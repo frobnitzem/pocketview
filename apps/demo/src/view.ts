@@ -1,6 +1,6 @@
 /**
- * The right-hand view. Until the layout engine exists it typesets strings
- * (and other scalars); objects and arrays get a notice.
+ * The right-hand view for a document that is a single string: the text is
+ * typeset once per width and only the lines near the viewport are drawn.
  */
 import { canvasMeasure, prepare, renderLine, type Line, type Paragraph, type Prepared } from '@pocketview/typeset';
 import { englishUS } from '@pocketview/typeset/en-us';
@@ -36,22 +36,21 @@ export class TextView {
     new ResizeObserver(() => this.relayout()).observe(scroller);
   }
 
-  /** Shows `value`, returning stats for text or null for a notice. */
-  show(value: unknown, settings: Settings): ViewStats | null {
-    this.settings = settings;
-    // Clear the previous render completely before drawing the new one.
-    this.scroller.replaceChildren();
+  /** Stops drawing (another view owns the scroller now). */
+  clear(): void {
     this.column.replaceChildren();
     this.rendered.clear();
     this.prepared = null;
     this.par = null;
     this.width = 0;
+  }
 
-    if (value !== null && typeof value === 'object') {
-      this.scroller.append(notice(Array.isArray(value) ? 'array' : 'object'));
-      return null;
-    }
-    const text = typeof value === 'string' ? value : String(value);
+  /** Typesets `text` as the whole view and returns stats. */
+  show(text: string, settings: Settings): ViewStats {
+    this.settings = settings;
+    // Clear the previous render completely before drawing the new one.
+    this.scroller.replaceChildren();
+    this.clear();
     const t0 = performance.now();
     this.prepared = prepare(text, {
       measure: canvasMeasure(FONT),
@@ -138,14 +137,4 @@ function decorate(el: HTMLElement, line: Line): void {
   const ratio = Number.isFinite(line.ratio) ? line.ratio.toFixed(2) : '∞';
   el.dataset.quality = line.quality;
   el.title = `${line.quality} · adjustment ratio ${ratio}`;
-}
-
-function notice(kind: string): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 'notice';
-  el.innerHTML = `<h2>${kind}</h2>
-    <p>Objects and arrays are laid out by the layout engine, which is the next
-    part of pocketview to be built. For now the view typesets text: paste prose
-    (it is read as plain text) or a JSON or YAML string.</p>`;
-  return el;
 }

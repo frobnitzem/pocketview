@@ -20,14 +20,57 @@ test('typesets the sample text on load', async ({ page }) => {
   await page.screenshot({ path: 'test-results/desktop.png' });
 });
 
-test('reports parse errors and shows a notice for objects', async ({ page }) => {
+test('reports parse errors', async ({ page }) => {
   await ready(page);
   await page.evaluate(() => (window as any).pocketview.setInput('{"a": '));
   await page.click('#send');
   await expect(page.locator('#status')).toHaveClass(/error/);
-  await page.evaluate(() => (window as any).pocketview.setInput('{"a": 1}'));
-  await page.click('#send');
-  await expect(page.locator('.notice h2')).toHaveText('object');
+});
+
+async function example(page: Page, name: string) {
+  await page.click('#settings-open');
+  await page.getByRole('button', { name }).click();
+  await page.waitForSelector('.pv-layout');
+}
+
+test('lays out an object in arch frames, and navigates', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await example(page, 'An object (YAML)');
+  await expect(page.locator('.pv-frame').first()).toBeVisible();
+  await expect(page.locator('.pv-title').first()).toHaveText('object');
+  await expect(page.locator('.pv-key', { hasText: 'version' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/object-desktop.png' });
+  // Zoom into a nested frame by its title; the root becomes a breadcrumb.
+  await page.locator('.pv-title.nav', { hasText: 'author' }).click();
+  await expect(page.locator('.pv-crumb')).toHaveText('object');
+  await expect(page.locator('.pv-title.focus')).toHaveText('author');
+  await page.locator('.pv-crumb').click();
+  await expect(page.locator('.pv-crumb')).toHaveCount(0);
+});
+
+test('collapses into segments and chips when small, and they navigate', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 420 });
+  await ready(page);
+  await example(page, 'An object (YAML)');
+  const collapsed = page.locator('.pv-segment.nav, .pv-chip.nav');
+  expect(await collapsed.count()).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/object-small.png' });
+  await collapsed.first().click();
+  await expect(page.locator('.pv-crumb').first()).toHaveText('object');
+});
+
+test('desktop: the input pane folds to the left and back', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await example(page, 'An array of records (JSON)');
+  await page.click('#sheet-toggle');
+  await expect(page.locator('#app')).toHaveClass(/side-collapsed/);
+  await expect(page.locator('.cm-editor')).toBeHidden();
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: 'test-results/folded.png' });
+  await page.click('#sheet-toggle');
+  await expect(page.locator('.cm-editor')).toBeVisible();
 });
 
 test('each render replaces the previous one', async ({ page }) => {

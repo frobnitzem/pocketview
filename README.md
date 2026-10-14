@@ -4,11 +4,12 @@ A viewer for JSON and YAML trees, with publication-quality typesetting and
 an automatic layout that decides what to show, where, and how.
 
 **Demo:** https://frobnitzem.github.io/pocketview/ (paste JSON, YAML or plain
-text on the left, press the blue arrow). The demo typesets text today;
-objects and arrays arrive with the layout engine.
+text on the left, press the blue arrow). Text is typeset; objects and arrays
+are laid out in arch frames and can be navigated by clicking.
 
 - `DESIGN.md`: the design (pipeline, arch frames, marked tree, contracts).
 - `packages/typeset`: Knuth–Plass line breaking with hyphenation.
+- `packages/core`: the layout engine (measure, plan, navigation contracts).
 - `apps/demo`: the demo site, published to the `gh-pages` branch by
   `.github/workflows/pages.yml`.
 

@@ -31,15 +31,46 @@ export const JSON_STRING = JSON.stringify(
   null, 2,
 );
 
-export const OBJECT = `name: pocketview
-version: 0.1.0
-keywords: [json, yaml, viewer, typesetting]
+export const OBJECT = `# A package manifest, as YAML
+name: pocketview
+version: 0.2.0
+private: false
+license: Apache-2.0
+description: >
+  A viewer for JSON and YAML trees, with publication-quality typesetting and
+  an automatic layout that decides what to show, where, and how. Every node
+  offers a few display variants; a bottom-up sweep keeps a Pareto front of
+  sizes, and a top-down pass picks one option per visible node.
+keywords: [json, yaml, viewer, typesetting, layout, lcars]
 author:
   name: David M. Rogers
+  url: https://github.com/frobnitzem
+repository:
+  type: git
+  url: https://github.com/frobnitzem/pocketview
+scripts:
+  test: pnpm -r test
+  typecheck: pnpm -r typecheck
+  e2e: pnpm -r e2e
+  licenses:check: node scripts/check-licenses.mjs
+packages:
+  - name: "@pocketview/typeset"
+    role: Knuth-Plass line breaking with hyphenation
+  - name: "@pocketview/core"
+    role: measure, plan and the navigation contracts
+  - name: "@pocketview/demo"
+    role: this page
 `;
+
+export const ARRAY = JSON.stringify([
+  { id: 1, title: 'Breaking Paragraphs into Lines', authors: ['Knuth', 'Plass'], year: 1981 },
+  { id: 2, title: 'Word Hy-phen-a-tion by Com-put-er', authors: ['Liang'], year: 1983 },
+  { id: 3, title: 'The TeXbook', authors: ['Knuth'], year: 1984 },
+], null, 2);
 
 export const SAMPLES = [
   { label: 'Pride and Prejudice (text)', mode: 'auto', text: AUSTEN },
   { label: 'A JSON string', mode: 'auto', text: JSON_STRING },
-  { label: 'An object (needs the layout engine)', mode: 'auto', text: OBJECT },
+  { label: 'An object (YAML)', mode: 'auto', text: OBJECT },
+  { label: 'An array of records (JSON)', mode: 'auto', text: ARRAY },
 ] as const;
