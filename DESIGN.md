@@ -19,10 +19,23 @@ parse ─► measure (bottom-up) ─► plan (top-down) ─► render (animated)
 and in a Web Worker. `render` does no layout of its own: it draws boxes the
 planner has already positioned.
 
-**Bare scalars at the root.** The outermost frame needs an object, so on read
-a document that is just a scalar is wrapped as a one-key object for display.
-The key comes from the file name (without extension) or, with no file name,
-is `string` (or `number`, `boolean`, `null` for other scalars).
+**Non-object roots are shown as they are.** Nothing is wrapped on read.
+A root string, number, boolean, null or array is drawn with its own variant
+and no frame: a bare string is just typeset text, and an array is tags, a
+list or a scroll box. Frames exist to hold keys and breadcrumbs, and an
+unfocused root has neither.
+
+**The view root.** What fills the viewport is the *focused* node, not the
+document root:
+- If the focused node is an object, it is drawn as the outermost frame
+  (`LTR`). Its top bar holds the breadcrumbs (if any) and its key as the title.
+- If it is anything else (an array, or a long string opened on its own), it
+  is drawn unframed. If the focus is below the document root, a bare top bar
+  (`T`) above it carries the breadcrumbs. At the document root there are no
+  breadcrumbs, so there is no bar.
+- The document root's crumb is labelled with the file name (without
+  extension), or with its type (`object`, `array`, `string`, …) when there
+  is no file name.
 
 ## Goal 1: typeset text
 
@@ -66,10 +79,11 @@ A frame is a thick side bar joined to a horizontal bar by a rounded elbow
 | `RT`    | right + top       | object in a right-hand column                    |
 | `LB`    | left + bottom     | left column, at the top or bottom of the column  |
 | `RB`    | right + bottom    | right column, at the top or bottom of the column |
-| `LTR`   | left + top + right| **outermost frame** (required); full-width child |
+| `LTR`   | left + top + right| **outermost frame** of a focused object; full-width child |
+| `T`     | top bar only      | breadcrumb bar above an unframed focused node    |
 
-There is no `LBR` variant. The outermost frame must have a top bar, and the
-breadcrumbs live in it.
+There is no `LBR` variant. The breadcrumbs always live in a top bar: the
+`LTR` frame's, or the bare `T` bar's.
 
 **Choosing a variant** (decided; the planner does this, not plugins):
 - **Side:** a frame in a left column gets its bar on the left (`L*`), and
@@ -89,7 +103,7 @@ breadcrumbs live in it.
 | `chip`      | collapsed child: key capsule + size badge inside (`REPOSITORY { 2 }`) |
 | `frame`     | nested child arch inside the content area                             |
 | `scroll`    | text or array too tall for its box: fixed-size box with a scrollbar   |
-| `crumb`     | ancestor of the focused node: a square segment of the outermost top bar |
+| `crumb`     | ancestor of the focused node: a square segment of the top bar          |
 | `menu`      | ancestor that didn't fit as a crumb, listed in a hamburger dropdown   |
 
 Everything that sits in a bar is a **square** segment as tall as the bar,
@@ -124,7 +138,7 @@ The planner's output, which is also the renderer's only input:
 ```ts
 type Path = (string | number)[];
 type Rect = { x: number; y: number; w: number; h: number };
-type Arch = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR';
+type Arch = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T';
 
 type Slot =
   | { kind: 'frame'; arch: Arch }
@@ -222,6 +236,15 @@ Every variant must obey these. Each is checked by property-based tests
   collapses vertically.
 - No live updates. A round blue send button with a right arrow parses the
   input and re-plans the view.
+- A settings button sits left of the editor, on a narrow tool rail. On
+  mobile it sits left of the editor in the bottom sheet. It opens a modal.
+  Settings are kept per viewer in `localStorage`. First setting:
+  - **Layout diagnostics** (off by default): each text block is marked with
+    how its lines were broken (`optimal`, `loose`, `emergency`, `overfull`;
+    see `Quality` in `packages/typeset`). Non-optimal blocks get a coloured
+    outline and a small label, and hovering shows the worst line's
+    adjustment ratio. Later, the same switch can show size options and
+    variant ids from the planner.
 - Built by GitHub Actions and published to the `gh-pages` branch.
 
 ## Stack
