@@ -70,16 +70,18 @@
   <span style="width:210px"><span class="tag">json</span><span class="tag">yaml</span><span class="tag">viewer</span><span class="tag">typesetting</span><span class="tag">layout</span></span>
 </div>
 
-<!-- nested object, R+T variant (right column) -->
-<div class="lbl title" style="--bar:24px;left:536px;top:76px;font-size:19px;color:var(--frame-1);padding:0 6px">author</div>
-<div class="row" style="left:530px;top:112px"><span class="key sm">name</span><span class="val">“David M. Rogers”</span></div>
-<div class="row" style="left:530px;top:144px"><span class="key sm">url</span><span class="val">“github.com/frobnitzem”</span></div>
+<!-- nested object, R+B variant (top of the right column) -->
+<div class="lbl title" style="--bar:24px;left:536px;top:164px;font-size:19px;color:var(--frame-1);padding:0 6px">author</div>
+<div class="row" style="left:530px;top:84px"><span class="key sm">name</span><span class="val">“David M. Rogers”</span></div>
+<div class="row" style="left:530px;top:116px"><span class="key sm">url</span><span class="val">“github.com/frobnitzem”</span></div>
 
 <!-- nested object, L+B variant: key/value pair sitting ON the bottom border -->
 <div class="row" style="left:262px;top:316px"><span class="key">host</span><span class="val">“0.0.0.0”</span></div>
 <div class="row" style="left:262px;top:348px"><span class="key">port</span><span class="val num">8080</span></div>
-<div class="lbl" style="left:282px;top:429px;font-size:14px">timeout <span style="font-family:'Source Serif 4';text-transform:none;font-weight:400">30 s</span></div>
-<div class="lbl title" style="--bar:24px;left:420px;top:424px;font-size:19px;color:var(--frame-1);padding:0 6px">server</div>
+<!-- border items are square segments of the bar, labelled like side-bar segments -->
+<div class="lbl seg" style="left:270px;top:430px;width:96px;font-size:14px">timeout <span style="font-family:'Source Serif 4';text-transform:none;font-weight:400">30 s</span></div>
+<div class="lbl seg" style="left:374px;top:430px;width:52px;font-size:14px">tls · 3</div>
+<div class="lbl title" style="--bar:24px;left:436px;top:424px;font-size:19px;color:var(--frame-1);padding:0 6px">server</div>
 
 <!-- long text: fixed width, scrolls instead of overflowing -->
 <div class="row" style="left:538px;top:212px"><span class="key">description</span></div>
@@ -96,7 +98,7 @@
 <div class="chip" style="left:458px;top:470px"><b>files</b><i>[ 6 ]</i></div>
 
 <div class="note" style="left:182px;top:560px;width:640px">Mockup: positions are hand-placed to stand in for the layout engine’s marked tree.
-Left/right/top/bottom border variants shown: L+T+R (outer), R+T (author), L+B (server).</div>
+Left/right/top/bottom border variants shown: L+T+R (outer), R+B (author, top of its column), L+B (server, bottom of its column). Border items are square bar segments.</div>
 </div>
 
 <script>
@@ -126,10 +128,10 @@ document.getElementById('frames').innerHTML = [
   arch({ variant: 'LTR', x: 16, y: 16, w: 868, h: 608, s: 150, sR: 28, t: 44, R: 56, r: 24, fill: css('--frame-0') }),
   // side-border segments (collapsed children) are cut out of the left bar
   cut(16, 130, 150, 5), cut(16, 204, 150, 5), cut(16, 278, 150, 5), cut(16, 352, 150, 5),
-  arch({ variant: 'RT', x: 524, y: 76, w: 316, h: 112, s: 22, t: 24, R: 28, r: 12, fill: css('--frame-1') }),
-  arch({ variant: 'LB', x: 182, y: 302, w: 330, h: 146, s: 70, t: 24, R: 30, r: 12, fill: css('--frame-1') }),
+  arch({ variant: 'RB', x: 524, y: 76, w: 316, h: 112, s: 22, t: 24, R: 28, r: 12, fill: css('--frame-1') }),
+  arch({ variant: 'LB', x: 182, y: 302, w: 344, h: 146, s: 70, t: 24, R: 30, r: 12, fill: css('--frame-1') }),
   // border item on the bottom bar of "server": its own segment
-  cut(266, 424, 4, 24), cut(374, 424, 4, 24),
+  cut(266, 424, 4, 24), cut(370, 424, 4, 24),
 ].join('');
 </script>
 </body>

@@ -47,18 +47,26 @@ A frame is a thick side bar joined to a horizontal bar by a rounded elbow
 |---------|-------------------|--------------------------------------------------|
 | `LT`    | left + top        | default nested object                            |
 | `RT`    | right + top       | object in a right-hand column                    |
-| `LB`    | left + bottom     | object whose header items sit at the bottom      |
-| `RB`    | right + bottom    | mirror of `LB`                                   |
+| `LB`    | left + bottom     | left column, at the top or bottom of the column  |
+| `RB`    | right + bottom    | right column, at the top or bottom of the column |
 | `LTR`   | left + top + right| **outermost frame** (required); full-width child |
 
-The outermost frame must have a top bar, and the breadcrumbs live in it.
+There is no `LBR` variant. The outermost frame must have a top bar, and the
+breadcrumbs live in it.
+
+**Choosing a variant** (decided; the planner does this, not plugins):
+- **Side:** a frame in a left column gets its bar on the left (`L*`), and
+  one in a right column gets it on the right (`R*`).
+- **Top or bottom:** top (`*T`) by default. Bottom (`*B`) if the frame sits
+  at the top or bottom of its column.
+- **Three-sided:** `LTR` for the outermost frame and full-width children.
 
 ### Where a key/value pair can go (slots)
 
 | slot        | contents                                                              |
 |-------------|-----------------------------------------------------------------------|
 | `row`       | inside the frame: key chip + value, one per line                      |
-| `border`    | on a horizontal bar, as its own bar segment (`TIMEOUT 30 s`)          |
+| `border`    | on a horizontal bar: a square segment as tall as the bar (`TIMEOUT 30 s`, `TLS · 3`) |
 | `title`     | the frame's own key, in a gap at the open end of its horizontal bar   |
 | `sidebar`   | collapsed child: a labelled segment of the side bar (`SCRIPTS · 4`)   |
 | `chip`      | collapsed child: key capsule + size badge inside (`REPOSITORY { 2 }`) |
@@ -66,6 +74,11 @@ The outermost frame must have a top bar, and the breadcrumbs live in it.
 | `scroll`    | text or array too tall for its box: fixed-size box with a scrollbar   |
 | `crumb`     | ancestor of the focused node, as a capsule in the outermost top bar   |
 | `menu`      | ancestor that didn't fit as a capsule, listed in a hamburger dropdown |
+
+Items in a horizontal bar, whether key/value pairs or collapsed children,
+are **square** segments as tall as the bar, separated by gaps and labelled
+like side-bar segments: the bars read as one system. Capsules are kept for
+breadcrumbs and for chips inside the frame.
 
 Clicking a `sidebar`, `chip` or `crumb` item moves the focus to that node.
 
@@ -136,7 +149,10 @@ interface Variant<T = unknown> {
 Built-in variants:
 - Strings: `token`, `text.justified`, `text.scroll`, `code`, `math`.
 - Numbers, booleans and null: `token`.
-- Arrays: `tags`, `table` (arrays of uniform objects), `list.scroll`.
+- Arrays: `tags`, `list.scroll`. No frame by default. A framed array
+  display for regularly structured arrays (matrices, dataframe-like arrays
+  of uniform records) comes later, as a selector plugin that matches by
+  schema or shape.
 - Objects: `arch.*`.
 - Every node: `chip`.
 
@@ -203,11 +219,4 @@ apps/demo          gh-pages site
 
 ## Open questions
 
-- Should there also be an `LBR` (left + bottom + right) variant, or is
-  `LTR` the only three-sided frame?
-- Do arrays get a frame of their own, or only `tags` / `table` / `scroll`?
-- How are arch variants chosen for nested objects? Proposed rule: a frame
-  in a left column faces left (`L*`) and one in a right column faces right
-  (`R*`). Bottom variants (`*B`) are used when a child carries border items
-  and sits last in its column. `LTR` is used for the outermost frame and for
-  full-width children.
+None at the moment.
