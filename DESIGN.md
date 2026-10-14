@@ -72,20 +72,23 @@ breadcrumbs live in it.
 | `chip`      | collapsed child: key capsule + size badge inside (`REPOSITORY { 2 }`) |
 | `frame`     | nested child arch inside the content area                             |
 | `scroll`    | text or array too tall for its box: fixed-size box with a scrollbar   |
-| `crumb`     | ancestor of the focused node, as a capsule in the outermost top bar   |
-| `menu`      | ancestor that didn't fit as a capsule, listed in a hamburger dropdown |
+| `crumb`     | ancestor of the focused node: a square segment of the outermost top bar |
+| `menu`      | ancestor that didn't fit as a crumb, listed in a hamburger dropdown   |
 
-Items in a horizontal bar, whether key/value pairs or collapsed children,
-are **square** segments as tall as the bar, separated by gaps and labelled
-like side-bar segments: the bars read as one system. Capsules are kept for
-breadcrumbs and for chips inside the frame.
+Everything that sits in a bar is a **square** segment as tall as the bar,
+separated by gaps and labelled like side-bar segments, so all bars read as
+one system. That covers breadcrumbs, key/value pairs and collapsed children.
+The outermost top bar holds only the breadcrumbs and the title. Other items
+go in the bottom bars of `*B` frames. Capsules are used only for chips
+inside a frame.
 
 Clicking a `sidebar`, `chip` or `crumb` item moves the focus to that node.
 
 ### Colour roles
 
 - Structure: one warm hue, lightened at each nesting depth.
-- Navigation (crumbs, collapsed segments and chips): cream.
+- Navigation: chips inside frames are cream. Crumbs and bar segments take
+  their bar's colour, separated by gaps.
 - Keys: lavender.
 - Values, by JSON type: strings off-white, numbers gold (tabular figures),
   booleans and null blue italic.

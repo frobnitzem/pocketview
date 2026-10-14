@@ -22,7 +22,6 @@
   .lbl { position: absolute; font: 600 15px/1 Antonio, sans-serif; letter-spacing: .06em;
          text-transform: uppercase; color: var(--ink); white-space: nowrap; }
   .title { font-size: 26px; font-weight: 700; background: var(--bg); padding: 0 8px; }
-  .crumb { background: var(--nav); border-radius: 999px; height: 28px; line-height: 28px; padding: 0 14px; }
   .title { height: var(--bar); line-height: var(--bar); }
   .seg { text-align: right; }
   .row { position: absolute; display: flex; align-items: center; gap: 10px; height: 26px; }
@@ -51,8 +50,8 @@
 <svg id="frames" width="900" height="640"></svg>
 
 <!-- outermost arch (L+T+R): breadcrumbs live in the top border -->
-<div class="lbl crumb" style="left:190px;top:24px">root</div>
-<div class="lbl crumb" style="left:262px;top:24px">packages</div>
+<div class="lbl seg" style="left:190px;top:38px;width:68px">root</div>
+<div class="lbl seg" style="left:266px;top:38px;width:110px">packages</div>
 <div class="lbl title" style="--bar:44px;left:672px;top:16px;color:var(--nav)">pocketview</div>
 
 <!-- unrendered key:object pairs collapsed into the side border -->
@@ -98,7 +97,7 @@
 <div class="chip" style="left:458px;top:470px"><b>files</b><i>[ 6 ]</i></div>
 
 <div class="note" style="left:182px;top:560px;width:640px">Mockup: positions are hand-placed to stand in for the layout engine’s marked tree.
-Left/right/top/bottom border variants shown: L+T+R (outer), R+B (author, top of its column), L+B (server, bottom of its column). Border items are square bar segments.</div>
+Left/right/top/bottom border variants shown: L+T+R (outer), R+B (author, top of its column), L+B (server, bottom of its column). Breadcrumbs and border items are square bar segments.</div>
 </div>
 
 <script>
@@ -126,6 +125,8 @@ const css = v => getComputedStyle(document.documentElement).getPropertyValue(v);
 
 document.getElementById('frames').innerHTML = [
   arch({ variant: 'LTR', x: 16, y: 16, w: 868, h: 608, s: 150, sR: 28, t: 44, R: 56, r: 24, fill: css('--frame-0') }),
+  // breadcrumbs are square segments of the top bar
+  cut(186, 16, 4, 44), cut(262, 16, 4, 44), cut(380, 16, 4, 44),
   // side-border segments (collapsed children) are cut out of the left bar
   cut(16, 130, 150, 5), cut(16, 204, 150, 5), cut(16, 278, 150, 5), cut(16, 352, 150, 5),
   arch({ variant: 'RB', x: 524, y: 76, w: 316, h: 112, s: 22, t: 24, R: 28, r: 12, fill: css('--frame-1') }),
