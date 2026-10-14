@@ -247,6 +247,18 @@ Every variant must obey these. Each is checked by property-based tests
     variant ids from the planner.
 - Built by GitHub Actions and published to the `gh-pages` branch.
 
+## License
+
+Apache-2.0. Dependencies that ship (in the library or the demo site) must be
+permissively licensed (MIT, ISC, BSD, Apache-2.0, …); fonts may be OFL-1.1.
+Build and test tools may also be MPL-2.0, since they are never bundled.
+Hyphenation patterns are licensed per language, and each language must be
+reviewed and listed in `THIRD_PARTY_NOTICES.md` before use.
+`pnpm licenses:check` enforces all of this and should run in CI.
+
+Planned dependencies, all compatible: React, Motion, CodeMirror 6, KaTeX,
+Shiki, Ajv (MIT); `yaml` (ISC); Playwright (Apache-2.0); Antonio font (OFL).
+
 ## Stack
 
 TypeScript, pnpm workspaces, Vite, Vitest, fast-check, Playwright (screenshot
