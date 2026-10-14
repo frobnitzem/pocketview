@@ -49,6 +49,7 @@ function getTextWidth(text, font) {
     var canvas = getTextWidth.canvas
                || (getTextWidth.canvas = document.createElement("canvas"));
     var context = canvas.getContext("2d");
+    if (!context) return text.length * 8;
     context.font = font;
     return context.measureText(text).width;
 }
@@ -82,4 +83,3 @@ export function add2(a, b) {
     a[0] += b[0];
     a[1] += b[1];
 }
-

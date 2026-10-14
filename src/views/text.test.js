@@ -11,6 +11,7 @@ const para = "A long and winding paragraph can begin with only a few words.  Bef
 const plan10 = {
   path: ["System", "Line"],
   sz: [299,151],
+  tsz: [300, 150],
 }
 
 test('Text renders contents', t => {
@@ -25,11 +26,10 @@ test('Text renders contents', t => {
 
 test('Text plans and renders content', t => {
   const path = ["System", "Text"];
-  const ret = planText(path, para);
+  const ret = planText(path, para, [300, 150]);
   isPlanElem(t, ret);
   t.deepEqual(ret.path, path);
 
   const wrapper = shallow(ret.elem);
   t.true(wrapper.hasClass('content'));
 });
-
