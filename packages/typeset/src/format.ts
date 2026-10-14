@@ -10,6 +10,8 @@ export interface FormatOptions {
   align: Align;
   hyphenate?: Hyphenator | null;
   hyphenPenalty?: number;
+  /** Width of an empty box starting each non-empty paragraph (first-line indent). */
+  indent?: number;
   /**
    * Emergency mode: pieces wider than this are split between characters,
    * so that no box is wider than the narrowest line.
@@ -127,6 +129,7 @@ export function format(text: string, options: FormatOptions): Node[] {
   for (const para of text.replace(/\r\n?/g, '\n').split('\n')) {
     const words = para.split(SPACE).filter(Boolean);
     if (words.length === 0) nodes.push(box(0, ''));
+    else if (options.indent) nodes.push(box(options.indent, ''));
     words.forEach((word, wi) => {
       if (wi > 0) interword();
       let pieces = splitWord(word, hyphenate);

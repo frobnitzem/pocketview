@@ -44,13 +44,18 @@ copyleft). Each must be reviewed and listed here before it is used;
 
 ## Distributed with the demo site
 
-### Source Serif 4 (SIL Open Font License 1.1)
+### Source Serif 4 and Antonio (SIL Open Font License 1.1)
 
-Via `@fontsource/source-serif-4`. Copyright Adobe (http://www.adobe.com/),
-with Reserved Font Name "Source". The font files are distributed under the
-OFL 1.1, whose full text is included in the package
-(`node_modules/@fontsource/source-serif-4/LICENSE`). The gh-pages build must
-copy that text next to the font files (to do when the build is set up).
+Via `@fontsource/source-serif-4` (Copyright Adobe, with Reserved Font Name
+"Source") and `@fontsource/antonio` (Copyright The Antonio Project Authors).
+The font files are distributed under the OFL 1.1. The demo build copies each
+font's licence text to `licenses/` next to the site.
+
+### Demo-only libraries
+
+CodeMirror 6 (MIT, Copyright Marijn Haverbeke and others) and `yaml` (ISC,
+Copyright Eemeli Aro) are bundled into the demo site. Their licence texts
+are included in their packages.
 
 ## Acknowledgements (no code included)
 

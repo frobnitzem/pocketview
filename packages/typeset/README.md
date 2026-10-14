@@ -5,7 +5,7 @@ be known before it is drawn.
 
 ```ts
 import { canvasMeasure, prepare, renderLines } from '@pocketview/typeset';
-import { englishUS } from '@pocketview/typeset/src/en-us';
+import { englishUS } from '@pocketview/typeset/en-us';
 
 await document.fonts.load('17px "Source Serif 4"');
 const text = prepare(str, { measure: canvasMeasure('17px "Source Serif 4"'), lineHeight: 25, hyphenate: englishUS });

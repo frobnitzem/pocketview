@@ -234,8 +234,14 @@ Every variant must obey these. Each is checked by property-based tests
   inline), view on the right.
 - Mobile: the view fills the screen, and the editor is a bottom sheet that
   collapses vertically.
-- No live updates. A round blue send button with a right arrow parses the
-  input and re-plans the view.
+- No live updates. A round blue send button with a right arrow (or
+  Ctrl/Cmd+Enter) parses the input and re-plans the view.
+- Input format: auto, JSON, YAML or text. Auto tries JSON, then YAML if it
+  yields an object or array, and otherwise reads the input as plain text.
+  Plain text follows Markdown's paragraph rule (blank lines separate
+  paragraphs; single newlines are spaces), so hard-wrapped e-texts reflow.
+- Long texts are laid out once per width and only the lines near the
+  viewport are in the DOM.
 - A settings button sits left of the editor, on a narrow tool rail. On
   mobile it sits left of the editor in the bottom sheet. It opens a modal.
   Settings are kept per viewer in `localStorage`. First setting:

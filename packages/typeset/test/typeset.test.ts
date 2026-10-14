@@ -130,6 +130,24 @@ describe('prepare', () => {
   });
 });
 
+describe('paragraphs', () => {
+  it('breaks each paragraph on its own and reports quality per line', () => {
+    const p = prepare(`${FROG}\nAn\u00A0unbreakable\u00A0run\u00A0of\u00A0words\u00A0glued\u00A0together.`, opts);
+    const par = p.layout(200);
+    const first = par.lines.filter((l) => l.quality === 'optimal' || l.quality === 'loose');
+    expect(first.length).toBeGreaterThan(5);
+    expect(par.lines.at(-1)!.quality).toBe('emergency');
+    expect(par.quality).toBe('emergency');
+  });
+
+  it('indents paragraphs after the first', () => {
+    const par = prepare('One two three.\nFour five six.', { ...opts, indent: 24 }).layout(400);
+    expect(par.lines.map((l) => l.indent)).toEqual([0, 24]);
+    expect(par.lines[1]!.text).toBe('Four five six.');
+    expect(par.lines[1]!.items[0]!.x).toBe(24);
+  });
+});
+
 describe('properties', () => {
   const word = fc.constantFrom(
     'the', 'a', 'typesetting', 'of', 'hyphenation', 'JSON', 'paragraph', 'is',

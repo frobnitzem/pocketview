@@ -1,5 +1,5 @@
 /** High-level API: prepare a text once, lay it out at any width. */
-import { format, type Align } from './format';
+import { format, type Align, type FormatOptions } from './format';
 import type { Hyphenator } from './hyphenate';
 import { breakGreedy, breakLines, lineStartAfter, type Break, type BreakOptions } from './linebreak';
 import type { Measure } from './measure';
@@ -10,6 +10,10 @@ export interface TypesetOptions {
   lineHeight: number;
   align?: Align;
   hyphenate?: Hyphenator | null;
+  /** First-line indent of paragraphs, in px (book style). */
+  indent?: number;
+  /** Indent the first paragraph too (books usually don't). */
+  indentFirst?: boolean;
   /** Tolerances tried in order before falling back to emergency breaking. */
   tolerances?: number[];
   breakOptions?: Partial<Omit<BreakOptions, 'tolerance'>>;
@@ -36,6 +40,10 @@ export interface Line {
   justify: boolean;
   /** Extra space per interword gap (negative when shrunk), to reach `width`. */
   wordSpacing: number;
+  /** x of the first word (the paragraph indent, on a paragraph's first line). */
+  indent: number;
+  /** How the breaks of this line's paragraph were found. */
+  quality: Quality;
 }
 
 /**
@@ -50,8 +58,13 @@ export type Quality = 'optimal' | 'loose' | 'emergency' | 'overfull';
 export interface Paragraph {
   lines: Line[];
   height: number;
+  /** The worst quality of any paragraph in the text. */
   quality: Quality;
 }
+
+const QUALITY_ORDER: Quality[] = ['optimal', 'loose', 'emergency', 'overfull'];
+const worse = (a: Quality, b: Quality): Quality =>
+  QUALITY_ORDER.indexOf(a) >= QUALITY_ORDER.indexOf(b) ? a : b;
 
 export interface Prepared {
   layout(widths: number | readonly number[]): Paragraph;
@@ -62,24 +75,30 @@ export interface Prepared {
   readonly maxWidth: number;
 }
 
+/**
+ * Each line of `text` (split on newlines) is a paragraph, broken on its own:
+ * a hard paragraph falls back to looser settings without affecting the rest.
+ */
 export function prepare(text: string, options: TypesetOptions): Prepared {
   const align = options.align ?? 'justify';
   const tolerances = options.tolerances ?? (align === 'justify' ? [1, 1.5, 3] : [1, 3]);
-  const fmt = { measure: options.measure, align, hyphenate: options.hyphenate ?? null };
-  const nodes = format(text, fmt);
+  const base = { measure: options.measure, align, hyphenate: options.hyphenate ?? null };
+  const paragraphs = text.replace(/\r\n?/g, '\n').split('\n').map((para, i) => {
+    const indent = options.indent && (i > 0 || options.indentFirst) && para.trim() ? options.indent : 0;
+    const fmt = { ...base, indent };
+    return { text: para, fmt, nodes: format(para, fmt) };
+  });
   const cache = new Map<string, Paragraph>();
 
   let minWidth = 0;
   let maxWidth = 0;
-  let run = 0;
-  for (const node of nodes) {
-    if (node.type === 'box') minWidth = Math.max(minWidth, node.width);
-    if (node.type === 'penalty' && node.penalty <= -10000) {
-      maxWidth = Math.max(maxWidth, run);
-      run = 0;
-    } else if (node.type !== 'penalty') {
-      run += node.width;
+  for (const { nodes } of paragraphs) {
+    let run = 0;
+    for (const node of nodes) {
+      if (node.type === 'box') minWidth = Math.max(minWidth, node.width);
+      if (node.type !== 'penalty') run += node.width;
     }
+    maxWidth = Math.max(maxWidth, run);
   }
 
   function layout(w: number | readonly number[]): Paragraph {
@@ -87,44 +106,45 @@ export function prepare(text: string, options: TypesetOptions): Prepared {
     const key = widths.join(',');
     const hit = cache.get(key);
     if (hit) return hit;
-
-    let result: Paragraph | null = null;
-    for (const tolerance of tolerances) {
-      const breaks = breakLines(nodes, widths, { ...options.breakOptions, tolerance });
-      if (breaks) {
-        result = build(nodes, breaks, widths, 'optimal');
-        break;
-      }
+    const lines: Line[] = [];
+    let quality: Quality = 'optimal';
+    for (const para of paragraphs) {
+      const ws = widths.slice(Math.min(lines.length, widths.length - 1));
+      const set = breakParagraph(para.text, para.fmt, para.nodes, ws);
+      lines.push(...set);
+      quality = worse(quality, set[0]?.quality ?? 'optimal');
     }
-    const narrow = Math.min(...widths);
-    if (!result) {
-      const breaks = breakLines(nodes, widths, {
-        ...options.breakOptions, tolerance: Infinity, emergencyStretch: narrow / 10,
-      });
-      if (breaks) result = build(nodes, breaks, widths, 'loose');
-    }
-    if (!result) {
-      const emergency = format(text, { ...fmt, splitWiderThan: narrow });
-      const breaks = breakLines(emergency, widths, {
-        ...options.breakOptions, tolerance: Infinity, emergencyStretch: narrow / 10,
-      });
-      result = breaks
-        ? build(emergency, breaks, widths, 'emergency')
-        : build(emergency, breakGreedy(emergency, widths), widths, 'overfull');
-    }
+    const result = { lines, height: lines.length * options.lineHeight, quality };
     cache.set(key, result);
     return result;
   }
 
-  function build(ns: readonly Node[], breaks: Break[], widths: readonly number[], quality: Quality): Paragraph {
-    const lines: Line[] = [];
+  function breakParagraph(
+    para: string, fmt: FormatOptions, nodes: readonly Node[], widths: readonly number[],
+  ): Line[] {
+    for (const tolerance of tolerances) {
+      const breaks = breakLines(nodes, widths, { ...options.breakOptions, tolerance });
+      if (breaks) return build(nodes, breaks, widths, 'optimal');
+    }
+    const narrow = Math.min(...widths);
+    const loose = { ...options.breakOptions, tolerance: Infinity, emergencyStretch: narrow / 10 };
+    const breaks = breakLines(nodes, widths, loose);
+    if (breaks) return build(nodes, breaks, widths, 'loose');
+    const emergency = format(para, { ...fmt, splitWiderThan: narrow });
+    const split = breakLines(emergency, widths, loose);
+    return split
+      ? build(emergency, split, widths, 'emergency')
+      : build(emergency, breakGreedy(emergency, widths), widths, 'overfull');
+  }
+
+  function build(ns: readonly Node[], breaks: Break[], widths: readonly number[], quality: Quality): Line[] {
     let prev = -1;
-    breaks.forEach((br, i) => {
+    return breaks.map((br, i) => {
       const width = widths[Math.min(i, widths.length - 1)]!;
-      lines.push(makeLine(ns, lineStartAfter(ns, prev), br, width, align));
+      const line = makeLine(ns, lineStartAfter(ns, prev), br, width, align, quality);
       prev = br.position;
+      return line;
     });
-    return { lines, height: lines.length * options.lineHeight, quality };
   }
 
   return {
@@ -135,7 +155,9 @@ export function prepare(text: string, options: TypesetOptions): Prepared {
   };
 }
 
-function makeLine(nodes: readonly Node[], start: number, br: Break, width: number, align: Align): Line {
+function makeLine(
+  nodes: readonly Node[], start: number, br: Break, width: number, align: Align, quality: Quality,
+): Line {
   const end = nodes[br.position]!;
   const r = Number.isFinite(br.ratio) ? br.ratio : 0;
   const items: LineItem[] = [];
@@ -146,7 +168,7 @@ function makeLine(nodes: readonly Node[], start: number, br: Break, width: numbe
     const node = nodes[i]!;
     if (node.type === 'box') {
       const last = items[items.length - 1];
-      if (joined && last) {
+      if (joined && last && last.text !== '') {
         last.text += node.text;
         last.width += node.width;
       } else {
@@ -170,16 +192,19 @@ function makeLine(nodes: readonly Node[], start: number, br: Break, width: numbe
     natural += end.width;
   }
   const endsParagraph = end.type === 'penalty' && end.penalty <= -10000;
-  const gaps = items.filter((it) => it.text !== '').length - 1;
+  const words = items.filter((it) => it.text !== '');
+  const gaps = words.length - 1;
   const justify = align === 'justify' && !endsParagraph && gaps > 0;
   return {
-    text: items.map((it) => it.text).join(' '),
-    items: items.filter((it) => it.text !== ''),
+    text: words.map((it) => it.text).join(' '),
+    items: words,
     width,
     natural,
     ratio: br.ratio,
     hyphenated,
     justify,
     wordSpacing: justify ? (width - natural) / gaps : 0,
+    indent: words[0]?.x ?? 0,
+    quality,
   };
 }
