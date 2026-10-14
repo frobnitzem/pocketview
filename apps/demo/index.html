@@ -9,17 +9,15 @@
 </head>
 <body>
 <div class="app" id="app">
-  <aside class="rail">
-    <button id="settings-open" class="icon-btn" aria-label="Settings" title="Settings">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4L10.6 6a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
-    </button>
-  </aside>
   <section class="editor-pane" id="editor-pane">
     <header class="pane-head">
       <button id="sheet-toggle" class="sheet-toggle" aria-label="Collapse editor" aria-expanded="true">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
       </button>
       <span class="label">input</span>
+      <button id="settings-open" class="icon-btn" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4L10.6 6a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+      </button>
       <select id="mode" aria-label="Input format">
         <option value="auto">auto</option>
         <option value="json">JSON</option>
@@ -28,6 +26,7 @@
       </select>
     </header>
     <div class="editor" id="editor"></div>
+    <div class="pane-side" aria-hidden="true"></div>
     <footer class="pane-foot">
       <span id="status" class="status" role="status"></span>
       <button id="send" class="send" aria-label="Show in view (Ctrl+Enter)" title="Show (Ctrl+Enter)">
@@ -49,7 +48,7 @@
       <span><b>Ragged right</b><br><small>Align text left instead of justifying it.</small></span></label>
     <h3>examples</h3>
     <div id="examples" class="examples"></div>
-    <p class="fine"><a href="https://github.com/frobnitzem/pocketview">Source</a> ·
+    <p class="fine">pocketview <span id="version"></span> · <a href="https://github.com/frobnitzem/pocketview">source</a> ·
       Apache-2.0 · <a href="licenses/THIRD_PARTY_NOTICES.md">third-party notices</a></p>
   </form>
 </dialog>

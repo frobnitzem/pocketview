@@ -4,7 +4,8 @@
   --str: #f3eee4; --num: #ffc95c; --lit: #8fb8ff;
   --send: #2f7cf6; --send-hover: #4b8ff8;
   --q-loose: #e9a24f; --q-emergency: #ff7a45; --q-overfull: #ff4d6d;
-  --rail: 48px; --bar: 36px;
+  --bar: 36px; --side: 12px; --elbow: 28px;
+  --urgent: #ff8a7a; /* salmon: modal and alert frames */
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -14,27 +15,31 @@ button { font: inherit; color: inherit; }
 
 .app {
   display: grid; height: 100dvh;
-  grid-template-columns: var(--rail) minmax(280px, 34%) 1fr;
+  grid-template-columns: minmax(280px, 34%) 1fr;
   grid-template-rows: minmax(0, 1fr);
-  grid-template-areas: "rail editor view";
+  grid-template-areas: "editor view";
 }
 
-/* Rail + head bar form an L-shaped arch around the editor (the LT variant). */
-.rail { grid-area: rail; background: var(--frame); border-top-left-radius: 28px; margin: 8px 0 8px 8px;
-        display: flex; flex-direction: column; align-items: center; padding-top: calc(var(--bar) + 12px); }
-.editor-pane { grid-area: editor; display: grid; grid-template-rows: var(--bar) 1fr auto; min-width: 0;
-               margin: 8px 0 8px 0; position: relative; }
-.pane-head { background: var(--frame); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 14px;
-             border-radius: 0 999px 999px 0; margin-right: 8px; position: relative; color: #000; }
+/* The editor sits in an RT arch: a top bar three times as thick as the
+   thin right side bar (bar : side = 3 : 1). */
+.editor-pane { grid-area: editor; display: grid; min-width: 0; margin: 8px 0 8px 8px; position: relative;
+               grid-template-columns: minmax(0, 1fr) var(--side); grid-template-rows: var(--bar) 1fr auto; }
+.pane-head { grid-column: 1 / 3; background: var(--frame); display: flex; align-items: center; gap: 8px;
+             padding: 0 calc(var(--side) + 4px) 0 14px; border-radius: 999px var(--elbow) 0 0;
+             position: relative; color: #000; }
 .pane-head::after { /* concave inner corner of the elbow */
-  content: ""; position: absolute; left: 0; top: var(--bar); width: 18px; height: 18px;
-  background: radial-gradient(circle at 100% 100%, transparent 17.5px, var(--frame) 18px); }
-.label { font: 600 17px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+  content: ""; position: absolute; right: var(--side); top: var(--bar); width: 14px; height: 14px;
+  background: radial-gradient(circle at 0 100%, transparent 13.5px, var(--frame) 14px); }
+.pane-side { grid-column: 2; grid-row: 2 / 4; background: var(--frame); }
+.label { font: 600 17px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; margin-right: auto; }
 .pane-head select { font: 600 15px Antonio, sans-serif; letter-spacing: .06em; text-transform: uppercase;
-  background: #000; color: var(--frame); border: none; border-radius: 999px; padding: 3px 10px; margin-left: auto; }
+  background: #000; color: var(--frame); border: none; border-radius: 999px; padding: 3px 10px; }
+.pane-head .icon-btn { width: 30px; height: 30px; }
+.pane-head .icon-btn:hover { background: rgba(0,0,0,.12); }
 .sheet-toggle { display: none; background: none; border: none; padding: 4px; cursor: pointer; }
-.editor { min-height: 0; overflow: hidden; padding: 10px 8px 0 10px; }
-.pane-foot { display: flex; align-items: center; gap: 10px; padding: 8px 8px 0 12px; min-height: 60px; }
+.editor { grid-column: 1; grid-row: 2; min-height: 0; overflow: hidden; padding: 10px 8px 0 0; }
+.pane-foot { grid-column: 1; grid-row: 3; display: flex; align-items: center; gap: 10px; padding: 8px 10px 0 4px;
+             min-height: 60px; }
 .status { flex: 1; color: var(--muted); font-size: 13px; line-height: 1.3; }
 .status.error { color: var(--q-overfull); }
 .send { width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--send); color: #fff;
@@ -43,7 +48,6 @@ button { font: inherit; color: inherit; }
 .send:active { transform: scale(.95); }
 .icon-btn { background: none; border: none; color: #000; width: 36px; height: 36px; border-radius: 50%;
             display: grid; place-items: center; cursor: pointer; }
-.rail .icon-btn:hover { background: rgba(0,0,0,.12); }
 :focus-visible { outline: 2px solid var(--key); outline-offset: 2px; }
 
 .view { grid-area: view; overflow-y: auto; overflow-x: hidden; padding: 28px 16px 64px; min-width: 0; min-height: 0;
@@ -62,14 +66,14 @@ button { font: inherit; color: inherit; }
 .notice h2 { font: 600 22px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--frame); }
 .notice p { font: 17px/1.55 "Source Serif 4", serif; }
 
-.settings { background: var(--panel); color: var(--ink); border: 2px solid var(--frame); border-radius: 18px;
+.settings { background: var(--panel); color: var(--ink); border: 3px solid var(--urgent); border-radius: 18px;
             padding: 0; width: min(440px, calc(100vw - 32px)); }
 .settings::backdrop { background: rgba(0,0,0,.6); }
 .settings form { padding: 0 18px 16px; }
 .settings header { display: flex; align-items: center; margin: 0 -18px 12px; padding: 0 8px 0 18px;
-                   background: var(--frame); color: #000; height: var(--bar); }
+                   background: var(--urgent); color: #000; height: var(--bar); }
 .settings h2 { font: 600 18px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; margin: 0; flex: 1; }
-.settings h3 { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--frame);
+.settings h3 { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--urgent);
                margin: 18px 0 8px; }
 .settings .close { font-size: 26px; line-height: 1; }
 .row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
@@ -85,15 +89,15 @@ button { font: inherit; color: inherit; }
 
 /* Phones: the view fills the screen; the editor is a collapsible bottom sheet. */
 @media (max-width: 760px) {
-  .app { grid-template-columns: var(--rail) 1fr; grid-template-rows: minmax(0, 1fr) auto;
-         grid-template-areas: "view view" "rail editor"; }
-  .rail { margin: 0 0 8px 8px; border-radius: 28px 0 0 28px; padding-top: calc(var(--bar) + 8px); }
-  .editor-pane { margin: 0 0 8px; grid-template-rows: var(--bar) 38dvh auto; }
+  .app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto;
+         grid-template-areas: "view" "editor"; }
+  .editor-pane { margin: 0 8px 8px; grid-template-rows: var(--bar) 38dvh auto; }
   .app.collapsed .editor-pane { grid-template-rows: var(--bar) 0 auto; }
   .app.collapsed .editor { padding-top: 0; }
   .sheet-toggle { display: grid; }
   .sheet-toggle svg { transition: transform .2s; }
   .app.collapsed .sheet-toggle svg { transform: rotate(180deg); }
+  .pane-head { padding-left: 6px; }
   .pane-foot { min-height: 56px; padding-bottom: env(safe-area-inset-bottom); }
   .view { padding: 20px 12px 32px; }
   .diagnostics .pv-line[data-quality]::after { display: none; }

@@ -30,6 +30,19 @@ test('reports parse errors and shows a notice for objects', async ({ page }) => 
   await expect(page.locator('.notice h2')).toHaveText('object');
 });
 
+test('each render replaces the previous one', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  const austenLines = await page.locator('.pv-line').count();
+  await page.click('#send');
+  await page.click('#send');
+  await expect(page.locator('.pv-line')).toHaveCount(austenLines);
+  await page.click('#settings-open');
+  await page.getByRole('button', { name: 'A JSON string' }).click();
+  await expect(page.locator('.pv-line').first()).toContainText('A JSON document');
+  await expect(page.locator('.pv-line', { hasText: 'universally' })).toHaveCount(0);
+});
+
 test('settings modal toggles diagnostics', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await ready(page);

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
+const { version } = JSON.parse(readFileSync(here('../../package.json'), 'utf8')) as { version: string };
 
 /** Ships our licence, notices, and the OFL text of each bundled font. */
 function licenses(): Plugin {
@@ -26,6 +27,7 @@ function licenses(): Plugin {
 export default defineConfig({
   base: './', // works at https://<user>.github.io/pocketview/ and locally
   plugins: [licenses()],
+  define: { __VERSION__: JSON.stringify(version) },
   build: { chunkSizeWarningLimit: 1000 },
   server: { port: 5174, strictPort: true },
   preview: { port: 5174, strictPort: true },

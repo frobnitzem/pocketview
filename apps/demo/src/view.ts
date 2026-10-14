@@ -38,7 +38,9 @@ export class TextView {
   /** Shows `value`, returning stats for text or null for a notice. */
   show(value: unknown, settings: Settings): ViewStats | null {
     this.settings = settings;
+    // Clear the previous render completely before drawing the new one.
     this.scroller.replaceChildren();
+    this.column.replaceChildren();
     this.rendered.clear();
     this.prepared = null;
     this.par = null;

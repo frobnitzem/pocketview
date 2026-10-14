@@ -70,8 +70,21 @@ See `docs/mockups/arch.html` (screenshot: `docs/mockups/arch.png`).
 
 ### Arch (object frame)
 
-A frame is a thick side bar joined to a horizontal bar by a rounded elbow
-(large outer radius, small inner radius). Five variants:
+A frame is a side bar joined to a horizontal bar by a rounded elbow
+(large outer radius, small inner radius).
+
+**Proportions.** The side bar's width and the horizontal bar's thickness
+are never equal. They stand in a 3 : 1 ratio either way:
+- a *wide* side (side = 3 × bar), for frames whose side bar holds collapsed
+  children as labelled segments (the outermost frame in the mockup);
+- a *thin* side (side = bar / 3), for frames whose side bar is only a rule
+  (nested frames with nothing collapsed, the demo's input pane: a 36px top
+  bar and a 12px side).
+
+The planner picks wide or thin per frame, depending on whether anything is
+collapsed into the side.
+
+Five variants:
 
 | variant | bars              | typical use                                      |
 |---------|-------------------|--------------------------------------------------|
@@ -234,6 +247,10 @@ Every variant must obey these. Each is checked by property-based tests
   inline), view on the right.
 - Mobile: the view fills the screen, and the editor is a bottom sheet that
   collapses vertically.
+- The input pane is itself an `RT` arch with a thin side: the top bar holds
+  the label, the settings gear and the format selector.
+- Modal dialogs (settings) are framed in the "urgent" salmon colour, so they
+  read as interruptions, distinct from the amber structure.
 - No live updates. A round blue send button with a right arrow (or
   Ctrl/Cmd+Enter) parses the input and re-plans the view.
 - Input format: auto, JSON, YAML or text. Auto tries JSON, then YAML if it
@@ -242,8 +259,8 @@ Every variant must obey these. Each is checked by property-based tests
   paragraphs; single newlines are spaces), so hard-wrapped e-texts reflow.
 - Long texts are laid out once per width and only the lines near the
   viewport are in the DOM.
-- A settings button sits left of the editor, on a narrow tool rail. On
-  mobile it sits left of the editor in the bottom sheet. It opens a modal.
+- The settings button (gear) sits in the input pane's top bar, next to
+  the format selector. It opens a modal.
   Settings are kept per viewer in `localStorage`. First setting:
   - **Layout diagnostics** (off by default): each text block is marked with
     how its lines were broken (`optimal`, `loose`, `emergency`, `overfull`;

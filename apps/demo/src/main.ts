@@ -75,6 +75,8 @@ for (const sample of SAMPLES) {
   $('examples').append(b);
 }
 
+$('version').textContent = `v${__VERSION__}`;
+
 // Hook for end-to-end tests.
 Object.assign(window, { pocketview: { setInput: (t: string) => editor.setText(t), show } });
 
