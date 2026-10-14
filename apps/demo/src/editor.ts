@@ -18,7 +18,7 @@ const theme = EditorView.theme({
 }, { dark: true });
 
 const highlight = HighlightStyle.define([
-  { tag: [t.propertyName, t.definition(t.propertyName)], color: 'var(--key)' },
+  { tag: [t.propertyName, t.definition(t.propertyName)], color: 'var(--code-key, var(--key))' },
   { tag: [t.string, t.content], color: 'var(--str)' },
   { tag: t.number, color: 'var(--num)' },
   { tag: [t.bool, t.null, t.keyword], color: 'var(--lit)', fontStyle: 'italic' },

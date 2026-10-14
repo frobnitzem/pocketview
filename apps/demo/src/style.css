@@ -13,10 +13,10 @@
   --urgent: #ff8a7a; /* salmon: modal and alert frames */
   color-scheme: dark;
 }
-[data-theme="lux"] { /* vivid light trails on deep green, with steel gray */
+[data-theme="lux"] { /* light trails on deep green: forest-green arches, steel gray keys */
   --bg: #07120c; --panel: #0e2217; --raised: #143022; --line: #23452f;
   --ink: #eef4ef; --muted: #7f9488; --on-frame: #07120c;
-  --frame: #ff8c1a; --frame-1: #b56cff; --frame-2: #2fc4d6;
+  --frame: #4a8f3c; --frame-1: #b56cff; --frame-2: #2fc4d6; /* forest green, violet, cyan */
   --key: #9aa8b5; --nav: #ffd23f; --badge: #ff4fa3;
   --str: #eef4ef; --num: #ffc234; --lit: #ff4fa3;
   --send: #2fc4d6; --send-hover: #5ad6e4; --on-send: #07120c;
@@ -24,26 +24,38 @@
   --urgent: #ff3d3d;
   color-scheme: dark;
 }
-[data-theme="solar-dark"] { /* Solarized, https://ethanschoonover.com/solarized/ */
-  --bg: #002b36; --panel: #073642; --raised: #0a4251; --line: #586e75;
-  --ink: #93a1a1; --muted: #586e75; --on-frame: #002b36;
-  --frame: #b58900; --frame-1: #cb4b16; --frame-2: #859900;
-  --key: #6c71c4; --nav: #eee8d5; --badge: #2aa198;
-  --str: #93a1a1; --num: #2aa198; --lit: #268bd2;
+/*
+ * Solarized (https://ethanschoonover.com/solarized/). Light and dark swap
+ * the base tones: base03 <-> base3, base02 <-> base2, base01 <-> base1,
+ * base00 <-> base0. Backgrounds and body text follow Solarized's own usage;
+ * arches and chips take the complementary end of the base scale; key
+ * capsules, a third background, are green. Accents are kept for value text,
+ * buttons and the urgent colour.
+ */
+[data-theme="solar-dark"] {
+  --bg: #002b36; --panel: #073642; --raised: #0a4251; --line: #586e75;    /* base03, base02 */
+  --ink: #839496; --str: #93a1a1; --muted: #586e75;                       /* base0, base1, base01 */
+  --frame: #fdf6e3; --frame-1: #eee8d5; --frame-2: #93a1a1;               /* base3, base2, base1 */
+  --on-frame: #002b36;
+  --nav: #eee8d5; --on-nav: #002b36; --badge: #93a1a1;                    /* chips: base2, base1 */
+  --key: #859900; --on-key: #002b36;                                      /* green */
+  --num: #2aa198; --lit: #268bd2;                                         /* cyan, blue */
   --send: #268bd2; --send-hover: #4aa3e0; --on-send: #fdf6e3;
   --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
-  --urgent: #dc322f;
+  --urgent: #dc322f; --focus-title: #fdf6e3;
   color-scheme: dark;
 }
 [data-theme="solar-light"] {
-  --bg: #fdf6e3; --panel: #eee8d5; --raised: #e6dfc9; --line: #93a1a1;
-  --ink: #586e75; --muted: #93a1a1; --on-frame: #002b36;
-  --frame: #b58900; --frame-1: #cb4b16; --frame-2: #859900;
-  --key: #6c71c4; --nav: #93a1a1; --badge: #2aa198;
-  --str: #586e75; --num: #2aa198; --lit: #268bd2;
+  --bg: #fdf6e3; --panel: #eee8d5; --raised: #e6dfc9; --line: #93a1a1;    /* base3, base2 */
+  --ink: #657b83; --str: #586e75; --muted: #93a1a1;                       /* base00, base01, base1 */
+  --frame: #002b36; --frame-1: #073642; --frame-2: #586e75;               /* base03, base02, base01 */
+  --on-frame: #fdf6e3;
+  --nav: #073642; --on-nav: #fdf6e3; --badge: #586e75;                    /* chips: base02, base01 */
+  --key: #c2d35b; --on-key: #002b36; --code-key: #859900;                 /* green, lightened */
+  --num: #2aa198; --lit: #268bd2;
   --send: #268bd2; --send-hover: #1a73b5; --on-send: #fdf6e3;
   --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
-  --urgent: #dc322f; --focus-title: #586e75;
+  --urgent: #dc322f; --focus-title: #002b36;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -171,7 +183,7 @@ button { font: inherit; color: inherit; }
 .pv-title.focus { color: var(--focus-title, var(--nav)); }
 .pv-key, .pv-crumb, .pv-segment, .pv-chip { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .05em;
   text-transform: uppercase; color: var(--on-frame); white-space: nowrap; overflow: hidden; }
-.pv-key { background: var(--key); border-radius: 14px 0 0 14px; /* same curvature at any height */
+.pv-key { background: var(--key); color: var(--on-key, var(--on-frame)); border-radius: 14px 0 0 14px; /* same curvature at any height */
   display: flex; align-items: flex-start; justify-content: flex-end; padding: 0 9px 0 12px; line-height: 28px; }
 .pv-key span, .pv-crumb span, .pv-segment span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .pv-crumb { background: var(--frame); border-left: 4px solid var(--bg); display: flex; align-items: flex-end;
@@ -179,7 +191,7 @@ button { font: inherit; color: inherit; }
 .pv-segment { background: var(--frame); border-top: 4px solid var(--bg); display: flex; align-items: flex-end;
   justify-content: flex-end; padding: 0 10px 6px; }
 .pv-chip { display: flex; }
-.pv-chip b { background: var(--nav); border-radius: 999px 0 0 999px; padding: 0 9px 0 13px; line-height: 28px;
+.pv-chip b { background: var(--nav); color: var(--on-nav, var(--on-frame)); border-radius: 999px 0 0 999px; padding: 0 9px 0 13px; line-height: 28px;
   overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; font-weight: inherit; }
 .pv-chip b:only-child { border-radius: 999px; }
 .pv-chip i { font-style: normal; background: var(--badge); border-radius: 0 999px 999px 0; padding: 0 11px 0 7px;
@@ -206,5 +218,5 @@ button { font: inherit; color: inherit; }
 
 /* A focused array or leaf: its T bar (and crumbs) take the chip colour. */
 .unframed .pv-frame { fill: var(--nav); }
-.unframed .pv-crumb, .unframed .pv-menu button { background: var(--nav); }
+.unframed .pv-crumb, .unframed .pv-menu button { background: var(--nav); color: var(--on-nav, var(--on-frame)); }
 .unframed .pv-title { color: var(--nav); }

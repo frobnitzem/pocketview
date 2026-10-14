@@ -10,7 +10,8 @@
   six variants. Property tests for the navigation contracts.
 - Strings are drawn without quotes; key capsules are as tall as their
   values; nodes more than 4 levels below the focus are collapsed.
-- Demo: colour schemes (pastel, lux, Solarized dark and light); tooltips
+- Demo: colour schemes (pastel; lux with forest-green arches; Solarized dark
+  and light, built on Solarized's base-tone swap); tooltips
   on truncated labels; a focused string's bar takes the chip colour; fixed
   the view sometimes keeping the previous document after switching examples.
 - Demo: objects and arrays are laid out and navigable (click a chip,

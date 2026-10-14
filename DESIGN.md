@@ -296,11 +296,21 @@ events) and a release.
   extra 0.5em of space (`paragraphSpacing` in `packages/typeset`).
 - Modal dialogs (settings) are framed in the "urgent" colour (salmon in the
   pastel scheme), so they read as interruptions, distinct from the structure.
-- Colour schemes, chosen in settings: **pastel** (the default: amber, peach
-  and pastel green frames, lavender keys, a beachy aqua send button),
-  **lux** (orange, violet and cyan light trails on deep green, steel-gray
-  keys), and **Solarized dark** and **light**. Every colour is a CSS
-  variable set per `[data-theme]`.
+- Colour schemes, chosen in settings; each should look distinct. Every
+  colour is a CSS variable set per `[data-theme]`.
+  - **Pastel** (the default): amber, peach and pastel green frames,
+    lavender keys, a beachy aqua send button.
+  - **Lux**: forest green, violet and cyan arches on deep green, with
+    steel-gray keys, yellow chips and magenta accents.
+  - **Solarized dark and light**: these use Solarized's swap of base tones
+    between light and dark (base03 ↔ base3, base02 ↔ base2, base01 ↔ base1,
+    base00 ↔ base0).
+    - Backgrounds and body text follow Solarized's usage.
+    - Arches and chips take the complementary end of the scale: light
+      arches on the dark background, dark arches on the light one.
+    - Key capsules act as a third background: Solarized green in dark mode,
+      and a lightened green in light mode.
+    - Accents are kept for value text, buttons and the urgent colour.
 - Strings are drawn without quotes, whether as tokens, text, tags or chips.
 - A key capsule is as tall as its value. Its corners keep the same 14px
   radius, so a tall capsule reads as a rounded rectangle, and the label
