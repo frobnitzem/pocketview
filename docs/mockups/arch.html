@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arch mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+  /* Colour by role, not at random:
+     structure = one warm hue, lightened per nesting depth;
+     navigation (crumbs, collapsed keys) = cream;  keys = lavender;
+     values coloured by JSON type. */
+  :root {
+    --bg: #000;
+    --frame-0: #e9a24f; --frame-1: #d7a37a; --frame-2: #c7a59a;
+    --nav: #f4dcae; --key: #a8a3e6; --ink: #000;
+    --str: #f3eee4; --num: #ffc95c; --lit: #8fb8ff;
+  }
+  html, body { margin: 0; background: var(--bg); }
+  #stage { position: relative; width: 900px; height: 640px; }
+  svg { position: absolute; inset: 0; }
+  .lbl { position: absolute; font: 600 15px/1 Antonio, sans-serif; letter-spacing: .06em;
+         text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+  .title { font-size: 26px; font-weight: 700; background: var(--bg); padding: 0 8px; }
+  .crumb { background: var(--nav); border-radius: 999px; height: 28px; line-height: 28px; padding: 0 14px; }
+  .title { height: var(--bar); line-height: var(--bar); }
+  .seg { text-align: right; }
+  .row { position: absolute; display: flex; align-items: center; gap: 10px; height: 26px; }
+  .key { background: var(--key); border-radius: 999px 0 0 999px; width: 96px; height: 24px; line-height: 24px;
+         padding-right: 8px; box-sizing: border-box; text-align: right;
+         font: 600 14px Antonio, sans-serif; letter-spacing: .05em; text-transform: uppercase; }
+  .key.sm { width: 64px; }
+  .val { font: 17px "Source Serif 4", serif; color: var(--str); }
+  .num { color: var(--num); font-variant-numeric: tabular-nums; }
+  .lit { color: var(--lit); font-style: italic; }
+  .tag { display: inline-block; border: 1.5px solid var(--frame-2); color: var(--str); border-radius: 999px;
+         padding: 1px 9px; margin: 0 5px 6px 0; font: 15px "Source Serif 4", serif; }
+  .chip { position: absolute; display: flex; height: 26px; font: 600 14px/26px Antonio, sans-serif;
+          letter-spacing: .05em; text-transform: uppercase; }
+  .chip b { background: var(--nav); border-radius: 999px 0 0 999px; padding: 0 10px 0 14px; }
+  .chip i { font-style: normal; background: var(--frame-1); border-radius: 0 999px 999px 0; padding: 0 12px 0 8px; margin-left: 3px; }
+  .scroll { position: absolute; border: 2px solid var(--frame-2); border-radius: 14px; overflow: hidden; }
+  .scroll p { margin: 0; padding: 10px 26px 10px 14px; font: 16px/1.45 "Source Serif 4", serif; color: var(--str);
+              text-align: justify; hyphens: auto; }
+  .thumb { position: absolute; right: 6px; top: 10px; width: 8px; height: 60px; border-radius: 4px; background: var(--frame-0); }
+  .note { position: absolute; font: italic 13px "Source Serif 4", serif; color: #8a8580; }
+</style>
+</head>
+<body>
+<div id="stage">
+<svg id="frames" width="900" height="640"></svg>
+
+<!-- outermost arch (L+T+R): breadcrumbs live in the top border -->
+<div class="lbl crumb" style="left:190px;top:24px">root</div>
+<div class="lbl crumb" style="left:262px;top:24px">packages</div>
+<div class="lbl title" style="--bar:44px;left:672px;top:16px;color:var(--nav)">pocketview</div>
+
+<!-- unrendered key:object pairs collapsed into the side border -->
+<div class="lbl seg" style="left:16px;top:182px;width:142px">scripts · 4</div>
+<div class="lbl seg" style="left:16px;top:256px;width:142px">dependencies · 12</div>
+<div class="lbl seg" style="left:16px;top:330px;width:142px">devDependencies · 31</div>
+
+<!-- scalar key/value rows inside -->
+<div class="row" style="left:182px;top:80px"><span class="key">name</span><span class="val">“pocketview”</span></div>
+<div class="row" style="left:182px;top:112px"><span class="key">version</span><span class="val num">2.0.0</span></div>
+<div class="row" style="left:182px;top:144px"><span class="key">private</span><span class="val lit">false</span></div>
+<div class="row" style="left:182px;top:176px"><span class="key">license</span><span class="val">“MIT”</span></div>
+<div class="row" style="left:182px;top:214px;align-items:flex-start;height:auto">
+  <span class="key">keywords</span>
+  <span style="width:210px"><span class="tag">json</span><span class="tag">yaml</span><span class="tag">viewer</span><span class="tag">typesetting</span><span class="tag">layout</span></span>
+</div>
+
+<!-- nested object, R+T variant (right column) -->
+<div class="lbl title" style="--bar:24px;left:536px;top:76px;font-size:19px;color:var(--frame-1);padding:0 6px">author</div>
+<div class="row" style="left:530px;top:112px"><span class="key sm">name</span><span class="val">“David M. Rogers”</span></div>
+<div class="row" style="left:530px;top:144px"><span class="key sm">url</span><span class="val">“github.com/frobnitzem”</span></div>
+
+<!-- nested object, L+B variant: key/value pair sitting ON the bottom border -->
+<div class="row" style="left:262px;top:316px"><span class="key">host</span><span class="val">“0.0.0.0”</span></div>
+<div class="row" style="left:262px;top:348px"><span class="key">port</span><span class="val num">8080</span></div>
+<div class="lbl" style="left:282px;top:429px;font-size:14px">timeout <span style="font-family:'Source Serif 4';text-transform:none;font-weight:400">30 s</span></div>
+<div class="lbl title" style="--bar:24px;left:420px;top:424px;font-size:19px;color:var(--frame-1);padding:0 6px">server</div>
+
+<!-- long text: fixed width, scrolls instead of overflowing -->
+<div class="row" style="left:538px;top:212px"><span class="key">description</span></div>
+<div class="scroll" style="left:538px;top:246px;width:302px;height:196px">
+  <p>A JSON viewer to keep in your back pocket. Every element of the tree is assigned a display variant by a
+     bottom-up size calculation, and an automatic layout pass decides what is shown, where, and how; whatever
+     does not fit is folded into borders, chips and breadcrumbs so that navigation never gets stuck.</p>
+  <div class="thumb"></div>
+</div>
+
+<!-- unrendered key:object pairs shown as chips inside -->
+<div class="chip" style="left:182px;top:470px"><b>repository</b><i>{ 2 }</i></div>
+<div class="chip" style="left:344px;top:470px"><b>bugs</b><i>{ 1 }</i></div>
+<div class="chip" style="left:458px;top:470px"><b>files</b><i>[ 6 ]</i></div>
+
+<div class="note" style="left:182px;top:560px;width:640px">Mockup: positions are hand-placed to stand in for the layout engine’s marked tree.
+Left/right/top/bottom border variants shown: L+T+R (outer), R+T (author), L+B (server).</div>
+</div>
+
+<script>
+// One path per arch variant. Base shapes are L+T and L+T+R; the other
+// three variants are mirror images of L+T.
+function pathLT(w, h, s, t, R, r) {
+  const c = t / 2;
+  return `M0,${h} L0,${R} A${R},${R} 0 0 1 ${R},0 L${w-c},0 A${c},${c} 0 0 1 ${w-c},${t}
+          L${s+r},${t} A${r},${r} 0 0 0 ${s},${t+r} L${s},${h} Z`;
+}
+function pathLTR(w, h, sL, sR, t, R, r) {
+  return `M0,${h} L0,${R} A${R},${R} 0 0 1 ${R},0 L${w-R},0 A${R},${R} 0 0 1 ${w},${R} L${w},${h}
+          L${w-sR},${h} L${w-sR},${t+r} A${r},${r} 0 0 0 ${w-sR-r},${t} L${sL+r},${t}
+          A${r},${r} 0 0 0 ${sL},${t+r} L${sL},${h} Z`;
+}
+const flips = { LT: '', RT: 'scale(-1,1)', LB: 'scale(1,-1)', RB: 'scale(-1,-1)' };
+function arch({ variant, x, y, w, h, s, sR = s, t, R, r, fill }) {
+  const d = variant === 'LTR' ? pathLTR(w, h, s, sR, t, R, r) : pathLT(w, h, s, t, R, r);
+  const f = flips[variant] || '';
+  const mid = `translate(${w/2},${h/2}) ${f} translate(${-w/2},${-h/2})`;
+  return `<g transform="translate(${x},${y}) ${mid}"><path d="${d}" fill="${fill}"/></g>`;
+}
+const cut = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000"/>`;
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v);
+
+document.getElementById('frames').innerHTML = [
+  arch({ variant: 'LTR', x: 16, y: 16, w: 868, h: 608, s: 150, sR: 28, t: 44, R: 56, r: 24, fill: css('--frame-0') }),
+  // side-border segments (collapsed children) are cut out of the left bar
+  cut(16, 130, 150, 5), cut(16, 204, 150, 5), cut(16, 278, 150, 5), cut(16, 352, 150, 5),
+  arch({ variant: 'RT', x: 524, y: 76, w: 316, h: 112, s: 22, t: 24, R: 28, r: 12, fill: css('--frame-1') }),
+  arch({ variant: 'LB', x: 182, y: 302, w: 330, h: 146, s: 70, t: 24, R: 30, r: 12, fill: css('--frame-1') }),
+  // border item on the bottom bar of "server": its own segment
+  cut(266, 424, 4, 24), cut(374, 424, 4, 24),
+].join('');
+</script>
+</body>
+</html>
