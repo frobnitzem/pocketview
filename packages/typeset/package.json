@@ -1,0 +1,27 @@
+{
+  "name": "@pocketview/typeset",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p .",
+    "demo": "vite",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "hyphen": "^1.14.1"
+  },
+  "devDependencies": {
+    "@fontsource/source-serif-4": "^5.3.1",
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.20.5",
+    "fast-check": "^4.10.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}

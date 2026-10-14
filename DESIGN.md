@@ -19,6 +19,11 @@ parse ─► measure (bottom-up) ─► plan (top-down) ─► render (animated)
 and in a Web Worker. `render` does no layout of its own: it draws boxes the
 planner has already positioned.
 
+**Bare scalars at the root.** The outermost frame needs an object, so on read
+a document that is just a scalar is wrapped as a one-key object for display.
+The key comes from the file name (without extension) or, with no file name,
+is `string` (or `number`, `boolean`, `null` for other scalars).
+
 ## Goal 1: typeset text
 
 - Knuth–Plass line breaking, a TypeScript port of Bram Stein's `typeset`
@@ -28,8 +33,20 @@ planner has already positioned.
   loaded the self-hosted font. This keeps planned sizes equal to drawn sizes.
 - The breaker is exposed as `heights(text, widths[]) → number[]`, so the
   planner can ask cheaply how tall a paragraph is at each candidate width.
-- Lines are emitted as absolutely positioned spans with explicit
-  word-spacing. The browser never re-wraps the text.
+- Lines are emitted as one nowrap element each, with explicit word-spacing
+  (CSS justification can widen spaces but not shrink them) and
+  `text-align: justify` absorbing the sub-pixel remainder. The browser
+  never re-wraps the text.
+- Fallbacks, in order, so any string lays out:
+  1. tolerances 1, 1.5, 3;
+  2. a loose pass with emergency stretch (unavoidable looseness spreads
+     over the paragraph, as with TeX's `\emergencystretch`);
+  3. splitting pieces wider than the line between characters;
+  4. greedy, with overflow (only for lines narrower than one glyph).
+  Long tokens (URLs, paths) may break after `/ . ? & = _ , : ; #` without
+  a hyphen.
+- Implemented in `packages/typeset` (`pnpm demo` shows it next to the
+  browser's own justification).
 - Math (KaTeX) and code (Shiki) are separate text variants.
 
 ## Visual language
