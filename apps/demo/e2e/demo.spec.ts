@@ -27,6 +27,11 @@ test('reports parse errors', async ({ page }) => {
   await expect(page.locator('#status')).toHaveClass(/error/);
 });
 
+/** Clicks a container's border: the only way to change the target. */
+async function border(page: Page, slot: string) {
+  await page.locator(`.pv-frame[data-slot="${slot}"] path`).dispatchEvent('click');
+}
+
 async function example(page: Page, name: string) {
   await page.click('#settings-open');
   await page.getByRole('button', { name }).click();
@@ -41,18 +46,21 @@ test('lays out an object in arch frames, and navigates', async ({ page }) => {
   await expect(page.locator('.pv-title').first()).toHaveText('object');
   await expect(page.locator('.pv-key', { hasText: 'version' })).toBeVisible();
   await page.screenshot({ path: 'test-results/object-desktop.png' });
-  // A nested frame's title targets it in place: the root is unchanged.
-  await page.locator('.pv-title .step', { hasText: 'author' }).click();
+  // A nested frame's title opens it into the target (the root): it re-roots.
+  await page.locator('.pv-title', { hasText: /^author$/ }).click();
+  await expect(page.locator('.pv-crumb')).toHaveText('object');
+  await expect(page.locator('.pv-title.outer.target')).toHaveText('author');
+  await page.locator('.pv-crumb').click();
   await expect(page.locator('.pv-crumb')).toHaveCount(0);
+  // Its border targets it in place: the root is unchanged.
+  await border(page, '/author');
   await expect(page.locator('.pv-frame.target:not(.outer)')).toHaveCount(1);
   await expect(page.locator('.pv-frame.outer.target')).toHaveCount(0);
-  // Clicking the outer title targets the root again, and a key opens into it.
-  await page.locator('.pv-title.outer').click();
+  // The outer border targets the root again, and a key opens into it.
+  await border(page, '');
   await expect(page.locator('.pv-frame.outer.target')).toHaveCount(1);
   await page.locator('.pv-key', { hasText: /^name$/ }).first().click();
-  await expect(page.locator('.pv-crumb').first()).toHaveText('object');
-  await page.locator('.pv-crumb').first().click();
-  await expect(page.locator('.pv-crumb')).toHaveCount(0);
+  await expect(page.locator('.pv-crumb[data-slot="/name"]')).toHaveText('object');
 });
 
 test('collapses into segments and chips when small, and they navigate', async ({ page }) => {
@@ -129,8 +137,8 @@ test('untargeted: chips expand in place, and a shown node blinks the border', as
   await example(page, 'An object (YAML)');
   // Arrays are cream, objects amber: the keywords key takes the array colour.
   await expect(page.locator('.pv-key.ty-array', { hasText: /^keywords$/ })).toHaveCount(1);
-  // Un-target by clicking the outer title (the border does the same).
-  await page.locator('.pv-title.outer').click();
+  // Un-target by clicking the outer border.
+  await border(page, '');
   await expect(page.locator('.pv-layout')).not.toHaveClass(/targeted/);
   const chip = page.locator('.pv-segment.nav, .pv-chip.nav').first();
   const name = (await chip.textContent())!.split(' ')[0]!;
@@ -142,8 +150,8 @@ test('untargeted: chips expand in place, and a shown node blinks the border', as
   // Clicking something already shown blinks the outer border.
   await shown.first().click();
   await expect(page.locator('.pv-layout')).toHaveClass(/blink/);
-  // Breadcrumb titles still target.
-  await page.locator('.pv-title.outer').click();
+  // The border targets again.
+  await border(page, '');
   await expect(page.locator('.pv-layout')).toHaveClass(/targeted/);
 });
 
@@ -162,10 +170,10 @@ test('a long array pages in a container; opening it makes it the target', async 
   await expect(range).toHaveText(new RegExp(`^${shown + 1}\u2013\\d+ of 29$`));
   await page.locator('.pv-pager[aria-label="Previous page"]').first().click();
   await expect(range).toHaveText(new RegExp(`^1\u2013\\d+ of 29$`));
-  // Its title targets the container in place; opening an element pages it there.
-  await page.locator('.pv-title .step', { hasText: 'chapters' }).click();
-  await expect(page.locator('.pv-frame.target.v-container:not(.outer)')).toHaveCount(1);
-  await expect(page.locator('.pv-crumb')).toHaveCount(0);
+  // Its title opens it: it becomes the outer target container, with breadcrumbs.
+  await page.locator('.pv-title', { hasText: /^chapters$/ }).click();
+  await expect(page.locator('.pv-frame.outer.target.v-container')).toHaveCount(1);
+  await expect(page.locator('.pv-crumb')).toHaveText('object');
 });
 
 test('the book reads a chapter per page, and the page itself never scrolls', async ({ page }) => {
@@ -284,15 +292,16 @@ test('a nested target stays in place; opening renders into it with its own bread
   await page.evaluate((d) => (window as any).pocketview.setInput(JSON.stringify(d, null, 2)), doc);
   await page.click('#send');
   await page.waitForSelector('.pv-layout');
-  await page.locator('.pv-title .step', { hasText: /^b$/ }).click();
+  await border(page, '/a/b');
   const target = page.locator('.pv-frame.target:not(.outer)');
   await expect(target).toHaveCount(1);
   const before = await target.boundingBox();
-  // Open a node under b: b's area shows it, with a trail from b; the root stays.
+  // Open a node under b: b's area shows it, with crumbs from b; the root stays.
   await page.locator('.pv-key', { hasText: /^x$/ }).click();
   const title = page.locator('.pv-title.target:not(.outer)');
-  await expect(title).toHaveText('b › c › x');
-  await expect(page.locator('.pv-crumb')).toHaveCount(0);
+  await expect(title).toHaveText('x');
+  await expect(page.locator('.pv-crumb[data-slot="/a/b"]')).toHaveText(['b', 'c']);
+  await expect(page.locator('.pv-crumb[data-slot=""]')).toHaveCount(0);
   await expect(page.locator('.pv-key', { hasText: /^g$/ })).toBeVisible();
   const after = await page.locator('.pv-frame.target:not(.outer)').boundingBox();
   expect(Math.abs(after!.x - before!.x)).toBeLessThan(1);
@@ -300,9 +309,33 @@ test('a nested target stays in place; opening renders into it with its own bread
   // Something outside the target refuses to open: the border blinks.
   await page.locator('.pv-key', { hasText: /^g$/ }).click();
   await expect(page.locator('.pv-layout')).toHaveClass(/blink/);
-  await expect(title).toHaveText('b › c › x');
-  // The trail's first step shows b itself again.
-  await title.locator('.step', { hasText: /^b$/ }).click();
+  await expect(title).toHaveText('x');
+  // The first crumb shows b itself again; the target stays put.
+  await page.locator('.pv-crumb[data-slot="/a/b"]', { hasText: /^b$/ }).click();
   await expect(page.locator('.pv-key', { hasText: /^x$/ })).toBeVisible();
   await expect(page.locator('.pv-title.target:not(.outer)')).toHaveText('b');
+  // Titles never change the target: d's title opens d into b.
+  await page.locator('.pv-title', { hasText: /^d$/ }).click();
+  await expect(page.locator('.pv-title.target:not(.outer)')).toHaveText('d');
+  await expect(page.locator('.pv-crumb[data-slot="/a/b"]')).toHaveText(['b']);
+});
+
+test('bar segments abut, with background borders between them', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 420 });
+  await ready(page);
+  await example(page, 'An object (YAML)');
+  const boxes = await page.locator('.pv-segment').evaluateAll((els) => els.map((e) => {
+    const r = e.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, border: getComputedStyle(e).borderTopWidth };
+  }));
+  expect(boxes.length).toBeGreaterThan(1);
+  for (let i = 1; i < boxes.length; i++) expect(Math.abs(boxes[i]!.top - boxes[i - 1]!.bottom)).toBeLessThan(0.5);
+  expect(boxes[0]!.border).toBe('2px');
+  await page.locator('.pv-segment', { hasText: /^packages/i }).click();
+  await page.locator('.pv-title', { hasText: /^0$/ }).first().click();
+  await page.locator('.pv-key', { hasText: /^role$/ }).click();
+  const crumbs = await page.locator('.pv-crumb[data-slot="/packages/0/role"]').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right })));
+  expect(crumbs.length).toBe(3);
+  for (let i = 1; i < crumbs.length; i++) expect(Math.abs(crumbs[i]!.l - crumbs[i - 1]!.r)).toBeLessThan(0.5);
+  await page.screenshot({ path: 'test-results/role-crumbs.png' });
 });

@@ -116,13 +116,16 @@ There is no `LBR` variant. The breadcrumbs always live in a top bar: the
 | `chip`      | collapsed child: key capsule + size badge inside (`REPOSITORY { 2 }`) |
 | `frame`     | nested child arch inside the content area                             |
 | `scroll`    | text or array too tall for its box: fixed-size box with a scrollbar   |
-| `crumb`     | ancestor of the focused node: a square segment of the top bar          |
+| `crumb`     | breadcrumb: a square segment of a container's top bar (its nav bar)   |
 | `menu`      | ancestor that didn't fit as a crumb, listed in a hamburger dropdown   |
 
 Everything that sits in a bar is a **square** segment as tall as the bar,
-separated by gaps and labelled like side-bar segments, so all bars read as
-one system. That covers breadcrumbs, key/value pairs and collapsed children.
-The outermost top bar holds only the breadcrumbs and the title. Other items
+labelled like side-bar segments, so all bars read as one system. That
+covers breadcrumbs, paging arrows and collapsed children. Segments abut:
+each is cut from its neighbours by background-coloured borders on both
+sides (left and right in a top or bottom bar, top and bottom in a side
+bar), so no bar colour shows between them. Every arch's top bar is its nav
+bar: crumb segments, then its title. The outermost one holds only these. Other items
 go in the bottom bars of `*B` frames. Capsules are used only for chips
 inside a frame.
 
@@ -152,7 +155,7 @@ are pastel green.
 | object | **arch** | the outermost frame: wide side bar of segments, paged by ▲ ▼ when they overflow |
 | object | **frame** | nested: thin side bar, collapsed children as chips |
 | array | **tags** | short scalars, inline next to a cream key capsule (bare) |
-| array | **list** | vertical rows; objects as frames titled by trail (bare) |
+| array | **list** | vertical rows; objects as frames whose nav bars carry the array as a crumb (bare) |
 | array | **container** | top and bottom bars (rounded outside, square inside), used only when the array overflows; shows a window of consecutive elements, drawn as usual, with the 1-based range (`6–8 of 12`) and ◀ ▶ in the bottom bar |
 
 - **Bare arrays show every element.** They can't be targets; an array that
@@ -167,8 +170,9 @@ are pastel green.
 
 The **target** is the area where clicked things are drawn. Only objects
 and arrays (arches, frames and containers) can be targets. Every container
-on the page acts as a frame with its own nav bar: its title is a
-breadcrumb trail.
+on the page acts as a frame with its own nav bar: crumb segments for the
+trail from the enclosing frame (an object in a bare array: `PACKAGES` then
+the title `0`), then its title.
 - **Targeted** (the default is the outermost frame; the target's border is
   purple): clicking a chip, segment or key **opens** that node into the
   target.
@@ -177,18 +181,22 @@ breadcrumb trail.
   - Opening into the outermost frame re-roots the view: its top bar's
     breadcrumbs extend to the node.
   - Opening into a nested container redraws that container's area (its
-    *slot*, `views` in `PlanOptions`) with the node, and its title trail
-    runs from the container to the node (`b › c › x`). The root stays at
+    *slot*, `views` in `PlanOptions`) with the node, titled by it, with
+    crumbs from the container to it (`B` `C`, title `x`). The root stays at
     the top, and the container stays where it was.
   - An opened object becomes an arch or frame; an opened array becomes a
     container; an opened scalar is shown under a bar carrying its trail.
     The outermost scalar bar is not a target.
-- **Breadcrumbs operate on the container they belong to.** A top-bar crumb
-  (or menu item) re-roots there. A step in a nested title targets that
-  container and shows the step in it; a step at or above the container's
-  own node shows the container itself.
-- **Clicking a container's border (or the outer title) toggles whether it
-  is the target**, in place: targeting never opens anything.
+- **Titles activate their node**: targeted, the title opens it (subject to
+  the rule above); untargeted, it expands it, giving it priority so its
+  siblings make room (or blinks if that changes nothing).
+- **Breadcrumbs operate on the container they belong to.** The outermost
+  bar's crumbs (and menu items) re-root there, keeping the target. In the
+  target's own nav bar, a crumb shows that step in it; a step at or above
+  the container's own node shows the container itself. Any other
+  container's crumbs activate their node, like a title.
+- **Only clicking a border changes the target**: it toggles whether its
+  container is the target, in place. Targeting never opens anything.
 - **Untargeted**: clicking a collapsed node **expands** it. It is drawn
   inside its parent and becomes the active item; siblings drop out to make
   room, and breadcrumbs don't change (`expanded` and `windows` in
@@ -223,8 +231,8 @@ type Mark =                                    // every mark has a JSON Pointer 
   | { kind: 'tag'; text: string; type: Kind }       // item of an array of scalars
   | { kind: 'chip'; text: string; badge: string }   // collapsed child, inside
   | { kind: 'segment'; text: string; badge: string }// collapsed child, side bar
-  | { kind: 'crumb'; text: string }                 // ancestor, top bar
-  | { kind: 'menu'; items: { ptr; text }[] };        // ancestors that didn't fit
+  | { kind: 'crumb'; text: string; slot: string }   // breadcrumb in slot's nav bar
+  | { kind: 'menu'; items: { ptr; text }[]; slot: string }; // crumbs that didn't fit
 
 interface Plan { focus: string; marks: Mark[]; width: number; height: number; overflow: boolean }
 ```
@@ -233,7 +241,7 @@ Marks are a flat list, each with a `rect` in viewport coordinates and the
 JSON Pointer of its node. A node can have several marks (a row's `key` and
 its `token`), and nodes without marks are not shown. Pointers give the
 renderer stable keys to animate between two plans. `chip`, `segment`,
-`crumb`, `title` and `key` marks are navigable: clicking one focuses its node.
+`crumb`, `title` and `key` marks are navigable (see targeting above).
 
 ## Variants and plugins
 

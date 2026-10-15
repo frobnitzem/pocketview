@@ -13,7 +13,7 @@
  * scalar's bar does not toggle.
  */
 import {
-  ancestors, archPath, buildTree, find, isShown, NAVIGABLE, Planner, TRAIL_SEPARATOR,
+  ancestors, archPath, buildTree, find, isShown, NAVIGABLE, Planner,
   type ArrayWindow, type Json, type Kind, type Mark, type Metrics, type Plan, type TextStyle, type Variant,
 } from '@pocketview/core';
 import { markdownVariant, renderMarkdown, type MarkdownData } from '@pocketview/markdown';
@@ -193,12 +193,39 @@ export class LayoutView {
     this.view(slot, parent.ptr);
   }
 
-  /** A breadcrumb step `ptr` in the nav bar of `slot`. */
+  /**
+   * A breadcrumb `ptr` in the nav bar of `slot`. The outermost bar's crumbs
+   * re-root the view; the target's crumbs step back within it; any other
+   * container's crumbs activate their node, like a title.
+   */
   private crumb(slot: string, ptr: string): void {
-    if (slot === this.root) return this.target(ptr);
+    if (slot === this.root) return this.reroot(ptr);
+    if (this.targetPtr !== slot) return this.activate(ptr);
     const node = find(this.planner!.tree, slot)!;
     // A step at or above the slot's own node shows the slot itself.
     this.view(slot, ptr === slot || ancestors(node).some((a) => a.ptr === ptr) ? slot : ptr);
+  }
+
+  /**
+   * Re-roots at an ancestor from the top bar. Changing the target takes a
+   * border click, so the target stays: untargeted stays untargeted, and a
+   * nested target (with what it shows) is kept.
+   */
+  private reroot(ptr: string): void {
+    const keep = this.targetPtr === this.root ? ptr : this.targetPtr;
+    const views = this.views;
+    this.target(ptr);
+    if (keep === null) this.targetPtr = null;
+    else if (keep !== ptr && find(this.planner!.tree, keep)?.ptr.startsWith(`${ptr}/`)) {
+      this.targetPtr = keep;
+      this.views = views;
+    }
+    this.render();
+  }
+
+  /** A title (or another container's crumb): open it if targeted, else expand it. */
+  private activate(ptr: string): void {
+    return this.targetPtr !== null ? this.open(ptr) : this.expand(ptr, true);
   }
 
   /** Clicking a container's border toggles whether it is the target, in place. */
@@ -216,9 +243,15 @@ export class LayoutView {
     return this.targetPtr === slot;
   }
 
-  /** Untargeted click on a collapsed node: show it in place, or blink. */
-  private expand(ptr: string): void {
-    if (!this.plan || !this.planner || isShown(this.plan, ptr)) return this.blink();
+  /**
+   * Untargeted click on a collapsed node: show it in place, or blink. A
+   * title (`shown`) may expand a node that is already drawn: it then gets
+   * priority, and its siblings make room.
+   */
+  private expand(ptr: string, shown = false): void {
+    if (!this.plan || !this.planner || this.expanded.includes(ptr)) return this.blink();
+    if (isShown(this.plan, ptr) && !shown) return this.blink();
+    const drawn = JSON.stringify(this.plan.marks);
     const before = { expanded: this.expanded, windows: this.windows };
     this.expanded = [...this.expanded, ptr];
     // An array element is expanded by paging its array so the element comes first.
@@ -228,7 +261,7 @@ export class LayoutView {
     }
     this.windows = windows;
     this.render();
-    if (this.plan && !isShown(this.plan, ptr)) {
+    if (this.plan && (!isShown(this.plan, ptr) || JSON.stringify(this.plan.marks) === drawn)) {
       this.expanded = before.expanded;
       this.windows = before.windows;
       this.render();
@@ -285,7 +318,7 @@ export class LayoutView {
       case 'key':
         return this.targetPtr !== null ? this.open(mark.ptr) : this.blink(); // already shown
       case 'crumb':
-        return this.target(mark.ptr);
+        return this.crumb(mark.slot, mark.ptr);
       default:
         return;
     }
@@ -301,6 +334,12 @@ export class LayoutView {
     this.plan = this.planner.plan(this.root, vp, {
       expanded: this.expanded, windows: this.windows, offsets: this.offsets, views: this.views,
     });
+    // A nested target that is no longer on the page hands back to the root.
+    const t = this.targetPtr;
+    if (t !== null && t !== this.root && !this.plan.marks.some((m) => m.kind === 'frame' && m.slot === t)) {
+      this.targetPtr = this.root;
+      this.drawnKey = this.stateKey();
+    }
     const root = document.createElement('div');
     root.className = 'pv-layout';
     root.classList.toggle('targeted', this.targetPtr !== null);
@@ -348,6 +387,7 @@ export class LayoutView {
       const status = (mark.outer ? ' outer' : '') + target;
       svg.setAttribute('class', `pv-frame v-${mark.variant} ${typeClass(mark.type)}${status}`);
       svg.setAttribute('viewBox', `0 0 ${r.w} ${r.h}`);
+      svg.dataset.slot = mark.slot;
       Object.assign(svg.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
       const path = document.createElementNS(ns, 'path');
       path.setAttribute('d', archPath(mark.arch, r.w, r.h, mark.geom));
@@ -361,31 +401,20 @@ export class LayoutView {
     el.className = mark.kind === 'text' ? 'pv-textblock' : `pv-${mark.kind}`; // .pv-text is the lines inside
     Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
     if ('type' in mark && mark.kind !== 'token' && mark.kind !== 'tag') el.classList.add(typeClass(mark.type));
+    if ('slot' in mark) el.dataset.slot = mark.slot; // the container whose nav bar this is
     switch (mark.kind) {
       case 'title':
         el.style.fontSize = `${14 * mark.scale}px`; // as measured: KEY_FONT × scale
         el.style.lineHeight = `${r.h}px`;
-        if (mark.outer) {
-          // The outermost title is the target's own name: it toggles the target.
-          el.textContent = mark.text;
-          el.classList.add('outer', typeClass(mark.trail[0]!.type));
-          const outer = this.plan?.marks.find((m) => m.kind === 'frame' && m.outer);
-          if (this.isTarget(mark.slot) && outer?.kind === 'frame' && outer.targetable) el.classList.add('target');
-          el.classList.add('nav');
-          el.addEventListener('click', () => this.toggleTarget(mark.slot));
-        } else {
-          // A nested container's breadcrumb trail: each step targets the
-          // container and shows that step in it.
-          if (this.isTarget(mark.slot)) el.classList.add('target');
-          mark.trail.forEach((c, i) => {
-            if (i > 0) el.append(TRAIL_SEPARATOR);
-            const step = document.createElement('span');
-            step.className = `step nav ${typeClass(c.type)}`;
-            step.textContent = c.text;
-            step.addEventListener('click', () => this.crumb(mark.slot, c.ptr));
-            el.append(step);
-          });
+        // A title activates its node: it opens (if under the target) or
+        // expands in place. Only borders change the target.
+        el.textContent = mark.text;
+        el.classList.add('nav', typeClass(mark.trail.at(-1)!.type));
+        if (mark.outer) el.classList.add('outer');
+        if (this.isTarget(mark.slot) && this.plan?.marks.some((m) => m.kind === 'frame' && m.slot === mark.slot && m.targetable)) {
+          el.classList.add('target');
         }
+        el.addEventListener('click', () => this.activate(mark.ptr));
         return el;
       case 'key':
       case 'crumb':
@@ -421,8 +450,9 @@ export class LayoutView {
         el.classList.add(typeClass('array'));
         break;
       case 'pager': {
-        el.textContent = { up: '\u25b2', down: '\u25bc', prev: '\u25c0', next: '\u25b6' }[mark.dir];
-        el.classList.add(typeClass(mark.type), 'nav');
+        el.innerHTML = '<span></span>';
+        el.firstElementChild!.textContent = { up: '\u25b2', down: '\u25bc', prev: '\u25c0', next: '\u25b6' }[mark.dir];
+        el.classList.add(typeClass(mark.type), 'nav', mark.dir === 'up' || mark.dir === 'down' ? 'v' : 'h');
         if (mark.outer && this.isTarget(this.root)) el.classList.add('target');
         if (mark.disabled) el.classList.add('disabled');
         el.setAttribute('role', 'button');
@@ -445,7 +475,7 @@ export class LayoutView {
           const li = document.createElement('li');
           li.textContent = item.text;
           li.className = typeClass(item.type);
-          li.addEventListener('click', () => this.target(item.ptr));
+          li.addEventListener('click', () => this.crumb(mark.slot, item.ptr));
           list.append(li);
         }
         el.querySelector('button')!.addEventListener('click', (e) => { e.stopPropagation(); list.hidden = !list.hidden; });

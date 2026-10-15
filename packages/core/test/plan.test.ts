@@ -71,8 +71,10 @@ describe('planner', () => {
     const plan = planner.plan('', { w: 1400, h: 1000 }, { expanded: ['/a/b/c/d/e'] });
     expect(isShown(plan, '/a/b/c/d/e')).toBe(true);
     const item = plan.marks.find((m) => m.kind === 'title' && m.ptr === '/list/0');
-    expect(item).toMatchObject({ text: 'list \u203a 0' });
+    expect(item).toMatchObject({ text: '0' });
     if (item?.kind === 'title') expect(item.trail.map((c) => c.type)).toEqual(['array', 'object']);
+    // The rest of the trail is crumb segments in the item's own nav bar.
+    expect(plan.marks.find((m) => m.kind === 'crumb' && m.slot === '/list/0')).toMatchObject({ ptr: '/list', text: 'list' });
   });
 
   it('makes key capsules as tall as their values', () => {
@@ -91,7 +93,7 @@ describe('planner', () => {
     for (let i = 11; i >= 0; i--) ptr += `/level_number_${i}`;
     const plan = new Planner(tree, fakeMetrics).plan(ptr, { w: 700, h: 500 });
     expect(plan.marks.some((m) => m.kind === 'menu')).toBe(true);
-    expect(plan.marks.filter((m) => m.kind === 'crumb').at(-1)!.ptr).toBe(ptr.slice(0, ptr.lastIndexOf('/')));
+    expect(plan.marks.filter((m) => m.kind === 'crumb' && m.slot === ptr).at(-1)!.ptr).toBe(ptr.slice(0, ptr.lastIndexOf('/')));
   });
 
   it('keeps arrays bare when they fit, and uses a paged container when not', () => {
@@ -171,6 +173,7 @@ describe('planner', () => {
     const title = plan.marks.find((m) => m.kind === 'title' && m.slot === '/author');
     if (title?.kind !== 'title') throw new Error('no title');
     expect(title.trail.map((c) => c.text)).toEqual(['author', 'address']);
+    expect(plan.marks.filter((m) => m.kind === 'crumb' && m.slot === '/author').map((m) => m.ptr)).toEqual(['/author']);
     // The root and its other rows stay where they were.
     expect(plan.marks.find((m) => m.kind === 'token' && m.ptr === '/name')).toBeTruthy();
     expect(plan.marks.some((m) => m.ptr === '/author/name')).toBe(false);

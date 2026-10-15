@@ -75,8 +75,9 @@ type MarkBody =
   | { kind: 'tag'; ptr: string; rect: Rect; text: string; type: Kind }
   | { kind: 'chip'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
   | { kind: 'segment'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
-  | { kind: 'crumb'; ptr: string; rect: Rect; text: string; type: Kind }
-  | { kind: 'menu'; ptr: string; rect: Rect; items: Crumb[] }
+  /** A breadcrumb in the nav bar of the container `slot`. */
+  | { kind: 'crumb'; ptr: string; rect: Rect; text: string; type: Kind; slot: string }
+  | { kind: 'menu'; ptr: string; rect: Rect; items: Crumb[]; slot: string }
   /** An array container's shown range, 1-based: "6–8 of 12". */
   | { kind: 'range'; ptr: string; rect: Rect; text: string; start: number; end: number; total: number }
   /** A paging arrow of a container (array window) or of the outer side bar. */
@@ -125,9 +126,6 @@ const COLLAPSED = new Set<Mark['kind']>(['chip', 'segment', 'crumb', 'menu', 'ra
 export function isShown(plan: Plan, ptr: string): boolean {
   return plan.marks.some((m) => m.ptr === ptr && !COLLAPSED.has(m.kind));
 }
-
-/** Separates the steps of a container's breadcrumb trail in its title. */
-export const TRAIL_SEPARATOR = ' \u203a ';
 
 const crumb = (n: TreeNode): Crumb => ({ ptr: n.ptr, text: n.label, type: n.kind });
 
@@ -180,7 +178,7 @@ export class Planner {
     const path = ancestors(focus);
     const title = this.title(focus, g.side + g.inner, vp.w - g.outer, g.bar, path.length > 0);
     marks.push(title);
-    this.crumbs(path, g.side + g.inner, title.rect.x - t.gap, g.bar, marks);
+    this.crumbs(path, g.side + g.inner, title.rect.x - t.gap, 0, g.bar, focus, marks);
 
     const cx = g.side + t.pad;
     const cy = g.bar + t.pad;
@@ -203,14 +201,18 @@ export class Planner {
     const t = this.theme;
     const g = t.root;
     const top = g.bar + g.outer;
+    // Segments abut: each box includes half the gap above and below, which
+    // the renderer draws as background-coloured borders.
     const slot = t.segH + t.segGap;
     let first = top;
-    let capacity = Math.max(0, Math.floor((h - top + t.segGap) / slot));
+    let capacity = Math.max(0, Math.floor((h - top) / slot));
     let offset = 0;
     if (collapsed.length > capacity) {
-      const ph = t.chipH; // arrow segments
-      first = top + ph + t.segGap;
-      capacity = Math.max(1, Math.floor((h - first - ph - t.segGap + t.segGap) / slot));
+      const ph = t.chipH + t.segGap; // arrow segments
+      first = top + ph;
+      // The down arrow takes what's left below the segments (at least its
+      // visible height, unless the viewport is tiny).
+      capacity = Math.max(1, Math.floor((h - first - ph + t.segGap) / slot));
       const last = Math.max(0, collapsed.length - capacity);
       offset = Math.min(last, Math.max(0, this.offsets[focus.ptr] ?? 0));
       const pager = (dir: 'up' | 'down', y: number, disabled: boolean, to: number): Mark => ({
@@ -218,12 +220,14 @@ export class Planner {
         rect: { x: 0, y, w: g.side, h: ph },
       });
       marks.push(pager('up', top, offset === 0, Math.max(0, offset - capacity)));
-      marks.push(pager('down', h - ph, offset >= last, Math.min(last, offset + capacity)));
+      const down = pager('down', first + capacity * slot, offset >= last, Math.min(last, offset + capacity));
+      down.rect.h = Math.max(0, h - down.rect.y);
+      marks.push(down);
     }
     collapsed.slice(offset, offset + capacity).forEach((n, i) => {
       marks.push({
         kind: 'segment', ptr: n.ptr, text: n.label, badge: badge(n), type: n.kind,
-        rect: { x: 0, y: first + i * slot, w: g.side, h: t.segH },
+        rect: { x: 0, y: first + i * slot, w: g.side, h: slot },
       });
     });
   }
@@ -241,7 +245,7 @@ export class Planner {
     const path = ancestors(focus);
     const title = this.title(focus, R, vp.w - R, g.bar, path.length > 0);
     marks.push(title);
-    this.crumbs(path, R, title.rect.x - t.gap, g.bar, marks);
+    this.crumbs(path, R, title.rect.x - t.gap, 0, g.bar, focus, marks);
 
     const cw = Math.min(t.listMax, vp.w - 2 * t.pad);
     const cx = Math.round((vp.w - this.measurer.snap(cw)) / 2);
@@ -262,8 +266,7 @@ export class Planner {
     const t = this.theme;
     const total = node.children.length;
     const overflow = start > 0 || end < total - 1;
-    const pw = Math.round(bar * 1.5);
-    const cut = 4;
+    const pw = Math.round(bar * 1.5) + t.segGap; // with half the gap on each side
     let rangeRight = right;
     if (overflow) {
       const next: Mark = {
@@ -272,7 +275,7 @@ export class Planner {
       };
       const prev: Mark = {
         kind: 'pager', ptr: node.ptr, dir: 'prev', disabled: start <= 0, set: { window: { end: start - 1 } },
-        type: node.kind, outer, rect: { x: right - 2 * pw - cut, y, w: pw, h: bar },
+        type: node.kind, outer, rect: { x: right - 2 * pw, y, w: pw, h: bar },
       };
       marks.push(prev, next);
       rangeRight = prev.rect.x - t.gap;
@@ -296,7 +299,7 @@ export class Planner {
       });
       const title = this.title(focus, g.bar / 2, vp.w - g.bar / 2, g.bar, true);
       marks.push(title);
-      this.crumbs(ancestors(focus), g.bar / 2, title.rect.x - t.gap, g.bar, marks);
+      this.crumbs(ancestors(focus), g.bar / 2, title.rect.x - t.gap, 0, g.bar, focus, marks);
       top = g.bar + 2 * t.pad;
     }
     const avail = vp.h - top - t.pad;
@@ -339,33 +342,37 @@ export class Planner {
     };
   }
 
-  /** Breadcrumbs as square bar segments; those that don't fit go in a menu. */
-  private crumbs(path: TreeNode[], x0: number, x1: number, bar: number, marks: Mark[]): void {
+  /**
+   * Breadcrumbs as square bar segments in the nav bar of `slot`, between x0
+   * and x1 at height y; those that don't fit go in a menu. Crumbs abut: each
+   * box includes half the gap on either side (drawn as background borders).
+   */
+  private crumbs(path: TreeNode[], x0: number, x1: number, y: number, bar: number, slot: TreeNode, marks: Mark[]): void {
     if (path.length === 0) return;
     const t = this.theme;
-    const cut = 4;
-    const widths = path.map((n) => Math.ceil(this.metrics.key(n.label)) + t.crumbPad);
-    const total = widths.reduce((a, b) => a + b + cut, 0);
+    const widths = path.map((n) => Math.ceil(this.metrics.key(n.label)) + t.crumbPad + t.segGap);
+    const total = widths.reduce((a, b) => a + b, 0);
+    const mw = bar + t.segGap;
     let shownFrom = 0;
     let x = x0;
     if (total > x1 - x0) {
       // Keep the nearest ancestors; the rest go in the menu.
-      let room = x1 - x0 - bar - cut;
+      let room = x1 - x0 - mw;
       shownFrom = path.length;
-      while (shownFrom > 0 && widths[shownFrom - 1]! + cut <= room) {
-        room -= widths[shownFrom - 1]! + cut;
+      while (shownFrom > 0 && widths[shownFrom - 1]! <= room) {
+        room -= widths[shownFrom - 1]!;
         shownFrom--;
       }
       marks.push({
-        kind: 'menu', ptr: path[0]!.ptr, rect: { x, y: 0, w: bar, h: bar },
+        kind: 'menu', ptr: path[0]!.ptr, rect: { x, y, w: mw, h: bar }, slot: slot.ptr,
         items: path.slice(0, shownFrom).map(crumb),
       });
-      x += bar + cut;
+      x += mw;
     }
     for (let i = shownFrom; i < path.length; i++) {
       const n = path[i]!;
-      marks.push({ kind: 'crumb', ptr: n.ptr, text: n.label, type: n.kind, rect: { x, y: 0, w: widths[i]!, h: bar } });
-      x += widths[i]! + cut;
+      marks.push({ kind: 'crumb', ptr: n.ptr, text: n.label, type: n.kind, slot: slot.ptr, rect: { x, y, w: widths[i]!, h: bar } });
+      x += widths[i]!;
     }
   }
 
@@ -435,21 +442,33 @@ export class Planner {
     });
     const bottom = arch.endsWith('B');
     const barY = bottom ? y + h - g.bar : y;
-    // The title is a breadcrumb trail from the enclosing frame: an object in
-    // an (unframed) array reads "packages › 0".
-    marks.push(this.trailTitle(node, owner, x + v.w - g.bar / 2, v.w - g.bar / 2 - g.outer, barY, g.bar, slot));
+    this.navBar(node, owner, x + v.w - g.bar / 2, v.w - g.bar / 2 - g.outer, barY, g.bar, slot, marks);
     const cx = x + g.side + t.pad;
     const cy = (bottom ? y : y + g.bar) + t.pad;
     this.placeRows(v.rows, cx, cy, v.rows.collapsed, node, marks, extra);
   }
 
-  /** A nested container's title: its breadcrumb trail from the enclosing frame, ending at `right`. */
-  private trailTitle(node: TreeNode, owner: TreeNode, right: number, maxW: number, y: number, bar: number, slot: TreeNode = node): Mark {
+  /**
+   * A nested container's nav bar, ending at `right`: its title (the shown
+   * node) at the right, and before it, as crumb segments, the trail from the
+   * enclosing frame (an object in an unframed array: PACKAGES | 0).
+   */
+  private navBar(node: TreeNode, owner: TreeNode, right: number, maxW: number, y: number, bar: number, slot: TreeNode, marks: Mark[]): void {
+    const t = this.theme;
     const trail: Crumb[] = [];
-    for (let n: TreeNode | null = node; n && n !== owner; n = n.parent) trail.unshift(crumb(n));
-    const text = trail.map((c) => c.text).join(TRAIL_SEPARATOR);
-    const w = Math.max(0, Math.min(Math.ceil(this.metrics.key(text)) + 2 * this.theme.pad, maxW));
-    return { kind: 'title', ptr: node.ptr, text, trail, scale: 1, outer: false, slot: slot.ptr, rect: { x: right - w, y, w, h: bar } };
+    const path: TreeNode[] = [];
+    for (let n: TreeNode | null = node; n && n !== owner; n = n.parent) {
+      trail.unshift(crumb(n));
+      if (n !== node) path.unshift(n);
+    }
+    const reserve = path.length ? bar + t.segGap + t.gap : 0;
+    const natural = Math.ceil(this.metrics.key(node.label)) + 2 * t.pad;
+    const w = Math.max(0, Math.min(natural, maxW - reserve));
+    const title: Mark = { kind: 'title', ptr: node.ptr, text: node.label, trail, scale: 1, outer: false, slot: slot.ptr, rect: { x: right - w, y, w, h: bar } };
+    marks.push(title);
+    const x0 = right - maxW;
+    const x1 = title.rect.x - t.gap;
+    if (x1 - x0 >= bar + t.segGap) this.crumbs(path, x0, x1, y, bar, slot, marks); // else the title alone
   }
 
   /** A container opened to a descendant: the descendant's display, in the container's place. */
@@ -464,7 +483,7 @@ export class Planner {
       kind: 'frame', ptr: v.node.ptr, rect: { x, y, w: v.w, h: g.bar }, arch: 'T', geom: g, depth: v.node.depth, type: v.node.kind,
       variant: 'bar', outer: false, targetable: true, slot: v.slot.ptr,
     });
-    marks.push(this.trailTitle(v.node, owner, x + v.w - g.bar / 2, v.w - g.bar, y, g.bar, v.slot));
+    this.navBar(v.node, owner, x + v.w - g.bar / 2, v.w - g.bar, y, g.bar, v.slot, marks);
     this.placeValue(v.node, v.inner, x + t.pad, y + g.bar + t.pad, owner, marks, extra);
   }
 
@@ -481,8 +500,7 @@ export class Planner {
       kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h }, arch: 'TB', geom: g, depth: node.depth, type: node.kind,
       variant: 'container', outer: false, targetable: true, slot: slot.ptr,
     });
-    const title = this.trailTitle(node, owner, x + v.w - R, v.w - 2 * R, y, g.bar, slot);
-    marks.push(title);
+    this.navBar(node, owner, x + v.w - R, v.w - 2 * R, y, g.bar, slot, marks);
     this.placeValue(node, v.content, x + t.pad, y + g.bar + t.pad, node, marks, extra);
     this.footer(node, v.start, v.end, x + R, x + v.w - R, y + h - g.bar, g.bar, false, marks);
   }

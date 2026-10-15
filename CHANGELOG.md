@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- One breadcrumb style: every arch's top bar is a nav bar of square crumb
+  segments followed by its title (crumb and menu marks carry their `slot`).
+- Titles activate their node (open when targeted, expand when not); only
+  clicking a border changes the target. Top-bar crumbs re-root without
+  changing the target.
+- Bar segments (side-bar segments, crumbs, paging arrows) abut, cut apart
+  by background-coloured borders on both sides, with no bar colour between.
+
 - Nested targets: any object or array container on the page can be the
   target (click its border or title; it stays in place). Opening a node
   under it redraws just that container's area, with its own breadcrumb

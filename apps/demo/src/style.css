@@ -197,20 +197,20 @@ button { font: inherit; color: inherit; }
 .pv-title { background: var(--bg); padding: 0 10px; font-family: Antonio, sans-serif; font-weight: 600;
   letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-align: center; color: var(--muted); }
-.pv-title.ty-object, .pv-title .ty-object { color: var(--frame); }
-.pv-title.ty-array, .pv-title .ty-array { color: var(--nav); }
-.pv-title.ty-scalar, .pv-title .ty-scalar { color: var(--key); }
+.pv-title.ty-object { color: var(--frame); }
+.pv-title.ty-array { color: var(--nav); }
+.pv-title.ty-scalar { color: var(--key); }
 .pv-title.target { color: var(--focus); }
-.pv-title .step { cursor: pointer; }
-.pv-title .step:hover { text-decoration: underline; text-underline-offset: 3px; }
 .pv-key, .pv-crumb, .pv-segment, .pv-chip { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .05em;
   text-transform: uppercase; color: var(--on-frame); white-space: nowrap; overflow: hidden; }
 .pv-key { background: var(--key); color: var(--on-key, var(--on-frame)); border-radius: 14px 0 0 14px; /* same curvature at any height */
   display: flex; align-items: flex-start; justify-content: flex-end; padding: 0 9px 0 12px; line-height: 28px; }
 .pv-key span, .pv-crumb span, .pv-segment span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.pv-crumb { background: var(--frame); border-left: 4px solid var(--bg); display: flex; align-items: flex-end;
-  justify-content: flex-end; padding: 0 8px 5px; }
-.pv-segment { background: var(--frame); border-top: 4px solid var(--bg); display: flex; align-items: flex-end;
+/* Bar segments abut, cut apart by background-coloured borders on both sides:
+   left and right in a top bar, top and bottom in a side bar. */
+.pv-crumb { background: var(--frame); border: solid var(--bg); border-width: 0 2px; display: flex; align-items: flex-end;
+  justify-content: flex-end; padding: 0 8px 4px; }
+.pv-segment { background: var(--frame); border: solid var(--bg); border-width: 2px 0; display: flex; align-items: flex-end;
   justify-content: flex-end; padding: 0 10px 6px; }
 .pv-chip { display: flex; }
 .pv-chip b { background: var(--nav); color: var(--on-nav, var(--on-frame)); border-radius: 999px 0 0 999px; padding: 0 9px 0 13px; line-height: 28px;
@@ -226,7 +226,7 @@ button { font: inherit; color: inherit; }
 .pv-textblock { font: 18px/28px "Source Serif 4", serif; color: var(--ink); }
 .pv-textblock.scroll { scrollbar-gutter: stable; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--frame) transparent; }
 .pv-textblock[data-quality] { outline: 1px dashed var(--q-loose); outline-offset: 3px; }
-.pv-menu button { width: 100%; height: 100%; border: none; border-left: 4px solid var(--bg); background: var(--frame);
+.pv-menu button { width: 100%; height: 100%; border: solid var(--bg); border-width: 0 2px; background: var(--frame);
   color: var(--on-frame); font-size: 18px; cursor: pointer; }
 .pv-menu ul { position: absolute; top: 100%; left: 0; margin: 4px 0 0; padding: 4px 0; list-style: none; z-index: 5;
   background: var(--panel); border: 2px solid var(--frame); border-radius: 10px; min-width: 160px; }
@@ -253,15 +253,15 @@ button { font: inherit; color: inherit; }
   background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 0 10px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-pager { display: grid; place-items: center; font-size: 12px; cursor: pointer; user-select: none;
-  border-left: 4px solid var(--bg); color: var(--on-frame); }
+  border: solid var(--bg); color: var(--on-frame); }
+.pv-pager.h { border-width: 0 2px; }
+.pv-pager.v { border-width: 2px 0; }
 .pv-pager.ty-object { background: var(--frame); }
 .pv-pager.ty-array { background: var(--nav); color: var(--on-nav, var(--on-frame)); }
 .pv-pager.target { background: var(--focus); color: var(--on-focus, var(--on-frame)); }
-.pv-pager.disabled { opacity: .35; cursor: default; }
+.pv-pager.disabled { cursor: default; }
+.pv-pager.disabled span { opacity: .35; } /* dim the arrow, not the borders */
 .pv-pager:not(.disabled):hover { filter: brightness(1.12); }
-/* side-bar arrows are horizontal strips, cut off from the segments between them */
-.pv-pager[aria-label="Previous segments"] { border-left: none; border-bottom: 4px solid var(--bg); }
-.pv-pager[aria-label="More segments"] { border-left: none; border-top: 4px solid var(--bg); }
 
 /* Blink: the click needs an enclosing container to be targeted first. */
 @keyframes pv-blink { 50% { opacity: .2; } }
