@@ -24,6 +24,36 @@ Mr. Bennet made no answer.
 This was invitation enough.
 `;
 
+/** Excerpt on Non-Euclidean Geometry from Poincaré's Science and Hypothesis (Poincaré, 1902; public domain). */
+export const POINCARE = `
+Riemann’s Geometry.—Let us imagine to ourselves
+a world only peopled with beings of no thickness, and
+suppose these “infinitely flat” animals are all in one and
+the same plane, from which they cannot emerge. Let us
+further admit that this world is sufficiently distant from
+other worlds to be withdrawn from their influence, and
+while we are making these hypotheses it will not cost
+us much to endow these beings with reasoning power,
+and to believe them capable of making a geometry. In
+that case they will certainly attribute to space only two
+dimensions.
+
+But now suppose that these imaginary animals, while remaining without thickness, have the form
+of a spherical, and not of a plane figure, and are all on
+the same sphere, from which they cannot escape. What
+kind of a geometry will they construct? In the first place,
+it is clear that they will attribute to space only two dimensions.
+
+The straight line to them will be the shortest
+distance from one point on the sphere to another—that
+is to say, an arc of a great circle.
+
+In a word, their geometry will be spherical geometry. What they will call
+space will be the sphere on which they are confined, and
+on which take place all the phenomena with which they
+are acquainted. Their space will therefore be unbounded,
+`;
+
 export const JSON_STRING = JSON.stringify(
   'A JSON document can be a single string. Newlines in it separate paragraphs.\n' +
   'Long tokens such as https://github.com/frobnitzem/pocketview/tree/main/packages/typeset ' +
@@ -69,7 +99,7 @@ export const ARRAY = JSON.stringify([
 ], null, 2);
 
 export const SAMPLES = [
-  { label: 'Pride and Prejudice (text)', mode: 'auto', text: AUSTEN },
+  { label: 'Science and Hypothesis (text)', mode: 'auto', text: POINCARE },
   { label: 'A JSON string', mode: 'auto', text: JSON_STRING },
   { label: 'An object (YAML)', mode: 'auto', text: OBJECT },
   { label: 'An array of records (JSON)', mode: 'auto', text: ARRAY },
