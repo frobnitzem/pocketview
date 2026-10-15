@@ -7,6 +7,7 @@ import { parseInput, type InputMode } from './parse';
 import { SAMPLES } from './samples';
 import { applyTheme, loadSettings, saveSettings, THEMES, type Settings, type Theme } from './settings';
 import type { Json } from '@pocketview/core';
+import { isMarkdown } from '@pocketview/markdown';
 import { KEY_FONT, LayoutView } from './layout-view';
 import { FONT, TextView } from './view';
 
@@ -42,7 +43,7 @@ function show(): void {
   requestAnimationFrame(() => setTimeout(() => {
     const value = result.value as Json;
     const kind = Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value;
-    if (typeof value === 'string') {
+    if (typeof value === 'string' && !isMarkdown(value)) {
       // A whole document of text: the reading view.
       layoutView.clear();
       viewEl.classList.remove('layout');

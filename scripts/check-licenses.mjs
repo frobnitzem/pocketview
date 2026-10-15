@@ -5,9 +5,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Permissive licenses that may be bundled into what we ship.
+// PSF-2.0 is permissive (argparse, used only by markdown-it's command line).
 const SHIPPABLE = new Set([
-  'MIT', 'ISC', '0BSD', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0',
-  'CC0-1.0', 'Unlicense', 'BlueOak-1.0.0', 'Zlib',
+  'MIT', 'MIT-0', 'ISC', '0BSD', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0',
+  'CC0-1.0', 'Unlicense', 'BlueOak-1.0.0', 'Zlib', 'PSF-2.0',
 ]);
 // Fonts may be distributed under the OFL (the license must travel with them).
 const FONT = (name, license) => license === 'OFL-1.1' && name.startsWith('@fontsource/');
@@ -24,11 +25,15 @@ function list(kind) {
   return JSON.parse(out || '{}');
 }
 
+// A dual licence "(A OR B)" is fine if we may take it under either one.
+const accepts = (allowed, license) =>
+  license.replace(/[()]/g, '').split(/\s+OR\s+/).some((l) => allowed.has(l.trim()));
+
 const problems = [];
 for (const [kind, allowed] of [['prod', SHIPPABLE], ['dev', TOOLING]]) {
   for (const [license, pkgs] of Object.entries(list(kind))) {
     for (const pkg of pkgs) {
-      if (!allowed.has(license) && !FONT(pkg.name, license)) {
+      if (!accepts(allowed, license) && !FONT(pkg.name, license)) {
         problems.push(`${kind}: ${pkg.name}@${pkg.versions.join(',')} is ${license}`);
       }
     }

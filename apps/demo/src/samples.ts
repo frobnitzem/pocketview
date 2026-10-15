@@ -98,6 +98,15 @@ export const ARRAY = JSON.stringify([
   { id: 3, title: 'The TeXbook', authors: ['Knuth'], year: 1984 },
 ], null, 2);
 
+export const NOTES = JSON.stringify({
+  title: 'Release notes',
+  version: '0.3.0',
+  notes: '# What changed\n\n- Display **variants** are plugins now\n- Markdown is the first plugin\n- Short strings wrap plainly\n\n'
+    + 'Read the [design notes](https://github.com/frobnitzem/pocketview/blob/main/DESIGN.md).\n\n```ts\n'
+    + "planner.plan('', { w: 800, h: 600 });\n```",
+  summary: 'Plain wrapping for short strings; Knuth–Plass typesetting for long ones.',
+}, null, 2);
+
 export interface Sample {
   label: string;
   mode: 'auto' | 'json' | 'yaml' | 'text';
@@ -110,6 +119,7 @@ export const SAMPLES: readonly [Sample & { text: string }, ...Sample[]] = [
   { label: 'A JSON string', mode: 'auto', text: JSON_STRING },
   { label: 'An object (YAML)', mode: 'auto', text: OBJECT },
   { label: 'An array of records (JSON)', mode: 'auto', text: ARRAY },
+  { label: 'Markdown inside JSON', mode: 'auto', text: NOTES },
   {
     // H. G. Wells, 1897 (public domain): 27 chapters, about 290 KB.
     label: 'The Invisible Man (YAML, a book)', mode: 'auto',

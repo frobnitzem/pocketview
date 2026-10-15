@@ -6,7 +6,8 @@
 import { bestFit } from './frontier';
 import { ancestors, find, isLeaf, type Kind, type TreeNode } from './json';
 import { badge, flow, Measurer, type ArrayWindow, type Option, type Rows, type Value } from './measure';
-import { defaultTheme, type ArchGeometry, type Metrics, type Theme } from './theme';
+import { defaultTheme, type ArchGeometry, type Metrics, type TextStyle, type Theme } from './theme';
+import type { Variant } from './variant';
 
 /** Arch shapes; 'TB' is the array container (top and bottom bars), 'T' a bar alone. */
 export type ArchVariant = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T' | 'TB';
@@ -55,7 +56,9 @@ export type Mark =
     }
   | { kind: 'key'; ptr: string; rect: Rect; text: string; type: Kind }
   | { kind: 'token'; ptr: string; rect: Rect; text: string; type: Kind }
-  | { kind: 'text'; ptr: string; rect: Rect; text: string; scroll: boolean; contentHeight: number }
+  | { kind: 'text'; ptr: string; rect: Rect; text: string; style: TextStyle; scroll: boolean; contentHeight: number }
+  /** A plugin variant's display, drawn by the renderer registered for `variant`. */
+  | { kind: 'custom'; ptr: string; rect: Rect; variant: string; data: unknown }
   | { kind: 'tag'; ptr: string; rect: Rect; text: string; type: Kind }
   | { kind: 'chip'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
   | { kind: 'segment'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
@@ -109,8 +112,9 @@ export class Planner {
   readonly measurer: Measurer;
   private offsets: Readonly<Record<string, number>> = {};
 
-  constructor(readonly tree: TreeNode, readonly metrics: Metrics, readonly theme: Theme = defaultTheme) {
-    this.measurer = new Measurer(metrics, theme);
+  /** `plugins`: display variants tried alongside the built-in ones (see `Variant`). */
+  constructor(readonly tree: TreeNode, readonly metrics: Metrics, readonly theme: Theme = defaultTheme, plugins: readonly Variant[] = []) {
+    this.measurer = new Measurer(metrics, theme, plugins);
   }
 
   plan(focusPtr: string, vp: Viewport, options: PlanOptions = {}): Plan {
@@ -261,17 +265,21 @@ export class Planner {
       top = g.bar + 2 * t.pad;
     }
     const avail = vp.h - top - t.pad;
-    if (focus.kind === 'string') {
+    const builtin = this.measurer.variantsFor(focus).every((v) => v.id.startsWith('core/'));
+    if (focus.kind === 'string' && builtin) {
+      // An opened string is shown in full, at a comfortable reading width.
       const w = Math.min(t.measure, vp.w - 2 * side);
       const text = focus.value as string;
-      const full = Math.ceil(this.metrics.text(focus.ptr, text).height(w));
-      marks.push({ kind: 'text', ptr: focus.ptr, rect: { x: (vp.w - w) / 2, y: top, w, h: full }, text, scroll: false, contentHeight: full });
+      const style: TextStyle = text.length > t.longText || text.includes('\n') ? 'typeset' : 'plain';
+      const full = Math.ceil(this.metrics.text(focus.ptr, text, style).height(w));
+      marks.push({ kind: 'text', ptr: focus.ptr, rect: { x: (vp.w - w) / 2, y: top, w, h: full }, text, style, scroll: false, contentHeight: full });
       return top + full + t.pad;
     }
     const w = Math.min(focus.kind === 'array' ? t.listMax : t.measure, vp.w - 2 * side);
     const front = this.measurer.value(focus, w).map((o) => ({ h: o.h, s: o.s, data: o }));
     if (front.length === 0) return top;
-    const { point } = bestFit(front, avail);
+    // An opened leaf is shown as fully as possible (the view scrolls if needed).
+    const { point } = builtin ? bestFit(front, avail) : { point: front.reduce((a, b) => (b.s > a.s ? b : a)) };
     const x = Math.round((vp.w - this.measurer.snap(w)) / 2);
     this.placeValue(focus, point.data, x, top, focus, marks);
     return top + point.h + t.pad;
@@ -338,6 +346,8 @@ export class Planner {
         this.placeFrame(row.node, opt.v, x, yy, arch, owner, marks);
       } else if (opt.v.t === 'container') {
         this.placeContainer(row.node, opt.v, x, yy, owner, marks);
+      } else if (opt.layout === 'block') {
+        this.placeValue(row.node, opt, x, yy, owner, marks); // a plugin's full-row display
       } else {
         // The key capsule is as tall as its value (a rounded rectangle when tall).
         marks.push({ kind: 'key', ptr: row.node.ptr, text: row.node.label, type: row.node.kind, rect: { x, y: yy, w: rows.keyW, h: m.rowHeight(row) } });
@@ -408,7 +418,10 @@ export class Planner {
         marks.push({ kind: 'token', ptr: node.ptr, text: v.text, type: node.kind, rect: { x, y, w: v.w, h: t.rowH } });
         break;
       case 'text':
-        marks.push({ kind: 'text', ptr: node.ptr, text: v.text, scroll: v.scroll, contentHeight: v.full, rect: { x, y, w: v.w, h: v.h } });
+        marks.push({ kind: 'text', ptr: node.ptr, text: v.text, style: v.style, scroll: v.scroll, contentHeight: v.full, rect: { x, y, w: v.w, h: v.h } });
+        break;
+      case 'custom':
+        marks.push({ kind: 'custom', ptr: node.ptr, variant: v.variant, data: v.data, rect: { x, y, w: opt.w, h: opt.h } });
         break;
       case 'tags':
         for (const it of v.items) {

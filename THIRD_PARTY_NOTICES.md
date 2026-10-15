@@ -42,6 +42,18 @@ Patterns for other languages carry their own licences (some are LPPL or
 copyleft). Each must be reviewed and listed here before it is used;
 `pnpm licenses:check` enforces this.
 
+### Markdown plugin (`packages/markdown`)
+
+- **markdown-it** (MIT), Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
+  Its dependencies: linkify-it, mdurl, uc.micro, punycode.js (MIT) and
+  entities (BSD-2-Clause). argparse (PSF-2.0) is used only by its command
+  line and is not bundled.
+- **DOMPurify**, Copyright 2025 Dr.-Ing. Mario Heiderich, Cure53, dual
+  licensed under MPL-2.0 or Apache-2.0. pocketview uses it under the
+  Apache License 2.0.
+
+The licence texts are included in each package.
+
 ## Distributed with the demo site
 
 ### Source Serif 4 and Antonio (SIL Open Font License 1.1)

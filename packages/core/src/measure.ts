@@ -7,7 +7,8 @@
  */
 import { pareto, type Point } from './frontier';
 import { isLeaf, type TreeNode } from './json';
-import type { Metrics, Theme } from './theme';
+import type { Metrics, TextStyle, Theme } from './theme';
+import { builtinVariants, type Variant } from './variant';
 
 export interface Tag {
   node: TreeNode;
@@ -19,7 +20,10 @@ export interface Tag {
 
 export type Value =
   | { t: 'token'; text: string; w: number }
-  | { t: 'text'; text: string; w: number; h: number; full: number; scroll: boolean }
+  /** Text wrapped plainly (short strings) or typeset with Knuth–Plass (long ones). */
+  | { t: 'text'; text: string; style: TextStyle; w: number; h: number; full: number; scroll: boolean }
+  /** A plugin variant's own display; its renderer draws a 'custom' mark from `data`. */
+  | { t: 'custom'; variant: string; data: unknown }
   | { t: 'tags'; w: number; h: number; items: Tag[] }
   | { t: 'list'; rows: Rows }
   | { t: 'frame'; w: number; h: number; rows: Rows }
@@ -38,6 +42,9 @@ export interface Option {
   h: number;
   s: number;
   v: Value;
+  /** Set by the engine: the variant that produced it, and its layout. */
+  variant?: string;
+  layout?: 'value' | 'block';
 }
 
 /** A child of a container: shown with `opt`, or collapsed (null). */
@@ -120,7 +127,26 @@ export class Measurer {
   private windows: Readonly<Record<string, ArrayWindow>> = {};
   private windowsSig = '';
 
-  constructor(readonly metrics: Metrics, readonly theme: Theme) {}
+  private readonly variants: readonly Variant[];
+
+  /** `plugins` are tried alongside the built-in variants (see `Variant`). */
+  constructor(readonly metrics: Metrics, readonly theme: Theme, plugins: readonly Variant[] = []) {
+    this.variants = [...plugins, ...builtinVariants];
+  }
+
+  /** The variants that display `node`: those matching with the highest priority. */
+  variantsFor(node: TreeNode): Variant[] {
+    return this.cached(`vf|${node.ptr}`, () => {
+      let best = -Infinity;
+      let out: Variant[] = [];
+      for (const v of this.variants) {
+        const p = v.match(node);
+        if (p === null) continue;
+        if (p > best) { best = p; out = [v]; } else if (p === best) out.push(v);
+      }
+      return out;
+    });
+  }
 
   snap(w: number): number {
     return Math.max(0, Math.floor(w / this.theme.unit) * this.theme.unit);
@@ -180,14 +206,39 @@ export class Measurer {
     return Math.min(natural, Math.floor(maxW));
   }
 
-  /** Options for a node drawn as a value: a token, text, tags, a bare list, or a frame. */
+  /** Options for a node drawn beside a key (its 'value' variants). */
   value(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`v|${this.sig}|${node.ptr}|${W}`, () => {
-      if (node.kind === 'object' && !isLeaf(node)) return this.frame(node, W);
-      if (node.kind === 'array' && !isLeaf(node)) return this.array(node, W);
-      return this.leaf(node, W);
-    });
+    return this.cached(`v|${this.sig}|${node.ptr}|${W}`, () => this.tagged(node, W, W, 'value'));
+  }
+
+  /** Options of the node's variants, measured `W` wide (blocks) or `valueW` wide (values). */
+  private tagged(node: TreeNode, W: number, valueW: number, only?: 'value'): Option[] {
+    const out: Option[] = [];
+    for (const v of this.variantsFor(node)) {
+      if (only && v.layout !== only) continue;
+      const w = v.layout === 'block' ? W : valueW;
+      if (w < 3 * this.theme.unit) continue;
+      for (const o of v.measure(node, w, this)) out.push({ ...o, variant: v.id, layout: v.layout });
+    }
+    return out;
+  }
+
+  /** How a child can be shown in a container `W` wide (with values `valueW` wide). */
+  childOptions(c: TreeNode, W: number, valueW: number): Option[] {
+    return this.tagged(c, this.snap(W), this.snap(valueW));
+  }
+
+  /** Options for a scalar (or empty container): a token, or wrapped or typeset text. */
+  leafOptions(node: TreeNode, maxW: number): Option[] {
+    const W = this.snap(maxW);
+    return this.cached(`l|${node.ptr}|${W}`, () => this.leaf(node, W));
+  }
+
+  /** Options for a bare array (every element shown): tags, or a list. */
+  bareArray(node: TreeNode, maxW: number): Option[] {
+    const W = this.snap(maxW);
+    return this.cached(`a|${this.sig}|${node.ptr}|${W}`, () => this.array(node, W));
   }
 
   private leaf(node: TreeNode, W: number): Option[] {
@@ -207,18 +258,20 @@ export class Measurer {
       const full = Math.ceil((text.length * perChar) / Math.max(1, W)) * t.rowH;
       return [{
         w: W, h: t.scrollMax, s: weight * (0.5 + 0.5 * t.scrollMax / full),
-        v: { t: 'text', text, w: W, h: t.scrollMax, full, scroll: true },
+        v: { t: 'text', text, style: 'typeset', w: W, h: t.scrollMax, full, scroll: true },
       }];
     }
-    const full = Math.ceil(this.metrics.text(node.ptr, text).height(W));
+    // Typesetting is for long text; short snippets are wrapped plainly.
+    const style: TextStyle = text.length > t.longText || text.includes('\n') ? 'typeset' : 'plain';
+    const full = Math.ceil(this.metrics.text(node.ptr, text, style).height(W));
     const opts: Option[] = [{
       w: W, h: Math.max(t.rowH, full), s: weight,
-      v: { t: 'text', text, w: W, h: full, full, scroll: false },
+      v: { t: 'text', text, style, w: W, h: full, full, scroll: false },
     }];
     if (full > t.scrollMax) {
       opts.push({
         w: W, h: t.scrollMax, s: weight * (0.5 + 0.5 * t.scrollMax / full),
-        v: { t: 'text', text, w: W, h: t.scrollMax, full, scroll: true },
+        v: { t: 'text', text, style, w: W, h: t.scrollMax, full, scroll: true },
       });
     }
     return opts;
@@ -340,14 +393,6 @@ export class Measurer {
     return pareto(candidates, t.keep).map((p) => p.data);
   }
 
-  /** How a child can be shown in a container `W` wide (with values `valueW` wide). */
-  private childOptions(c: TreeNode, W: number, valueW: number): Option[] {
-    const t = this.theme;
-    if (c.kind === 'object' && !isLeaf(c)) return this.frame(c, W);
-    const bare = valueW >= 3 * t.unit ? this.value(c, valueW) : [];
-    // An array that doesn't fit bare goes in a container, at full width.
-    return c.kind === 'array' && !isLeaf(c) ? [...bare, ...this.container(c, W)] : bare;
-  }
 
   /** Options for an object drawn in a nested arch frame, at full width. */
   frame(node: TreeNode, maxW: number): Option[] {
@@ -367,8 +412,7 @@ export class Measurer {
   /** Height a shown child adds to a container (before the gap). */
   rowHeight(row: Row): number {
     if (!row.opt) return 0;
-    const full = row.opt.v.t === 'frame' || row.opt.v.t === 'container'; // full width, no key
-    return full ? row.opt.h : Math.max(this.theme.rowH, row.opt.h);
+    return row.opt.layout === 'block' ? row.opt.h : Math.max(this.theme.rowH, row.opt.h); // blocks have no key
   }
 
   /** The Pareto front of ways to show a container's children as rows. */

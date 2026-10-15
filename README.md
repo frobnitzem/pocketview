@@ -9,7 +9,9 @@ are laid out in arch frames and can be navigated by clicking.
 
 - `DESIGN.md`: the design (pipeline, arch frames, marked tree, contracts).
 - `packages/typeset`: Knuth–Plass line breaking with hyphenation.
-- `packages/core`: the layout engine (measure, plan, navigation contracts).
+- `packages/core`: the layout engine (measure, plan, navigation contracts)
+  and the display-variant plugin interface.
+- `packages/markdown`: the Markdown plugin (detection, sanitized rendering).
 - `apps/demo`: the demo site, published to the `gh-pages` branch by
   `.github/workflows/pages.yml`.
 

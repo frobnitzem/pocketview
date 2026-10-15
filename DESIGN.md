@@ -225,34 +225,56 @@ renderer stable keys to animate between two plans. `chip`, `segment`,
 
 ## Variants and plugins
 
-```ts
-interface SizeOption {
-  w: number; h: number;  // snapped to the grid
-  shown: number;         // how much content this option displays (for ranking)
-  plan: unknown;         // opaque; handed back to place()
-}
+Every display is a **variant** (`packages/core/src/variant.ts`):
 
-interface Variant<T = unknown> {
-  id: string;
-  slots: Slot['kind'][];                  // where this variant may appear
-  matches(node: unknown): node is T;      // base type, or a compiled JSON Schema (Ajv)
-  measure(node: T, ctx: MeasureCtx): SizeOption[];          // bottom-up
-  place(opt: SizeOption, rect: Rect, ctx: PlaceCtx): Mark[];  // top-down
+```ts
+interface Variant {
+  id: string;                          // 'core/frame', 'markdown', …
+  layout: 'value' | 'block';           // beside a key capsule, or the full row
+  match(node): number | null;          // priority, or null if it doesn't apply
+  measure(node, maxW, m): Option[];    // the node's display options at a width
 }
 ```
 
-Built-in variants:
-- Strings: `token`, `text.justified`, `text.scroll`, `code`, `math`.
-- Numbers, booleans and null: `token`.
-- Arrays: `tags`, `list.scroll`. No frame by default. A framed array
-  display for regularly structured arrays (matrices, dataframe-like arrays
-  of uniform records) comes later, as a selector plugin that matches by
-  schema or shape.
-- Objects: `arch.*`.
-- Every node: `chip`.
+- **Choosing variants.** For each node, the engine runs every variant's
+  `match` and keeps those with the highest priority. All of their options
+  go into the layout search, which picks between them by size and by how
+  much they show.
+  - A plugin with a higher priority than the built-ins (0; plugins use 10)
+    replaces the built-in displays of the nodes it matches.
+  - Variants of equal priority compete on layout.
+- **Conflicts go to the outermost node.** A variant that displays a
+  container measures its whole subtree itself, so plugins matching nodes
+  inside it aren't consulted unless it hands a child back
+  (`m.childOptions`). For example, an object matched by a schema plugin
+  wins over the markdown plugin on a string inside it.
+- **Built-in variants:**
+  - `core/scalar`: a token, wrapped plain text, or typeset text.
+  - `core/array`: bare tags or a list.
+  - `core/container`: the paged array container.
+  - `core/frame`: a nested object.
+  - The outermost `arch` and the opened-scalar `bar` are placed by the
+    planner itself.
+- **Plugin options and marks.** A plugin's options carry
+  `{ t: 'custom', variant, data }`, and the planner turns a chosen one into
+  a `custom` mark. The host registers a renderer for each custom variant.
+  The engine never touches the DOM, so a plugin that needs measuring (like
+  markdown) asks the host for heights.
+- **Text.** Strings up to `longText` (280) characters without a line break
+  wrap plainly (ragged right, no hyphens). Longer ones are typeset with
+  Knuth–Plass.
+- **Markdown** (`packages/markdown`) is the first plugin. A string counts as
+  Markdown if it has at least two lines starting with ```` ``` ````, at
+  least three lines starting with `#`, `-` or `*`, or a Markdown link or
+  image.
+  - Rendering uses `markdown-it` with raw HTML disabled; its link
+    validation refuses `javascript:` and similar URLs.
+  - The output is sanitized again by DOMPurify, and links open in a new tab
+    with `noopener noreferrer`.
+  - The demo measures Markdown by rendering it off-screen at the asked width.
 
-Plugins add variants for objects that match a schema, e.g. GeoJSON → map,
-`{type:"image", data:base64}` → image, molfile → molecule.
+Planned plugins: GeoJSON → map, `{type:"image", data:base64}` → image,
+molfile → molecule, and code highlighting.
 
 **How measuring works (implemented in `packages/core/src/measure.ts`):**
 - **Memoized per width.** For a node and a maximum width, the engine

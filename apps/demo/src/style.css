@@ -268,3 +268,21 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .pv-layout.blink .pv-frame.outer { animation: none; outline: 3px solid var(--focus); }
 }
+
+/* Markdown (plugin): drawn in the reading fonts and the scheme's colours. */
+.pv-custom.scroll { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--frame) transparent; }
+.pv-md { font: 18px/28px "Source Serif 4", serif; color: var(--ink); overflow-wrap: anywhere; }
+.pv-md > :first-child { margin-top: 0; }
+.pv-md > :last-child { margin-bottom: 0; }
+.pv-md p, .pv-md ul, .pv-md ol, .pv-md pre, .pv-md blockquote { margin: 0 0 9px; }
+.pv-md h1, .pv-md h2, .pv-md h3, .pv-md h4 { font-family: Antonio, sans-serif; font-weight: 600; letter-spacing: .04em;
+  color: var(--frame); margin: 0 0 6px; line-height: 1.2; }
+.pv-md h1 { font-size: 26px; } .pv-md h2 { font-size: 22px; } .pv-md h3, .pv-md h4 { font-size: 19px; }
+.pv-md ul, .pv-md ol { padding-left: 24px; }
+.pv-md a { color: var(--lit); }
+.pv-md code { font: 15px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--raised);
+  border-radius: 4px; padding: 1px 4px; }
+.pv-md pre { background: var(--raised); border-radius: 8px; padding: 8px 12px; overflow-x: auto; }
+.pv-md pre code { background: none; padding: 0; }
+.pv-md blockquote { border-left: 3px solid var(--key); padding-left: 12px; color: var(--muted); }
+.pv-md img { max-width: 100%; }

@@ -14,8 +14,9 @@
  */
 import {
   archPath, buildTree, find, isShown, NAVIGABLE, Planner, TRAIL_SEPARATOR,
-  type ArrayWindow, type Json, type Kind, type Mark, type Metrics, type Plan,
+  type ArrayWindow, type Json, type Kind, type Mark, type Metrics, type Plan, type TextStyle, type Variant,
 } from '@pocketview/core';
+import { markdownVariant, renderMarkdown, type MarkdownData } from '@pocketview/markdown';
 import { canvasMeasure, prepare, renderLines, type Prepared } from '@pocketview/typeset';
 import { englishUS } from '@pocketview/typeset/en-us';
 import type { Settings } from './settings';
@@ -25,25 +26,59 @@ export const KEY_FONT = '600 14px Antonio';
 const KEY_TRACKING = 0.05 * 14; // letter-spacing of key labels (.05em), per character
 
 /** Browser metrics: canvas widths in the fonts the marks are drawn in. */
-function browserMetrics(): Metrics & { prepared(ptr: string, text: string): Prepared } {
+function browserMetrics(): Metrics & { prepared(ptr: string, text: string, style: TextStyle): Prepared } {
   const key = canvasMeasure(KEY_FONT);
   const value = canvasMeasure(FONT);
   const texts = new Map<string, Prepared>();
-  const prepared = (ptr: string, text: string) => {
-    let p = texts.get(ptr);
+  // Plain text wraps ragged-right without hyphens; typeset text is justified.
+  const prepared = (ptr: string, text: string, style: TextStyle) => {
+    let p = texts.get(`${style}|${ptr}`);
     if (!p) {
-      p = prepare(text, { measure: value, lineHeight: LINE_HEIGHT, hyphenate: englishUS, paragraphSpacing: FONT_SIZE / 2 });
-      texts.set(ptr, p);
+      p = prepare(text, style === 'typeset'
+        ? { measure: value, lineHeight: LINE_HEIGHT, hyphenate: englishUS, paragraphSpacing: FONT_SIZE / 2 }
+        : { measure: value, lineHeight: LINE_HEIGHT, align: 'left', hyphenate: null, paragraphSpacing: FONT_SIZE / 2 });
+      texts.set(`${style}|${ptr}`, p);
     }
     return p;
   };
   return {
     key: (s) => key(s.toUpperCase()) + KEY_TRACKING * s.length,
     value: (s) => value(s),
-    text: (ptr, s) => ({ height: (w) => prepared(ptr, s).layout(w).height }),
+    text: (ptr, s, style = 'typeset') => ({ height: (w) => prepared(ptr, s, style).layout(w).height }),
     prepared,
   };
 }
+
+/**
+ * Markdown is measured by rendering it off-screen at the asked width, in the
+ * same styles it is drawn with (the engine itself never touches the DOM).
+ */
+const markdownHeights = new Map<string, number>();
+function measureMarkdown(ptr: string, text: string, width: number): number {
+  const key = `${width}|${ptr}|${text.length}`;
+  let h = markdownHeights.get(key);
+  if (h === undefined) {
+    const probe = renderMarkdown(text);
+    Object.assign(probe.style, { position: 'absolute', visibility: 'hidden', left: '-10000px', top: '0', width: `${width}px` });
+    document.body.append(probe);
+    h = probe.getBoundingClientRect().height;
+    probe.remove();
+    markdownHeights.set(key, h);
+  }
+  return h;
+}
+
+/** Display variants beyond the built-in ones (see `Variant` in @pocketview/core). */
+const PLUGINS: Variant[] = [markdownVariant({ height: measureMarkdown })];
+
+/** How each plugin variant's 'custom' marks are drawn. */
+const RENDERERS: Record<string, (mark: Extract<Mark, { kind: 'custom' }>, el: HTMLElement) => void> = {
+  markdown(mark, el) {
+    const data = mark.data as MarkdownData;
+    el.append(renderMarkdown(data.text));
+    if (data.scroll) el.classList.add('scroll');
+  },
+};
 
 export class LayoutView {
   private planner: Planner | null = null;
@@ -77,7 +112,7 @@ export class LayoutView {
   show(value: Json, settings: Settings, label?: string): number {
     this.settings = settings;
     this.metrics = browserMetrics();
-    this.planner = new Planner(buildTree(value, label), this.metrics);
+    this.planner = new Planner(buildTree(value, label), this.metrics, undefined, PLUGINS);
     this.root = '';
     this.targeted = true;
     this.expanded = [];
@@ -271,7 +306,7 @@ export class LayoutView {
         el.classList.add(`t-${mark.type}`);
         break;
       case 'text': {
-        const par = this.metrics.prepared(mark.ptr, mark.text).layout(r.w);
+        const par = this.metrics.prepared(mark.ptr, mark.text, mark.style).layout(r.w);
         const lines = renderLines(par, { lineHeight: LINE_HEIGHT });
         el.append(lines);
         if (mark.scroll) el.classList.add('scroll');
@@ -297,6 +332,11 @@ export class LayoutView {
         el.addEventListener('click', go);
         el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
         return el;
+      }
+      case 'custom': {
+        const render = RENDERERS[mark.variant];
+        if (render) render(mark, el);
+        break;
       }
       case 'menu': {
         el.innerHTML = '<button aria-label="More breadcrumbs">\u2630</button><ul hidden></ul>';

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Display variants are plugins (`Variant` in `@pocketview/core`): the
+  highest-priority matching variants offer options and the layout picks;
+  conflicts resolve to the outermost node. The built-in displays are ported.
+- `@pocketview/markdown`: the first plugin, with Markdown detection and
+  rendering sanitized against XSS (markdown-it without raw HTML, then
+  DOMPurify).
+- Short strings wrap plainly; only long strings (over 280 characters, or
+  with line breaks) are typeset.
+
 - Array containers: an array that doesn't fit is drawn between top and
   bottom bars, showing a window of elements with the range (`6–8 of 12`)
   and ◀ ▶ paging; an opened array is a full-view container target. Bare

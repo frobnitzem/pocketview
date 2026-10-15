@@ -28,6 +28,8 @@ export interface Theme {
   /** Font size of the outermost title relative to key labels. */
   titleScale: number;
   scrollMax: number;
+  /** Strings longer than this (or with a line break) are typeset; shorter ones wrap plainly. */
+  longText: number;
   /** Width of the reading column for a focused string. */
   measure: number;
   /** Widest list when an array is focused. */
@@ -64,6 +66,7 @@ export const defaultTheme: Theme = {
   crumbPad: 22,
   titleScale: 1.5,
   scrollMax: 280,
+  longText: 280,
   measure: 648,
   listMax: 960,
   keep: 16,
@@ -72,6 +75,9 @@ export const defaultTheme: Theme = {
   root: { bar: 36, side: 108, sideR: 12, outer: 44, inner: 16 },
   frame: { bar: 24, side: 8, outer: 22, inner: 10 },
 };
+
+/** 'plain': wrapped, ragged right, no hyphenation; 'typeset': Knuth–Plass, justified. */
+export type TextStyle = 'plain' | 'typeset';
 
 /** Text measurement supplied by the host (the browser, or a fake in tests). */
 export interface TextMetrics {
@@ -85,5 +91,5 @@ export interface Metrics {
   /** Width of a one-line value in the text font. */
   value(text: string): number;
   /** Multi-line text, keyed by the node's pointer so hosts can cache it. */
-  text(ptr: string, text: string): TextMetrics;
+  text(ptr: string, text: string, style?: TextStyle): TextMetrics;
 }
