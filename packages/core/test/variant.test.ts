@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTree, Planner, type Json, type Variant } from '../src/index';
-import { fakeMetrics } from './contracts.test';
+import { fakeMetrics } from './helpers';
 
 // A string plugin: strings starting with "md:" get a custom display.
 const stringPlugin: Variant = {

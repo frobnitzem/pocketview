@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { archPath, buildTree, isShown, pareto, Planner, type Json } from '../src/index';
-import { fakeMetrics } from './contracts.test';
+import { fakeMetrics } from './helpers';
 
 const PKG: Json = {
   name: 'pocketview',
@@ -160,6 +160,23 @@ describe('planner', () => {
     expect(text).toMatchObject({ scroll: true });
     expect(text!.rect.h).toBeGreaterThan(400);
     expect(plan.overflow).toBe(false);
+  });
+
+  it('opens a nested container to a descendant in place, with its own breadcrumbs', () => {
+    const doc: Json = { name: 'x', author: { name: 'A', address: { city: 'Oak Ridge', zip: '37830' } } };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const plan = planner.plan('', { w: 1000, h: 700 }, { views: { '/author': '/author/address' } });
+    const frame = plan.marks.find((m) => m.kind === 'frame' && m.slot === '/author');
+    expect(frame).toMatchObject({ ptr: '/author/address', variant: 'frame' });
+    const title = plan.marks.find((m) => m.kind === 'title' && m.slot === '/author');
+    if (title?.kind !== 'title') throw new Error('no title');
+    expect(title.trail.map((c) => c.text)).toEqual(['author', 'address']);
+    // The root and its other rows stay where they were.
+    expect(plan.marks.find((m) => m.kind === 'token' && m.ptr === '/name')).toBeTruthy();
+    expect(plan.marks.some((m) => m.ptr === '/author/name')).toBe(false);
+    // A scalar opened in a slot sits under a bar.
+    const scalar = planner.plan('', { w: 1000, h: 700 }, { views: { '/author': '/author/name' } });
+    expect(scalar.marks.find((m) => m.kind === 'frame' && m.slot === '/author')).toMatchObject({ variant: 'bar', ptr: '/author/name' });
   });
 
   it('draws every arch variant as a closed path', () => {

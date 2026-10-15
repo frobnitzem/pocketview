@@ -7,17 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { ancestors, buildTree, defaultTheme, find, walk, type Json, type Metrics, type TreeNode } from '../src/index';
 import { Planner, type Mark, type Plan } from '../src/plan';
 
-// Deterministic fake metrics: no fonts needed.
-export const fakeMetrics: Metrics = {
-  key: (s) => 7.5 * s.length,
-  value: (s) => 8.5 * s.length,
-  text: (_ptr, s) => ({
-    height: (w) => {
-      const perLine = Math.max(1, Math.floor(w / 8.5));
-      return s.split('\n').reduce((n, p) => n + Math.max(1, Math.ceil(p.length / perLine)), 0) * 28;
-    },
-  }),
-};
+import { fakeMetrics } from './helpers';
 
 const LEAF_KINDS = new Set<Mark['kind']>(['title', 'key', 'token', 'text', 'tag', 'chip', 'segment', 'crumb', 'menu', 'range', 'pager', 'custom']);
 
@@ -89,9 +79,14 @@ function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: 
   const marked = new Set(plan.marks.filter((m) => m.kind !== 'pager' && m.kind !== 'range').map((m) => m.ptr));
   const collapsed = new Set(plan.marks.filter((m) => m.kind === 'chip' || m.kind === 'segment').map((m) => m.ptr));
   const paged = new Set(plan.marks.filter((m) => m.kind === 'pager').map((m) => m.ptr));
+  // Containers opened to a descendant: their other contents are reachable
+  // through the container's own breadcrumbs.
+  const opened = plan.marks.filter((m) => m.kind === 'frame' && m.slot !== m.ptr).map((m) => [m.kind === 'frame' ? m.slot : '', m.ptr] as const);
+  const underSlot = (p: string) => opened.some(([slot, shown]) =>
+    p === slot || (p.startsWith(`${slot}/`) && p !== shown && !p.startsWith(`${shown}/`)));
   for (const n of walk(focus)) {
     if (n === focus) continue;
-    let ok = marked.has(n.ptr);
+    let ok = marked.has(n.ptr) || underSlot(n.ptr);
     for (let q: TreeNode | null = n; !ok && q && q !== focus; q = q.parent) {
       ok = collapsed.has(q.ptr) || (q.parent !== null && paged.has(q.parent.ptr) && !marked.has(q.ptr));
     }
@@ -132,6 +127,22 @@ describe('navigation contracts', () => {
       check(plan, tree, tree, vp, true);
       // Titles carry breadcrumb trails that end at their own node.
       for (const m of plan.marks) if (m.kind === 'title') expect(m.trail.at(-1)!.ptr).toBe(m.ptr);
+    }), { numRuns: 200 });
+  });
+
+  it('hold with containers opened to descendants', () => {
+    fc.assert(fc.property(json, viewport, fc.nat(), fc.nat(), (doc, vp, a, b) => {
+      const tree = buildTree(doc);
+      const containers = [...walk(tree)].filter((n) => n.parent && n.children.length > 0);
+      if (containers.length === 0) return;
+      const slot = containers[a % containers.length]!;
+      const below = [...walk(slot)].filter((n) => n !== slot);
+      const shown = below[b % below.length]!;
+      const plan = new Planner(tree, fakeMetrics).plan('', vp, { views: { [slot.ptr]: shown.ptr } });
+      check(plan, tree, tree, vp, true);
+      // A slot drawn on the page shows the opened node, with its breadcrumbs.
+      const frame = plan.marks.find((m) => m.kind === 'frame' && m.slot === slot.ptr);
+      if (frame) expect(frame.ptr).toBe(shown.ptr);
     }), { numRuns: 200 });
   });
 

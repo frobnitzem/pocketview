@@ -52,12 +52,20 @@ type MarkBody =
       variant: FrameVariant; outer: boolean;
       /** Only objects and arrays can be targets (an opened scalar's bar cannot). */
       targetable: boolean;
+      /**
+       * The container this frame is on the page (its "slot"). It differs from
+       * `ptr` when the container was opened to a descendant: the frame then
+       * shows that descendant, with breadcrumbs from the slot to it.
+       */
+      slot: string;
     }
   | {
       kind: 'title'; ptr: string; rect: Rect; text: string;
       /** The container's breadcrumbs from its enclosing frame (exclusive) to itself. */
       trail: Crumb[];
       /** font size relative to key labels */ scale: number; outer: boolean;
+      /** The container (slot) whose nav bar this title is. */
+      slot: string;
     }
   | { kind: 'key'; ptr: string; rect: Rect; text: string; type: Kind }
   | { kind: 'token'; ptr: string; rect: Rect; text: string; type: Kind }
@@ -86,6 +94,11 @@ export interface PlanOptions {
   windows?: Readonly<Record<string, ArrayWindow>>;
   /** First side-bar segment shown, by object pointer (default 0). */
   offsets?: Readonly<Record<string, number>>;
+  /**
+   * Containers opened to a descendant, by container pointer: each keeps its
+   * place but shows that node, with breadcrumbs from itself to it.
+   */
+  views?: Readonly<Record<string, string>>;
 }
 
 export interface Plan {
@@ -133,6 +146,7 @@ export class Planner {
     this.measurer.setDepthLimit(focus.depth + this.theme.maxDepth);
     this.measurer.setPriority(options.expanded ?? []);
     this.measurer.setWindows(options.windows ?? {});
+    this.measurer.setViews(options.views ?? {});
     this.offsets = options.offsets ?? {};
     const marks: Mark[] = [];
     this.scroll = undefined;
@@ -160,7 +174,7 @@ export class Planner {
     const m = this.measurer;
     const frame: Mark = {
       kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'LTR', geom: g, depth: focus.depth,
-      type: focus.kind, variant: 'arch', outer: true, targetable: true,
+      type: focus.kind, variant: 'arch', outer: true, targetable: true, slot: focus.ptr,
     };
     marks.push(frame);
     const path = ancestors(focus);
@@ -221,7 +235,7 @@ export class Planner {
     const R = Math.min(g.outer, g.bar);
     const frame: Mark = {
       kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'TB', geom: g, depth: focus.depth,
-      type: focus.kind, variant: 'container', outer: true, targetable: true,
+      type: focus.kind, variant: 'container', outer: true, targetable: true, slot: focus.ptr,
     };
     marks.push(frame);
     const path = ancestors(focus);
@@ -278,7 +292,7 @@ export class Planner {
     if (focus.parent) {
       marks.push({
         kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: g.bar }, arch: 'T', geom: g, depth: focus.depth,
-        type: focus.kind, variant: 'bar', outer: true, targetable: false,
+        type: focus.kind, variant: 'bar', outer: true, targetable: false, slot: focus.ptr,
       });
       const title = this.title(focus, g.bar / 2, vp.w - g.bar / 2, g.bar, true);
       marks.push(title);
@@ -320,7 +334,7 @@ export class Planner {
     const reserve = crumbs ? bar + 4 + t.gap : 0;
     const w = Math.max(0, Math.min(natural, right - left - reserve));
     return {
-      kind: 'title', ptr: node.ptr, text: node.label, trail: [crumb(node)], scale: t.titleScale, outer: true,
+      kind: 'title', ptr: node.ptr, text: node.label, trail: [crumb(node)], scale: t.titleScale, outer: true, slot: node.ptr,
       rect: { x: right - w, y: 0, w, h: bar },
     };
   }
@@ -377,11 +391,13 @@ export class Planner {
     shown.forEach((row, i) => {
       const opt = row.opt!;
       const e = grow.get(row) ?? 0;
+      // Single column: frames open to the right (L); bar at the bottom at
+      // the top or bottom of the column, otherwise on top.
+      const arch = i === 0 || i === shown.length - 1 ? 'LB' : 'LT';
       if (opt.v.t === 'frame') {
-        // Single column: frames open to the right (L); bar at the bottom at
-        // the top or bottom of the column, otherwise on top.
-        const arch = i === 0 || i === shown.length - 1 ? 'LB' : 'LT';
         this.placeFrame(row.node, opt.v, x, yy, arch, owner, marks, e);
+      } else if (opt.v.t === 'slot') {
+        this.placeSlot(opt.v, x, yy, arch, owner, marks, e);
       } else if (opt.v.t === 'container') {
         this.placeContainer(row.node, opt.v, x, yy, owner, marks, e);
       } else if (opt.layout === 'block') {
@@ -408,44 +424,64 @@ export class Planner {
 
   private placeFrame(
     node: TreeNode, v: Extract<Value, { t: 'frame' }>, x: number, y: number, arch: ArchVariant, owner: TreeNode, marks: Mark[], extra = 0,
+    slot: TreeNode = node,
   ): void {
     const t = this.theme;
     const g = t.frame;
     const h = v.h + extra;
     marks.push({
       kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h }, arch, geom: g, depth: node.depth, type: node.kind,
-      variant: 'frame', outer: false, targetable: true,
+      variant: 'frame', outer: false, targetable: true, slot: slot.ptr,
     });
     const bottom = arch.endsWith('B');
     const barY = bottom ? y + h - g.bar : y;
     // The title is a breadcrumb trail from the enclosing frame: an object in
     // an (unframed) array reads "packages › 0".
-    marks.push(this.trailTitle(node, owner, x + v.w - g.bar / 2, v.w - g.bar / 2 - g.outer, barY, g.bar));
+    marks.push(this.trailTitle(node, owner, x + v.w - g.bar / 2, v.w - g.bar / 2 - g.outer, barY, g.bar, slot));
     const cx = x + g.side + t.pad;
     const cy = (bottom ? y : y + g.bar) + t.pad;
     this.placeRows(v.rows, cx, cy, v.rows.collapsed, node, marks, extra);
   }
 
   /** A nested container's title: its breadcrumb trail from the enclosing frame, ending at `right`. */
-  private trailTitle(node: TreeNode, owner: TreeNode, right: number, maxW: number, y: number, bar: number): Mark {
+  private trailTitle(node: TreeNode, owner: TreeNode, right: number, maxW: number, y: number, bar: number, slot: TreeNode = node): Mark {
     const trail: Crumb[] = [];
     for (let n: TreeNode | null = node; n && n !== owner; n = n.parent) trail.unshift(crumb(n));
     const text = trail.map((c) => c.text).join(TRAIL_SEPARATOR);
     const w = Math.max(0, Math.min(Math.ceil(this.metrics.key(text)) + 2 * this.theme.pad, maxW));
-    return { kind: 'title', ptr: node.ptr, text, trail, scale: 1, outer: false, rect: { x: right - w, y, w, h: bar } };
+    return { kind: 'title', ptr: node.ptr, text, trail, scale: 1, outer: false, slot: slot.ptr, rect: { x: right - w, y, w, h: bar } };
+  }
+
+  /** A container opened to a descendant: the descendant's display, in the container's place. */
+  private placeSlot(v: Extract<Value, { t: 'slot' }>, x: number, y: number, arch: ArchVariant, owner: TreeNode, marks: Mark[], extra = 0): void {
+    const t = this.theme;
+    const inner = v.inner.v;
+    if (inner.t === 'frame') return this.placeFrame(v.node, inner, x, y, arch, owner, marks, extra, v.slot);
+    if (inner.t === 'container') return this.placeContainer(v.node, inner, x, y, owner, marks, extra, v.slot);
+    // A scalar: a bar with the breadcrumbs, and the value below it.
+    const g = t.frame;
+    marks.push({
+      kind: 'frame', ptr: v.node.ptr, rect: { x, y, w: v.w, h: g.bar }, arch: 'T', geom: g, depth: v.node.depth, type: v.node.kind,
+      variant: 'bar', outer: false, targetable: true, slot: v.slot.ptr,
+    });
+    marks.push(this.trailTitle(v.node, owner, x + v.w - g.bar / 2, v.w - g.bar, y, g.bar, v.slot));
+    this.placeValue(v.node, v.inner, x + t.pad, y + g.bar + t.pad, owner, marks, extra);
   }
 
   /** A nested array container: title trail in the top bar, range and arrows in the bottom bar. */
-  private placeContainer(node: TreeNode, v: Extract<Value, { t: 'container' }>, x: number, y: number, owner: TreeNode, marks: Mark[], extra = 0): void {
+  private placeContainer(
+    node: TreeNode, v: Extract<Value, { t: 'container' }>, x: number, y: number, owner: TreeNode, marks: Mark[], extra = 0,
+    slot: TreeNode = node,
+  ): void {
     const t = this.theme;
     const g = { ...t.frame, side: 0 };
     const R = Math.min(g.outer, g.bar);
     const h = v.h + extra;
     marks.push({
       kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h }, arch: 'TB', geom: g, depth: node.depth, type: node.kind,
-      variant: 'container', outer: false, targetable: true,
+      variant: 'container', outer: false, targetable: true, slot: slot.ptr,
     });
-    const title = this.trailTitle(node, owner, x + v.w - R, v.w - 2 * R, y, g.bar);
+    const title = this.trailTitle(node, owner, x + v.w - R, v.w - 2 * R, y, g.bar, slot);
     marks.push(title);
     this.placeValue(node, v.content, x + t.pad, y + g.bar + t.pad, node, marks, extra);
     this.footer(node, v.start, v.end, x + R, x + v.w - R, y + h - g.bar, g.bar, false, marks);
@@ -480,6 +516,9 @@ export class Planner {
         break;
       case 'container':
         this.placeContainer(node, v, x, y, owner, marks, extra);
+        break;
+      case 'slot':
+        this.placeSlot(v, x, y, 'LT', owner, marks, extra);
         break;
     }
   }

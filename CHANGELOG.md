@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Nested targets: any object or array container on the page can be the
+  target (click its border or title; it stays in place). Opening a node
+  under it redraws just that container's area, with its own breadcrumb
+  trail, while the root stays at the top; opening a node outside the
+  target blinks and refuses. Breadcrumbs act on the container they belong
+  to (`views` in `PlanOptions`; frame and title marks carry their `slot`).
+
 - Elastic heights: options carry a stretch; leftover height is handed to
   stretchable boxes (text and Markdown scroll boxes grow to fill), expanded
   rows first, then in document order.

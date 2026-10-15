@@ -165,26 +165,38 @@ are pastel green.
 
 ### Targeting, opening and expanding
 
-The **target** is the area where clicked things are drawn: the outermost
-object arch or array container. Only objects and arrays can be targets.
-- **Targeted** (the default; the border is purple): clicking a chip,
-  segment, key, container title or breadcrumb **opens** that node. The
-  target shows it, and its breadcrumbs extend to it.
-  - An opened object becomes an arch; an opened array becomes a container.
-  - An opened scalar is shown full-size under a bar that carries its
-    breadcrumbs. That bar is not a target.
-- **Clicking the target's border (or its title) un-targets it.** It keeps
-  its place and takes its type colour.
+The **target** is the area where clicked things are drawn. Only objects
+and arrays (arches, frames and containers) can be targets. Every container
+on the page acts as a frame with its own nav bar: its title is a
+breadcrumb trail.
+- **Targeted** (the default is the outermost frame; the target's border is
+  purple): clicking a chip, segment or key **opens** that node into the
+  target.
+  - The node must lie under what the target shows; otherwise the outer
+    border **blinks** and nothing changes.
+  - Opening into the outermost frame re-roots the view: its top bar's
+    breadcrumbs extend to the node.
+  - Opening into a nested container redraws that container's area (its
+    *slot*, `views` in `PlanOptions`) with the node, and its title trail
+    runs from the container to the node (`b › c › x`). The root stays at
+    the top, and the container stays where it was.
+  - An opened object becomes an arch or frame; an opened array becomes a
+    container; an opened scalar is shown under a bar carrying its trail.
+    The outermost scalar bar is not a target.
+- **Breadcrumbs operate on the container they belong to.** A top-bar crumb
+  (or menu item) re-roots there. A step in a nested title targets that
+  container and shows the step in it; a step at or above the container's
+  own node shows the container itself.
+- **Clicking a container's border (or the outer title) toggles whether it
+  is the target**, in place: targeting never opens anything.
 - **Untargeted**: clicking a collapsed node **expands** it. It is drawn
   inside its parent and becomes the active item; siblings drop out to make
   room, and breadcrumbs don't change (`expanded` and `windows` in
   `PlanOptions`; expanded nodes may go past the depth limit). Clicking a
-  node that is already shown, or that has no room, **blinks** the outer
+  node that is already shown, or that has no room, blinks the outer
   border: some enclosure must be targeted first.
-- **Breadcrumbs open in both states.** These are the ancestors in the top
-  bar, and the trail every nested container carries in its title (an object
-  in a bare array reads `packages › 0`). Each step is coloured by its type.
-- **Paging arrows work in both states.**
+- **Paging arrows work in both states.** Escape shows the parent of what
+  the target shows.
 
 ### Regularity
 

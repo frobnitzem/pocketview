@@ -41,12 +41,17 @@ test('lays out an object in arch frames, and navigates', async ({ page }) => {
   await expect(page.locator('.pv-title').first()).toHaveText('object');
   await expect(page.locator('.pv-key', { hasText: 'version' })).toBeVisible();
   await page.screenshot({ path: 'test-results/object-desktop.png' });
-  // Target a nested frame by its title breadcrumb; the root becomes a crumb.
+  // A nested frame's title targets it in place: the root is unchanged.
   await page.locator('.pv-title .step', { hasText: 'author' }).click();
-  await expect(page.locator('.pv-crumb')).toHaveText('object');
-  await expect(page.locator('.pv-title.outer.target')).toHaveText('author');
+  await expect(page.locator('.pv-crumb')).toHaveCount(0);
+  await expect(page.locator('.pv-frame.target:not(.outer)')).toHaveCount(1);
+  await expect(page.locator('.pv-frame.outer.target')).toHaveCount(0);
+  // Clicking the outer title targets the root again, and a key opens into it.
+  await page.locator('.pv-title.outer').click();
   await expect(page.locator('.pv-frame.outer.target')).toHaveCount(1);
-  await page.locator('.pv-crumb').click();
+  await page.locator('.pv-key', { hasText: /^name$/ }).first().click();
+  await expect(page.locator('.pv-crumb').first()).toHaveText('object');
+  await page.locator('.pv-crumb').first().click();
   await expect(page.locator('.pv-crumb')).toHaveCount(0);
 });
 
@@ -157,10 +162,10 @@ test('a long array pages in a container; opening it makes it the target', async 
   await expect(range).toHaveText(new RegExp(`^${shown + 1}\u2013\\d+ of 29$`));
   await page.locator('.pv-pager[aria-label="Previous page"]').first().click();
   await expect(range).toHaveText(new RegExp(`^1\u2013\\d+ of 29$`));
-  // Open the array: it becomes the target container, with breadcrumbs.
+  // Its title targets the container in place; opening an element pages it there.
   await page.locator('.pv-title .step', { hasText: 'chapters' }).click();
-  await expect(page.locator('.pv-frame.outer.target.v-container')).toHaveCount(1);
-  await expect(page.locator('.pv-crumb')).toHaveText('object');
+  await expect(page.locator('.pv-frame.target.v-container:not(.outer)')).toHaveCount(1);
+  await expect(page.locator('.pv-crumb')).toHaveCount(0);
 });
 
 test('the book reads a chapter per page, and the page itself never scrolls', async ({ page }) => {
@@ -270,4 +275,34 @@ test('mobile: bottom sheet collapses after showing, and expands again', async ({
   await expect(page.locator('.cm-editor')).toBeVisible();
   await noOverflow(page);
   await page.screenshot({ path: 'test-results/mobile-expanded.png' });
+});
+
+test('a nested target stays in place; opening renders into it with its own breadcrumbs', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  const doc = { a: { b: { c: { x: 1, y: 2 }, d: { z: 3 } }, e: 1 }, f: { g: 1 } };
+  await page.evaluate((d) => (window as any).pocketview.setInput(JSON.stringify(d, null, 2)), doc);
+  await page.click('#send');
+  await page.waitForSelector('.pv-layout');
+  await page.locator('.pv-title .step', { hasText: /^b$/ }).click();
+  const target = page.locator('.pv-frame.target:not(.outer)');
+  await expect(target).toHaveCount(1);
+  const before = await target.boundingBox();
+  // Open a node under b: b's area shows it, with a trail from b; the root stays.
+  await page.locator('.pv-key', { hasText: /^x$/ }).click();
+  const title = page.locator('.pv-title.target:not(.outer)');
+  await expect(title).toHaveText('b › c › x');
+  await expect(page.locator('.pv-crumb')).toHaveCount(0);
+  await expect(page.locator('.pv-key', { hasText: /^g$/ })).toBeVisible();
+  const after = await page.locator('.pv-frame.target:not(.outer)').boundingBox();
+  expect(Math.abs(after!.x - before!.x)).toBeLessThan(1);
+  expect(Math.abs(after!.y - before!.y)).toBeLessThan(1);
+  // Something outside the target refuses to open: the border blinks.
+  await page.locator('.pv-key', { hasText: /^g$/ }).click();
+  await expect(page.locator('.pv-layout')).toHaveClass(/blink/);
+  await expect(title).toHaveText('b › c › x');
+  // The trail's first step shows b itself again.
+  await title.locator('.step', { hasText: /^b$/ }).click();
+  await expect(page.locator('.pv-key', { hasText: /^x$/ })).toBeVisible();
+  await expect(page.locator('.pv-title.target:not(.outer)')).toHaveText('b');
 });

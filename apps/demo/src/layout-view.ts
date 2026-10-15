@@ -13,7 +13,7 @@
  * scalar's bar does not toggle.
  */
 import {
-  archPath, buildTree, find, isShown, NAVIGABLE, Planner, TRAIL_SEPARATOR,
+  ancestors, archPath, buildTree, find, isShown, NAVIGABLE, Planner, TRAIL_SEPARATOR,
   type ArrayWindow, type Json, type Kind, type Mark, type Metrics, type Plan, type TextStyle, type Variant,
 } from '@pocketview/core';
 import { markdownVariant, renderMarkdown, type MarkdownData } from '@pocketview/markdown';
@@ -87,10 +87,14 @@ export class LayoutView {
   /** The node the view is rooted at (the outermost frame). */
   private root = '';
   /**
-   * Targeted: clicking any node makes it the new root. Untargeted: clicking a
-   * collapsed node expands it in place; breadcrumbs still target.
+   * The targeted container (the slot clicked things open into), or null.
+   * `root` is the outermost frame; any other is a container on the page,
+   * which may show a descendant of itself (`views`). Untargeted, clicking a
+   * collapsed node expands it in place.
    */
-  private targeted = true;
+  private targetPtr: string | null = '';
+  /** What each nested slot shows, when it is not the slot's own node. */
+  private views: Record<string, string> = {};
   /** Nodes expanded in place while untargeted. */
   private expanded: string[] = [];
   /** Page windows of array containers, and side-bar offsets, by pointer. */
@@ -103,8 +107,7 @@ export class LayoutView {
   constructor(private readonly scroller: HTMLElement, private settings: Settings, private onFocus: (ptr: string) => void) {
     scroller.addEventListener('keydown', (e) => {
       if ((e.key === 'Escape' || e.key === 'Backspace') && this.planner) {
-        const node = find(this.planner.tree, this.root);
-        if (node?.parent) this.target(node.parent.ptr);
+        this.up();
       }
     });
   }
@@ -115,7 +118,8 @@ export class LayoutView {
     this.metrics = browserMetrics();
     this.planner = new Planner(buildTree(value, label), this.metrics, undefined, PLUGINS);
     this.root = '';
-    this.targeted = true;
+    this.targetPtr = '';
+    this.views = {};
     this.expanded = [];
     this.windows = {};
     this.offsets = {};
@@ -134,10 +138,11 @@ export class LayoutView {
     this.drawnKey = '';
   }
 
-  /** Opens `ptr`: the target shows it, and its breadcrumbs extend to it. */
+  /** Re-roots the view at `ptr`, targeting the outermost frame. */
   target(ptr: string): void {
     this.root = ptr;
-    this.targeted = true;
+    this.targetPtr = ptr;
+    this.views = {};
     this.expanded = [];
     this.windows = {};
     this.offsets = {};
@@ -147,13 +152,68 @@ export class LayoutView {
     this.scroller.focus({ preventScroll: true });
   }
 
-  /** Clicking the outermost border toggles whether it is the target. */
-  private toggleTarget(): void {
-    const outer = this.plan?.marks.find((m) => m.kind === 'frame' && m.outer);
-    if (outer?.kind === 'frame' && !outer.targetable) return this.blink(); // an opened scalar
-    this.targeted = !this.targeted;
+  /** The node a slot shows: the root for the outermost frame. */
+  private shown(slot: string): string {
+    return slot === this.root ? this.root : this.views[slot] ?? slot;
+  }
+
+  /** Points a nested slot at `ptr` (itself, or one of its descendants). */
+  private view(slot: string, ptr: string): void {
+    const views = { ...this.views };
+    if (ptr === slot) delete views[slot];
+    else views[slot] = ptr;
+    this.views = views;
+    this.targetPtr = slot;
+    this.render();
+    this.onFocus(ptr);
+  }
+
+  /**
+   * Opens `ptr` into the target: it must lie under what the target shows,
+   * or the outer border blinks and nothing changes.
+   */
+  private open(ptr: string): void {
+    const slot = this.targetPtr;
+    if (slot === null || !this.planner) return this.blink();
+    const base = this.shown(slot);
+    const node = find(this.planner.tree, ptr);
+    if (!node || ptr === base || !ancestors(node).some((a) => a.ptr === base)) return this.blink();
+    if (slot === this.root) return this.target(ptr);
+    this.view(slot, ptr);
+  }
+
+  /** Escape: the target shows its displayed node's parent. */
+  private up(): void {
+    if (!this.planner) return;
+    const slot = this.targetPtr ?? this.root;
+    const shown = this.shown(slot);
+    const parent = find(this.planner.tree, shown)?.parent;
+    if (slot === this.root) return parent ? this.target(parent.ptr) : undefined;
+    if (shown === slot || !parent) return this.blink(); // the slot shows itself: nothing above it here
+    this.view(slot, parent.ptr);
+  }
+
+  /** A breadcrumb step `ptr` in the nav bar of `slot`. */
+  private crumb(slot: string, ptr: string): void {
+    if (slot === this.root) return this.target(ptr);
+    const node = find(this.planner!.tree, slot)!;
+    // A step at or above the slot's own node shows the slot itself.
+    this.view(slot, ptr === slot || ancestors(node).some((a) => a.ptr === ptr) ? slot : ptr);
+  }
+
+  /** Clicking a container's border toggles whether it is the target, in place. */
+  private toggleTarget(slot: string): void {
+    if (slot === this.root) {
+      const outer = this.plan?.marks.find((m) => m.kind === 'frame' && m.outer);
+      if (outer?.kind === 'frame' && !outer.targetable) return this.blink(); // an opened scalar
+    }
+    this.targetPtr = this.targetPtr === slot ? null : slot;
     this.expanded = [];
     this.render();
+  }
+
+  private isTarget(slot: string): boolean {
+    return this.targetPtr === slot;
   }
 
   /** Untargeted click on a collapsed node: show it in place, or blink. */
@@ -204,7 +264,7 @@ export class LayoutView {
   private stateKey(): string {
     const { w, h } = this.viewport();
     const vp = [w, h];
-    return JSON.stringify([this.root, this.targeted, this.expanded, this.windows, this.offsets, vp]);
+    return JSON.stringify([this.root, this.targetPtr, this.views, this.expanded, this.windows, this.offsets, vp]);
   }
 
   /** Flashes the outermost border: some enclosure must be targeted first. */
@@ -221,9 +281,9 @@ export class LayoutView {
     switch (mark.kind) {
       case 'chip':
       case 'segment':
-        return this.targeted ? this.target(mark.ptr) : this.expand(mark.ptr);
+        return this.targetPtr !== null ? this.open(mark.ptr) : this.expand(mark.ptr);
       case 'key':
-        return this.targeted ? this.target(mark.ptr) : this.blink(); // already shown
+        return this.targetPtr !== null ? this.open(mark.ptr) : this.blink(); // already shown
       case 'crumb':
         return this.target(mark.ptr);
       default:
@@ -238,10 +298,12 @@ export class LayoutView {
     const key = this.stateKey();
     if (key === this.drawnKey && this.scroller.firstChild) return;
     this.drawnKey = key;
-    this.plan = this.planner.plan(this.root, vp, { expanded: this.expanded, windows: this.windows, offsets: this.offsets });
+    this.plan = this.planner.plan(this.root, vp, {
+      expanded: this.expanded, windows: this.windows, offsets: this.offsets, views: this.views,
+    });
     const root = document.createElement('div');
     root.className = 'pv-layout';
-    root.classList.toggle('targeted', this.targeted);
+    root.classList.toggle('targeted', this.targetPtr !== null);
     root.style.width = `${this.plan.width}px`;
     root.style.height = `${this.plan.height}px`;
     // Content that doesn't fit its frame scrolls inside it; the frame stays put.
@@ -282,15 +344,16 @@ export class LayoutView {
     if (mark.kind === 'frame') {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
-      const status = mark.outer ? (this.targeted && mark.targetable ? ' outer target' : ' outer') : '';
+      const target = mark.targetable && this.isTarget(mark.slot) ? ' target' : '';
+      const status = (mark.outer ? ' outer' : '') + target;
       svg.setAttribute('class', `pv-frame v-${mark.variant} ${typeClass(mark.type)}${status}`);
       svg.setAttribute('viewBox', `0 0 ${r.w} ${r.h}`);
       Object.assign(svg.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
       const path = document.createElementNS(ns, 'path');
       path.setAttribute('d', archPath(mark.arch, r.w, r.h, mark.geom));
-      // The border itself is clickable: the outer one toggles the target,
-      // a nested one targets its container.
-      path.addEventListener('click', () => (mark.outer ? this.toggleTarget() : this.target(mark.ptr)));
+      // The border itself is clickable: it toggles whether its container is
+      // the target, leaving it in place.
+      path.addEventListener('click', () => this.toggleTarget(mark.slot));
       svg.append(path);
       return svg;
     }
@@ -307,17 +370,19 @@ export class LayoutView {
           el.textContent = mark.text;
           el.classList.add('outer', typeClass(mark.trail[0]!.type));
           const outer = this.plan?.marks.find((m) => m.kind === 'frame' && m.outer);
-          if (this.targeted && outer?.kind === 'frame' && outer.targetable) el.classList.add('target');
+          if (this.isTarget(mark.slot) && outer?.kind === 'frame' && outer.targetable) el.classList.add('target');
           el.classList.add('nav');
-          el.addEventListener('click', () => this.toggleTarget());
+          el.addEventListener('click', () => this.toggleTarget(mark.slot));
         } else {
-          // A nested container's breadcrumb trail; each step targets its node.
+          // A nested container's breadcrumb trail: each step targets the
+          // container and shows that step in it.
+          if (this.isTarget(mark.slot)) el.classList.add('target');
           mark.trail.forEach((c, i) => {
             if (i > 0) el.append(TRAIL_SEPARATOR);
             const step = document.createElement('span');
             step.className = `step nav ${typeClass(c.type)}`;
             step.textContent = c.text;
-            step.addEventListener('click', () => this.target(c.ptr));
+            step.addEventListener('click', () => this.crumb(mark.slot, c.ptr));
             el.append(step);
           });
         }
@@ -358,7 +423,7 @@ export class LayoutView {
       case 'pager': {
         el.textContent = { up: '\u25b2', down: '\u25bc', prev: '\u25c0', next: '\u25b6' }[mark.dir];
         el.classList.add(typeClass(mark.type), 'nav');
-        if (mark.outer && this.targeted) el.classList.add('target');
+        if (mark.outer && this.isTarget(this.root)) el.classList.add('target');
         if (mark.disabled) el.classList.add('disabled');
         el.setAttribute('role', 'button');
         el.setAttribute('aria-label', { up: 'Previous segments', down: 'More segments', prev: 'Previous page', next: 'Next page' }[mark.dir]);

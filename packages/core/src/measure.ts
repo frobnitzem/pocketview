@@ -31,7 +31,13 @@ export type Value =
    * An array that doesn't fit: top and bottom bars around a window of
    * elements [start, end] (inclusive), drawn as tags or a list.
    */
-  | { t: 'container'; w: number; h: number; content: Option; start: number; end: number; total: number };
+  | { t: 'container'; w: number; h: number; content: Option; start: number; end: number; total: number }
+  /**
+   * A container ("slot") opened to one of its descendants: it keeps its
+   * place on the page but shows `node`, with breadcrumbs from itself to it.
+   * `inner` is `node`'s display: a frame, a container, or a scalar under a bar.
+   */
+  | { t: 'slot'; slot: TreeNode; node: TreeNode; inner: Option; w: number; h: number };
 
 /** Which elements of an array container to show: from `start`, or ending at `end`. */
 export type ArrayWindow = { start: number } | { end: number };
@@ -145,6 +151,9 @@ export class Measurer {
   /** Page windows of array containers, by pointer. */
   private windows: Readonly<Record<string, ArrayWindow>> = {};
   private windowsSig = '';
+  /** Containers opened to a descendant: slot pointer → pointer of the node shown. */
+  private views: Readonly<Record<string, string>> = {};
+  private viewsSig = '';
 
   private readonly variants: readonly Variant[];
 
@@ -188,12 +197,18 @@ export class Measurer {
     this.windowsSig = JSON.stringify(Object.entries(windows).sort());
   }
 
+  /** Sets which descendant each opened container shows (see the 'slot' value). */
+  setViews(views: Readonly<Record<string, string>>): void {
+    this.views = views;
+    this.viewsSig = JSON.stringify(Object.entries(views).sort());
+  }
+
   windowOf(node: TreeNode): ArrayWindow {
     return this.windows[node.ptr] ?? { start: 0 };
   }
 
   private get sig(): string {
-    return `${this.limit}|${this.prioritySig}|${this.windowsSig}`;
+    return `${this.limit}|${this.prioritySig}|${this.windowsSig}|${this.viewsSig}`;
   }
 
   /** Whether `node` is, or contains, a prioritized node. */
@@ -245,7 +260,32 @@ export class Measurer {
 
   /** How a child can be shown in a container `W` wide (with values `valueW` wide). */
   childOptions(c: TreeNode, W: number, valueW: number): Option[] {
+    const shown = this.views[c.ptr];
+    if (shown !== undefined && shown !== c.ptr) return this.slot(c, shown, this.snap(W));
     return this.tagged(c, this.snap(W), this.snap(valueW));
+  }
+
+  /** Options for container `c` opened to its descendant at `ptr` (full width). */
+  private slot(c: TreeNode, ptr: string, W: number): Option[] {
+    return this.cached(`s|${this.sig}|${c.ptr}|${W}`, () => {
+      const t = this.theme;
+      let node: TreeNode | undefined = c;
+      for (const part of ptr.slice(c.ptr.length + 1).split('/')) {
+        const key = part.replace(/~1/g, '/').replace(/~0/g, '~');
+        node = node?.children.find((k) => k.label === key);
+      }
+      if (!node || !ptr.startsWith(`${c.ptr}/`)) return this.tagged(c, W, W);
+      const shown = node;
+      const wrap = (inner: Option, h: number): Option => ({
+        w: W, h, s: inner.s + 1, stretch: inner.stretch ?? 0, layout: 'block', variant: 'core/slot',
+        v: { t: 'slot', slot: c, node: shown, inner, w: W, h },
+      });
+      if (shown.kind === 'object' && !isLeaf(shown)) return this.frame(shown, W).map((o) => wrap(o, o.h));
+      if (shown.kind === 'array' && !isLeaf(shown)) return this.container(shown, W).map((o) => wrap(o, o.h));
+      // A scalar: its value under a bar carrying the breadcrumbs.
+      const bar = t.frame.bar;
+      return this.leafOptions(shown, W - 2 * t.pad).map((o) => wrap(o, bar + 2 * t.pad + o.h));
+    });
   }
 
   /** Options for a scalar (or empty container): a token, or wrapped or typeset text. */
