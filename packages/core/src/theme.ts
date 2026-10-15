@@ -28,6 +28,8 @@ export interface Theme {
   /** Font size of the outermost title relative to key labels. */
   titleScale: number;
   scrollMax: number;
+  /** Minimum height of a stretchable text scroll box (it grows into leftover space). */
+  scrollMin: number;
   /** Strings longer than this (or with a line break) are typeset; shorter ones wrap plainly. */
   longText: number;
   /** Width of the reading column for a focused string. */
@@ -66,6 +68,7 @@ export const defaultTheme: Theme = {
   crumbPad: 22,
   titleScale: 1.5,
   scrollMax: 280,
+  scrollMin: 112,
   longText: 280,
   measure: 648,
   listMax: 960,

@@ -45,6 +45,13 @@ export interface Option {
   /** Set by the engine: the variant that produced it, and its layout. */
   variant?: string;
   layout?: 'value' | 'block';
+  /**
+   * How much taller it can grow (default 0): `h` is its minimum height and
+   * `h + stretch` its maximum. After choosing options by their minimum
+   * heights, the planner hands leftover height to stretchable options, like
+   * TeX's glue. A text scroll box stretches up to its full text.
+   */
+  stretch?: number;
 }
 
 /** A child of a container: shown with `opt`, or collapsed (null). */
@@ -62,6 +69,8 @@ export interface Rows {
   chipsH: number;
   h: number;
   s: number;
+  /** Total stretch of the shown rows. */
+  stretch: number;
 }
 
 /**
@@ -77,6 +86,16 @@ const PRIORITY = 1e4;
 
 /** A container is worth slightly less than showing the same elements bare. */
 const CONTAINER_FACTOR = 0.95;
+
+/**
+ * In an array container, the first element shown counts this much more than
+ * the others, and more elements are added only once it is shown in full:
+ * the container shows as much of its first element as it can (a chapter of
+ * a book fills the page).
+ */
+const FIRST_WEIGHT = 100;
+
+const stretchOf = (o: Option | null | undefined): number => o?.stretch ?? 0;
 
 /** Text longer than this (in characters) is shown in a row only in a scroll box. */
 const LONG_TEXT = 3000;
@@ -178,7 +197,7 @@ export class Measurer {
   }
 
   /** Whether `node` is, or contains, a prioritized node. */
-  private prioritized(node: TreeNode): boolean {
+  prioritized(node: TreeNode): boolean {
     for (const p of this.priority) if (p === node.ptr || p.startsWith(`${node.ptr}/`)) return true;
     return false;
   }
@@ -257,8 +276,8 @@ export class Measurer {
       const perChar = this.metrics.value(sample) / Math.max(1, sample.length);
       const full = Math.ceil((text.length * perChar) / Math.max(1, W)) * t.rowH;
       return [{
-        w: W, h: t.scrollMax, s: weight * (0.5 + 0.5 * t.scrollMax / full),
-        v: { t: 'text', text, style: 'typeset', w: W, h: t.scrollMax, full, scroll: true },
+        w: W, h: t.scrollMin, s: weight * (0.5 + 0.5 * t.scrollMin / full), stretch: Math.max(0, full - t.scrollMin),
+        v: { t: 'text', text, style: 'typeset', w: W, h: t.scrollMin, full, scroll: true },
       }];
     }
     // Typesetting is for long text; short snippets are wrapped plainly.
@@ -268,10 +287,11 @@ export class Measurer {
       w: W, h: Math.max(t.rowH, full), s: weight,
       v: { t: 'text', text, style, w: W, h: full, full, scroll: false },
     }];
-    if (full > t.scrollMax) {
+    if (full > t.scrollMin + t.rowH) {
+      // A scroll box: a few lines at least, stretching up to the full text.
       opts.push({
-        w: W, h: t.scrollMax, s: weight * (0.5 + 0.5 * t.scrollMax / full),
-        v: { t: 'text', text, style, w: W, h: t.scrollMax, full, scroll: true },
+        w: W, h: t.scrollMin, s: weight * (0.5 + 0.5 * t.scrollMin / full), stretch: full - t.scrollMin,
+        v: { t: 'text', text, style, w: W, h: t.scrollMin, full, scroll: true },
       });
     }
     return opts;
@@ -292,7 +312,7 @@ export class Measurer {
       }
     }
     // A bare list shows every element; an array that doesn't fit uses a container.
-    return this.rows(node, W, 'none').map((r) => ({ w: W, h: r.h, s: t.depthDiscount * r.s, v: { t: 'list', rows: r } }));
+    return this.rows(node, W, 'none').map((r) => ({ w: W, h: r.h, s: t.depthDiscount * r.s, stretch: r.stretch, v: { t: 'list', rows: r } }));
   }
 
   /** Whether all of an array's elements are short scalars (drawn as tags). */
@@ -318,7 +338,7 @@ export class Measurer {
       return this.windowed(node, inner).map((w) => {
         const h = 2 * bar + 2 * t.pad + w.content.h;
         return {
-          w: W, h, s: CONTAINER_FACTOR * w.content.s,
+          w: W, h, s: CONTAINER_FACTOR * w.content.s, stretch: stretchOf(w.content),
           v: { t: 'container', w: W, h, content: w.content, start: w.start, end: w.end, total: node.children.length },
         };
       });
@@ -326,7 +346,7 @@ export class Measurer {
   }
 
   /** Windows of consecutive elements, all shown, starting (or ending) at the page window. */
-  windowed(node: TreeNode, W: number): { start: number; end: number; content: Option }[] {
+  windowed(node: TreeNode, W: number): { start: number; end: number; content: Option; rank: number }[] {
     const t = this.theme;
     const n = node.children.length;
     const win = this.windowOf(node);
@@ -334,7 +354,7 @@ export class Measurer {
     const first = Math.max(0, Math.min(n - 1, backward ? win.end : win.start));
     const order: number[] = [];
     for (let i = first; backward ? i >= 0 : i < n; i += backward ? -1 : 1) order.push(i);
-    const out: { start: number; end: number; content: Option }[] = [];
+    const out: { start: number; end: number; content: Option; rank: number }[] = [];
 
     const widths = this.tagWidths(node, W);
     if (widths) {
@@ -351,6 +371,7 @@ export class Measurer {
         out.push({
           start: idx[0]!, end: idx[k - 1]!,
           content: { w: used, h: Math.max(t.rowH, pos.h), s: 1 + t.depthDiscount * (k - 1), v: { t: 'tags', w: used, h: pos.h, items } },
+          rank: k,
         });
       }
       return out;
@@ -360,17 +381,18 @@ export class Measurer {
     const keyW = this.keyWidth(node);
     const valueW = W - keyW - t.gap;
     let front: Point<Chain>[] = [{ h: 0, s: 0, data: null }];
-    const candidates: Point<{ start: number; end: number; content: Option }>[] = [];
-    for (const i of order) {
+    const candidates: Point<{ start: number; end: number; content: Option; rank: number }>[] = [];
+    for (const [step, i] of order.entries()) {
       const c = node.children[i]!;
       const boost = this.prioritized(c) ? PRIORITY : 0;
       const shown = c.depth > this.limit && !boost ? [] : this.childOptions(c, W, valueW);
       if (shown.length === 0) break;
+      const weight = step === 0 ? FIRST_WEIGHT : 1;
       const next: Point<Chain>[] = [];
       for (const f of front) {
         for (const o of shown) {
           const row = { node: c, opt: o };
-          next.push({ h: f.h + this.rowHeight(row) + t.gap, s: f.s + o.s + boost, data: { row, prev: f.data } });
+          next.push({ h: f.h + this.rowHeight(row) + t.gap, s: f.s + weight * o.s + boost, data: { row, prev: f.data } });
         }
       }
       front = pareto(next, t.keep);
@@ -379,16 +401,30 @@ export class Measurer {
         for (let ch = f.data; ch; ch = ch.prev) rows.push(ch.row);
         rows.sort((a, b) => Number(a.node.label) - Number(b.node.label));
         const rowsH = f.h - t.gap;
-        const r: Rows = { width: this.snap(W), keyW, rows, collapsed: [], rowsH, chipsH: 0, h: rowsH, s: f.s };
+        const stretch = rows.reduce((sum, r) => sum + stretchOf(r.opt), 0);
+        // The first-element weight only ranks windows against each other; the
+        // content is worth the plain sum, like any other option.
+        const plain = rows.reduce((sum, r) => sum + (r.opt?.s ?? 0), 0);
+        const r: Rows = { width: this.snap(W), keyW, rows, collapsed: [], rowsH, chipsH: 0, h: rowsH, s: plain, stretch };
         candidates.push({
           h: rowsH, s: f.s,
           data: {
             start: Number(rows[0]!.node.label), end: Number(rows[rows.length - 1]!.node.label),
-            content: { w: this.snap(W), h: rowsH, s: t.depthDiscount * f.s, v: { t: 'list', rows: r } },
+            content: { w: this.snap(W), h: rowsH, s: t.depthDiscount * plain, stretch, v: { t: 'list', rows: r } },
+            rank: f.s,
           },
         });
       }
-      if (front[0]!.h > WINDOW_MAX) break;
+      // More elements follow only a first element shown in full: at its
+      // richest option, with no stretch left.
+      if (step === 0) {
+        const richest = Math.max(...shown.map((o) => o.s));
+        front = front.filter((f) => {
+          const o = f.data?.row.opt;
+          return !!o && stretchOf(o) === 0 && o.s >= richest - 1e-9;
+        });
+      }
+      if (front.length === 0 || front[0]!.h > WINDOW_MAX) break;
     }
     return pareto(candidates, t.keep).map((p) => p.data);
   }
@@ -404,7 +440,7 @@ export class Measurer {
       if (inner < t.keyMin + 4 * t.unit) return [];
       return this.rows(node, inner, 'chips').map((r) => {
         const h = g.bar + 2 * t.pad + r.h;
-        return { w: W, h, s: 1 + t.depthDiscount * r.s, v: { t: 'frame', w: W, h, rows: r } };
+        return { w: W, h, s: 1 + t.depthDiscount * r.s, stretch: r.stretch, v: { t: 'frame', w: W, h, rows: r } };
       });
     });
   }
@@ -460,7 +496,8 @@ export class Measurer {
           ? flow(collapsed.map((n) => this.chipWidth(n, W)), W, t.chipH, t.gap).h
           : 0;
         const h = rowsH + (rowsH && chipsH ? t.gap : 0) + chipsH;
-        const r: Rows = { width: W, keyW, rows, collapsed, rowsH, chipsH, h, s: f.s };
+        const stretch = shown.reduce((sum, r) => sum + stretchOf(r.opt), 0);
+        const r: Rows = { width: W, keyW, rows, collapsed, rowsH, chipsH, h, s: f.s, stretch };
         return { h, s: f.s, data: r };
       });
       return pareto(results, t.keep).map((p) => p.data);

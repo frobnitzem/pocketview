@@ -296,6 +296,25 @@ molfile → molecule, and code highlighting.
   `depthDiscount` = 0.7 as much, so a parent's own rows win over its
   grandchildren. Ties go to earlier children.
 
+**Elastic heights.** An option has a minimum height `h` and a `stretch`.
+- The search compares options by their minimum heights.
+- After choosing, the planner hands leftover height down the tree, like
+  TeX's glue: expanded rows get it first, then rows in document order.
+- A text or Markdown scroll box is at least four lines tall and stretches up
+  to its full content, so a text grows into whatever room is left.
+
+**Array containers show as much of their first element as they can.** The
+first element counts 100× when windows are compared, and more elements are
+added only when it is shown at its richest option with no stretch left. A
+book's `chapters`, opened, therefore reads as a paged reader: one chapter
+per page, its text filling the page, ◀ ▶ for the previous and next chapter.
+
+**The page never scrolls.** The outermost container always fills the view
+exactly, and its borders stay put. Content that still doesn't fit after
+collapsing, paging and shrinking scroll boxes scrolls *inside* the
+container (`plan.scroll`; marks with `scrolled`). This is a last-resort
+variant: the plan avoids it whenever another choice fits.
+
 **Depth bound.** Nodes more than `maxDepth` = 4 levels below the focus are
 always collapsed to chips. Focusing deeper reveals them.
 

@@ -24,6 +24,7 @@ import { FONT, FONT_SIZE, LINE_HEIGHT } from './view';
 
 export const KEY_FONT = '600 14px Antonio';
 const KEY_TRACKING = 0.05 * 14; // letter-spacing of key labels (.05em), per character
+const SCROLLBAR = 14; // width kept free for a scroll box's scrollbar
 
 /** Browser metrics: canvas widths in the fonts the marks are drawn in. */
 function browserMetrics(): Metrics & { prepared(ptr: string, text: string, style: TextStyle): Prepared } {
@@ -190,8 +191,19 @@ export class LayoutView {
     }
   }
 
+  /** The space inside the view pane's padding: the plan fills it exactly. */
+  private viewport(): { w: number; h: number } {
+    const cs = getComputedStyle(this.scroller);
+    const px = (v: string) => parseFloat(v) || 0;
+    return {
+      w: Math.floor(this.scroller.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight)),
+      h: Math.floor(this.scroller.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom)),
+    };
+  }
+
   private stateKey(): string {
-    const vp = [Math.floor(this.scroller.clientWidth), Math.floor(this.scroller.clientHeight)];
+    const { w, h } = this.viewport();
+    const vp = [w, h];
     return JSON.stringify([this.root, this.targeted, this.expanded, this.windows, this.offsets, vp]);
   }
 
@@ -221,7 +233,7 @@ export class LayoutView {
 
   private render(): void {
     if (!this.planner) return;
-    const vp = { w: Math.floor(this.scroller.clientWidth), h: Math.floor(this.scroller.clientHeight) };
+    const vp = this.viewport();
     if (vp.w <= 0 || vp.h <= 0) return;
     const key = this.stateKey();
     if (key === this.drawnKey && this.scroller.firstChild) return;
@@ -232,7 +244,29 @@ export class LayoutView {
     root.classList.toggle('targeted', this.targeted);
     root.style.width = `${this.plan.width}px`;
     root.style.height = `${this.plan.height}px`;
-    for (const mark of this.plan.marks) root.append(this.draw(mark));
+    // Content that doesn't fit its frame scrolls inside it; the frame stays put.
+    let region: HTMLElement | null = null;
+    if (this.plan.scroll) {
+      const r = this.plan.scroll.rect;
+      region = document.createElement('div');
+      region.className = 'pv-scroll';
+      Object.assign(region.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+      const inner = document.createElement('div');
+      Object.assign(inner.style, { position: 'relative', height: `${this.plan.scroll.height}px` });
+      region.append(inner);
+    }
+    for (const mark of this.plan.marks) {
+      const el = this.draw(mark);
+      if (mark.scrolled && region) {
+        const r = this.plan.scroll!.rect;
+        (el as HTMLElement).style.left = `${mark.rect.x - r.x}px`;
+        (el as HTMLElement).style.top = `${mark.rect.y - r.y}px`;
+        region.firstElementChild!.append(el);
+      } else {
+        root.append(el);
+      }
+    }
+    if (region) root.append(region);
     this.scroller.replaceChildren(root);
     // Labels cut short by their box get their full text as a tooltip.
     for (const label of root.querySelectorAll<HTMLElement>('.pv-title, .pv-chip b, .pv-key span, .pv-crumb span, .pv-segment span')) {
@@ -306,7 +340,8 @@ export class LayoutView {
         el.classList.add(`t-${mark.type}`);
         break;
       case 'text': {
-        const par = this.metrics.prepared(mark.ptr, mark.text, mark.style).layout(r.w);
+        // A scroll box keeps room for its scrollbar, so lines are never clipped.
+        const par = this.metrics.prepared(mark.ptr, mark.text, mark.style).layout(mark.scroll ? r.w - SCROLLBAR : r.w);
         const lines = renderLines(par, { lineHeight: LINE_HEIGHT });
         el.append(lines);
         if (mark.scroll) el.classList.add('scroll');

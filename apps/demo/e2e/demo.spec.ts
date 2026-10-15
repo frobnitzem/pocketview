@@ -163,6 +163,21 @@ test('a long array pages in a container; opening it makes it the target', async 
   await expect(page.locator('.pv-crumb')).toHaveText('object');
 });
 
+test('the book reads a chapter per page, and the page itself never scrolls', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await page.click('#settings-open');
+  await page.getByRole('button', { name: /Invisible Man/ }).click();
+  await page.waitForSelector('.pv-range');
+  await expect(page.locator('.pv-range').first()).toHaveText('1\u20131 of 29');
+  const text = page.locator('.pv-textblock.scroll').first();
+  expect((await text.boundingBox())!.height).toBeGreaterThan(300);
+  const view = await page.locator('#view').evaluate((v) => ({ sh: v.scrollHeight, ch: v.clientHeight }));
+  expect(view.sh).toBeLessThanOrEqual(view.ch);
+  await page.locator('.pv-pager[aria-label="Next page"]').first().click();
+  await expect(page.locator('.pv-range').first()).toHaveText('2\u20132 of 29');
+});
+
 test('the outer side bar pages its segments with arrows', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 360 });
   await ready(page);

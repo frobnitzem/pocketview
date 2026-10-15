@@ -9,8 +9,8 @@ export interface MarkdownOptions {
   height(ptr: string, text: string, width: number): number;
   /** Priority over the built-in text displays (default 10). */
   priority?: number;
-  /** Height of the scroll box offered for long documents (default 280). */
-  scrollMax?: number;
+  /** Minimum height of the stretchable scroll box offered for long documents (default 112). */
+  scrollMin?: number;
 }
 
 /** What a 'markdown' custom mark carries. */
@@ -23,7 +23,7 @@ export interface MarkdownData {
 /** A display variant for strings that look like Markdown. */
 export function markdownVariant(options: MarkdownOptions): Variant {
   const priority = options.priority ?? 10;
-  const scrollMax = options.scrollMax ?? 280;
+  const scrollMin = options.scrollMin ?? 112;
   return {
     id: 'markdown',
     layout: 'value',
@@ -32,11 +32,12 @@ export function markdownVariant(options: MarkdownOptions): Variant {
       const text = n.value as string;
       const full = Math.ceil(options.height(n.ptr, text, w));
       const weight = Math.min(4, 1 + text.length / 400);
-      const opt = (h: number, scroll: boolean, s: number): Option => ({
-        w, h, s, v: { t: 'custom', variant: 'markdown', data: { text, full, scroll } satisfies MarkdownData },
+      const opt = (h: number, scroll: boolean, s: number, stretch = 0): Option => ({
+        w, h, s, stretch, v: { t: 'custom', variant: 'markdown', data: { text, full, scroll } satisfies MarkdownData },
       });
       const out = [opt(full, false, weight)];
-      if (full > scrollMax) out.push(opt(scrollMax, true, weight * (0.5 + 0.5 * scrollMax / full)));
+      // A scroll box: a few lines at least, stretching up to the whole document.
+      if (full > scrollMin + 28) out.push(opt(scrollMin, true, weight * (0.5 + 0.5 * scrollMin / full), full - scrollMin));
       return out;
     },
   };

@@ -147,6 +147,21 @@ describe('planner', () => {
     expect(second.some((p) => first.includes(p))).toBe(false);
   });
 
+  it('grows stretchable text into leftover height, and pages a book a chapter at a time', () => {
+    const long = 'The stranger came early in February, one wintry day. '.repeat(120);
+    const doc: Json = { title: 'A book', chapters: Array.from({ length: 5 }, (_, i) => ({ n: i + 1, text: long })) };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const plan = planner.plan('/chapters', { w: 900, h: 700 });
+    const range = plan.marks.find((m) => m.kind === 'range');
+    // The first chapter can't be shown in full, so it has the page to itself...
+    expect(range).toMatchObject({ start: 0, end: 0, total: 5 });
+    // ...and its text fills the page (well beyond the minimum scroll box).
+    const text = plan.marks.find((m) => m.kind === 'text' && m.ptr === '/chapters/0/text');
+    expect(text).toMatchObject({ scroll: true });
+    expect(text!.rect.h).toBeGreaterThan(400);
+    expect(plan.overflow).toBe(false);
+  });
+
   it('draws every arch variant as a closed path', () => {
     const g = { bar: 24, side: 8, sideR: 12, outer: 22, inner: 10 };
     for (const v of ['LT', 'RT', 'LB', 'RB', 'LTR', 'T', 'TB'] as const) {

@@ -19,7 +19,7 @@ export const fakeMetrics: Metrics = {
   }),
 };
 
-const LEAF_KINDS = new Set<Mark['kind']>(['title', 'key', 'token', 'text', 'tag', 'chip', 'segment', 'crumb', 'menu']);
+const LEAF_KINDS = new Set<Mark['kind']>(['title', 'key', 'token', 'text', 'tag', 'chip', 'segment', 'crumb', 'menu', 'range', 'pager', 'custom']);
 
 function overlaps(a: Mark['rect'], b: Mark['rect']): boolean {
   const e = 0.01;
@@ -31,22 +31,29 @@ function containers(root: TreeNode): TreeNode[] {
 }
 
 function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: number }, expanding = false): void {
-  // 3. The plan fits: within the viewport (or the scrolled content height).
+  // 3. The plan fits: the page never scrolls. Everything is within the
+  // viewport, except content of the scroll region (if any), which is within
+  // the region's width and its content height.
   expect(plan.width).toBe(vp.w);
-  if (!plan.overflow) expect(plan.height).toBe(vp.h);
+  expect(plan.height).toBe(vp.h);
+  expect(plan.overflow).toBe(plan.scroll !== undefined);
   for (const m of plan.marks) {
-    expect(m.rect.x, `${m.kind} ${m.ptr}`).toBeGreaterThanOrEqual(-0.01);
-    expect(m.rect.y).toBeGreaterThanOrEqual(-0.01);
-    expect(m.rect.x + m.rect.w, `${m.kind} ${m.ptr} right edge`).toBeLessThanOrEqual(plan.width + 0.01);
-    expect(m.rect.y + m.rect.h, `${m.kind} ${m.ptr} bottom`).toBeLessThanOrEqual(plan.height + 0.01);
+    const box = m.scrolled
+      ? { x: plan.scroll!.rect.x, y: plan.scroll!.rect.y, w: plan.scroll!.rect.w, h: plan.scroll!.height }
+      : { x: 0, y: 0, w: vp.w, h: vp.h };
+    expect(m.rect.x, `${m.kind} ${m.ptr}`).toBeGreaterThanOrEqual(box.x - 0.01);
+    expect(m.rect.y, `${m.kind} ${m.ptr} top`).toBeGreaterThanOrEqual(box.y - 0.01);
+    expect(m.rect.x + m.rect.w, `${m.kind} ${m.ptr} right edge`).toBeLessThanOrEqual(box.x + box.w + 0.01);
+    expect(m.rect.y + m.rect.h, `${m.kind} ${m.ptr} bottom`).toBeLessThanOrEqual(box.y + box.h + 0.01);
   }
   // No two drawn elements overlap (frames contain them, so they are excluded).
   const leaves = plan.marks.filter((m) => LEAF_KINDS.has(m.kind));
+  const sameLayer = (a: Mark, b: Mark) => !!a.scrolled === !!b.scrolled;
   for (let i = 0; i < leaves.length; i++) {
     for (let j = i + 1; j < leaves.length; j++) {
       const a = leaves[i]!;
       const b = leaves[j]!;
-      expect(overlaps(a.rect, b.rect), `${a.kind} ${a.ptr} overlaps ${b.kind} ${b.ptr}`).toBe(false);
+      if (sameLayer(a, b)) expect(overlaps(a.rect, b.rect), `${a.kind} ${a.ptr} overlaps ${b.kind} ${b.ptr}`).toBe(false);
     }
   }
   // Frames nest: two frames are disjoint, or one contains the other.
@@ -57,6 +64,7 @@ function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: 
     for (let j = i + 1; j < frames.length; j++) {
       const a = frames[i]!.rect;
       const b = frames[j]!.rect;
+      if (!sameLayer(frames[i]!, frames[j]!)) continue; // scrolled content vs the stationary frame
       expect(!overlaps(a, b) || contains(a, b) || contains(b, a), `frames ${frames[i]!.ptr} / ${frames[j]!.ptr}`).toBe(true);
     }
   }

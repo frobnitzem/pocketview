@@ -181,7 +181,10 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { .sheet-toggle svg { transition: none; } }
 
 /* ---- Layout view: marks from @pocketview/core ---- */
-.view.layout { padding: 8px; }
+.view.layout { padding: 8px; overflow: hidden; } /* the page never scrolls; long text scrolls in its box */
+.pv-scroll { position: absolute; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin;
+  scrollbar-color: var(--frame) transparent; }
+.pv-scroll > div > * { position: absolute; box-sizing: border-box; }
 .pv-layout { position: relative; margin: 0 auto; }
 .pv-layout > * { position: absolute; box-sizing: border-box; }
 /* Colour = type (object, array, scalar) + status (the target is purple). */
@@ -221,7 +224,7 @@ button { font: inherit; color: inherit; }
 .t-number { color: var(--num); font-variant-numeric: tabular-nums; }
 .t-boolean, .t-null { color: var(--lit); font-style: italic; }
 .pv-textblock { font: 18px/28px "Source Serif 4", serif; color: var(--ink); }
-.pv-textblock.scroll { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--frame) transparent; }
+.pv-textblock.scroll { scrollbar-gutter: stable; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--frame) transparent; }
 .pv-textblock[data-quality] { outline: 1px dashed var(--q-loose); outline-offset: 3px; }
 .pv-menu button { width: 100%; height: 100%; border: none; border-left: 4px solid var(--bg); background: var(--frame);
   color: var(--on-frame); font-size: 18px; cursor: pointer; }

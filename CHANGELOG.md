@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Elastic heights: options carry a stretch; leftover height is handed to
+  stretchable boxes (text and Markdown scroll boxes grow to fill), expanded
+  rows first, then in document order.
+- Array containers show as much of their first element as possible; the
+  book example's chapters read as one chapter per page.
+- The page never scrolls: content that doesn't fit scrolls inside its
+  stationary frame (a last resort).
+
 - Display variants are plugins (`Variant` in `@pocketview/core`): the
   highest-priority matching variants offer options and the layout picks;
   conflicts resolve to the outermost node. The built-in displays are ported.
