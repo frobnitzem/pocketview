@@ -41,10 +41,11 @@ test('lays out an object in arch frames, and navigates', async ({ page }) => {
   await expect(page.locator('.pv-title').first()).toHaveText('object');
   await expect(page.locator('.pv-key', { hasText: 'version' })).toBeVisible();
   await page.screenshot({ path: 'test-results/object-desktop.png' });
-  // Zoom into a nested frame by its title; the root becomes a breadcrumb.
-  await page.locator('.pv-title.nav', { hasText: 'author' }).click();
+  // Target a nested frame by its title breadcrumb; the root becomes a crumb.
+  await page.locator('.pv-title .step', { hasText: 'author' }).click();
   await expect(page.locator('.pv-crumb')).toHaveText('object');
-  await expect(page.locator('.pv-title.focus')).toHaveText('author');
+  await expect(page.locator('.pv-title.outer.target')).toHaveText('author');
+  await expect(page.locator('.pv-frame.outer.target')).toHaveCount(1);
   await page.locator('.pv-crumb').click();
   await expect(page.locator('.pv-crumb')).toHaveCount(0);
 });
@@ -98,7 +99,10 @@ test('clipped labels get a tooltip; a focused string takes the chip colour', asy
   await page.waitForSelector('.pv-layout');
   await expect(page.locator(`[title^="${long}"]`)).toHaveCount(1); // label, plus its badge
   await page.locator('.pv-key', { hasText: /^a$/ }).click();
-  await expect(page.locator('.pv-layout')).toHaveClass(/unframed/);
+  // A targeted string: its bar is the target colour; untargeted, the scalar colour.
+  await expect(page.locator('.pv-frame.outer.target.ty-scalar')).toHaveCount(1);
+  await page.locator('.pv-title.outer').click();
+  await expect(page.locator('.pv-frame.outer.ty-scalar:not(.target)')).toHaveCount(1);
 });
 
 test('colour schemes switch from the settings menu', async ({ page }) => {
@@ -110,6 +114,30 @@ test('colour schemes switch from the settings menu', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'solar-light');
   expect(await bg()).toBe('rgb(253, 246, 227)');
   expect(await bg()).not.toBe(before);
+});
+
+test('untargeted: chips expand in place, and a shown node blinks the border', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 420 });
+  await ready(page);
+  await example(page, 'An object (YAML)');
+  // Arrays are cream, objects amber: the keywords key takes the array colour.
+  await expect(page.locator('.pv-key.ty-array', { hasText: /^keywords$/ })).toHaveCount(1);
+  // Un-target by clicking the outer title (the border does the same).
+  await page.locator('.pv-title.outer').click();
+  await expect(page.locator('.pv-layout')).not.toHaveClass(/targeted/);
+  const chip = page.locator('.pv-segment.nav, .pv-chip.nav').first();
+  const name = (await chip.textContent())!.split(' ')[0]!;
+  await chip.click();
+  // Expanded in place: the root is unchanged (no crumbs) and the node is shown.
+  await expect(page.locator('.pv-crumb')).toHaveCount(0);
+  const shown = page.locator('.pv-key, .pv-title .step').filter({ hasText: new RegExp(`^${name}$`) });
+  await expect(shown.first()).toBeVisible();
+  // Clicking something already shown blinks the outer border.
+  await shown.first().click();
+  await expect(page.locator('.pv-layout')).toHaveClass(/blink/);
+  // Breadcrumb titles still target.
+  await page.locator('.pv-title.outer').click();
+  await expect(page.locator('.pv-layout')).toHaveClass(/targeted/);
 });
 
 test('desktop: the input pane folds to the left and back', async ({ page }) => {

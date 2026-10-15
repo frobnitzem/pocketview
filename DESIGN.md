@@ -130,12 +130,39 @@ Clicking a `sidebar`, `chip` or `crumb` item moves the focus to that node.
 
 ### Colour roles
 
-- Structure: one warm hue, lightened at each nesting depth.
-- Navigation: chips inside frames are cream. Crumbs and bar segments take
-  their bar's colour, separated by gaps.
-- Keys: lavender.
-- Values, by JSON type: strings off-white, numbers gold (tabular figures),
-  booleans and null blue italic.
+Colour encodes a node's **type** and its **display status**, the same way
+everywhere a node appears (arches, key capsules, chips, side-bar segments,
+breadcrumbs, title text):
+
+| | pastel (default) |
+|---|---|
+| object | amber (every depth) |
+| array | cream |
+| scalar (string, number, boolean, null) | lavender |
+| **target** (status) | purple |
+
+Values themselves are coloured by JSON type: strings off-white, numbers
+gold (tabular figures), booleans and null blue italic. Chip count badges
+are pastel green.
+
+### Targeting and expanding
+
+The outermost arch is the **target**: the node the view is rooted at.
+- **Targeted** (the default): clicking any chip, segment, key, container
+  title or breadcrumb makes that node the target, and the view is re-rooted
+  at it. Clicking the target's own border (or its title) **un-targets** it.
+  The arch keeps its place but takes its type colour.
+- **Untargeted**: clicking a collapsed node (chip or segment) **expands it
+  in place**. It is prioritized when its enclosing container is laid out,
+  and its parent stays where it is (`expanded` in `PlanOptions`; expanded
+  nodes may go past the depth limit). Clicking a node that is already shown,
+  or that has no room to expand, **blinks** the outermost border: a hint
+  that an enclosing container must be targeted first.
+- **Breadcrumbs target in both states.** These are the ancestors in the
+  top bar, and the breadcrumb trail that every nested container now carries
+  in its title. The trail runs from the enclosing frame to the container,
+  so an object inside an unframed array reads `packages › 0`. Each step is
+  coloured by its type, and clicking it targets that node.
 
 ### Regularity
 

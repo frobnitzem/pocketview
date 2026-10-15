@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Colour by type and status: objects amber at every depth, arrays cream,
+  scalars lavender (arches, keys, chips, segments, crumbs, titles); the
+  target arch is purple.
+- Targeting: the outermost arch is the target; clicking a node re-targets.
+  Clicking the target's border un-targets; untargeted clicks on collapsed
+  nodes expand them in place (`PlanOptions.expanded`), and clicks that
+  can't expand anything blink the border. Every nested container's title
+  is a breadcrumb trail (e.g. `packages › 0`).
+- Planner: better choices at the root (side-bar capacity is respected when
+  comparing options); thinning keeps the lowest and best point per height
+  bucket; empty lists no longer beat collapsing.
+
 - `@pocketview/core`, the layout engine: a lazy bottom-up measure that keeps
   a Pareto front of (height, shown) per node and width, and a top-down
   planner that produces the marked tree for any focus and viewport

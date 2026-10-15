@@ -54,6 +54,9 @@ export type CollapseMode = 'chips' | 'sidebar';
 
 type Chain = { row: Row; prev: Chain } | null;
 
+/** Added to the score of a prioritized child, so it wins whenever it fits. */
+const PRIORITY = 1e4;
+
 export function flow(widths: readonly number[], W: number, rowH: number, gap: number): { x: number; y: number }[] & { h: number } {
   const pos = [] as unknown as { x: number; y: number }[] & { h: number };
   let x = 0;
@@ -90,6 +93,9 @@ export class Measurer {
   private readonly memo = new Map<string, unknown>();
   /** Children deeper than this are always collapsed (set by the planner). */
   private limit = Infinity;
+  /** Nodes the user asked to expand: shown first, even past the depth limit. */
+  private priority: ReadonlySet<string> = new Set();
+  private prioritySig = '';
 
   constructor(readonly metrics: Metrics, readonly theme: Theme) {}
 
@@ -100,6 +106,18 @@ export class Measurer {
   /** Collapse every node deeper than `depth` (absolute). */
   setDepthLimit(depth: number): void {
     this.limit = depth;
+  }
+
+  /** Nodes to show in preference to everything else (with their ancestors). */
+  setPriority(ptrs: Iterable<string>): void {
+    this.priority = new Set(ptrs);
+    this.prioritySig = [...this.priority].sort().join('\u0000');
+  }
+
+  /** Whether `node` is, or contains, a prioritized node. */
+  private prioritized(node: TreeNode): boolean {
+    for (const p of this.priority) if (p === node.ptr || p.startsWith(`${node.ptr}/`)) return true;
+    return false;
   }
 
   private cached<T>(key: string, compute: () => T): T {
@@ -128,7 +146,7 @@ export class Measurer {
   /** Options for a node drawn as a value: a token, text, tags, a list, or a frame. */
   value(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`v|${this.limit}|${node.ptr}|${W}`, () => {
+    return this.cached(`v|${this.limit}|${this.prioritySig}|${node.ptr}|${W}`, () => {
       if (node.kind === 'object' && !isLeaf(node)) return this.frame(node, W);
       if (node.kind === 'array' && !isLeaf(node)) return this.array(node, W);
       return this.leaf(node, W);
@@ -178,7 +196,7 @@ export class Measurer {
   /** Options for an object drawn in a nested arch frame, at full width. */
   frame(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`f|${this.limit}|${node.ptr}|${W}`, () => {
+    return this.cached(`f|${this.limit}|${this.prioritySig}|${node.ptr}|${W}`, () => {
       const t = this.theme;
       const g = t.frame;
       const inner = W - g.side - 2 * t.pad;
@@ -199,7 +217,7 @@ export class Measurer {
   /** The Pareto front of ways to show a container's children as rows. */
   rows(node: TreeNode, maxW: number, mode: CollapseMode): Rows[] {
     const W = this.snap(maxW);
-    return this.cached(`r|${mode}|${this.limit}|${node.ptr}|${W}`, () => {
+    return this.cached(`r|${mode}|${this.limit}|${this.prioritySig}|${node.ptr}|${W}`, () => {
       const t = this.theme;
       const keyW = this.keyWidth(node);
       const valueW = W - keyW - t.gap;
@@ -212,12 +230,17 @@ export class Measurer {
         // Collapsing costs a share of a chip row (estimated), or nothing in a side bar.
         const chipCost = mode === 'sidebar' ? 0 : ((this.chipWidth(c, W) + t.gap) * (t.chipH + t.gap)) / Math.max(1, W);
         const options: Point<Row>[] = [{ h: chipCost, s: 0, data: { node: c, opt: null } }];
-        const shown = c.depth > this.limit ? []
+        // A prioritized child (or one containing a prioritized node) is worth
+        // more than anything else, and may go past the depth limit.
+        const boost = this.prioritized(c) ? PRIORITY : 0;
+        const shown = c.depth > this.limit && !boost ? []
           : c.kind === 'object' && !isLeaf(c) ? this.frame(c, W)
           : valueW >= 3 * t.unit ? this.value(c, valueW) : [];
         for (const o of shown) {
           const row = { node: c, opt: o };
-          options.push({ h: this.rowHeight(row) + t.gap, s: o.s + tieBreak, data: row });
+          // The tie-break only applies to options that show something, or an
+          // empty list would beat simply collapsing it.
+          options.push({ h: this.rowHeight(row) + t.gap, s: o.s + (o.s >= 0.5 ? tieBreak : 0) + boost, data: row });
         }
         const next: Point<Chain>[] = [];
         for (const f of front) {

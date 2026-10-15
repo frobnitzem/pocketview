@@ -6,7 +6,8 @@
   --bg: #000; --panel: #0d0c0b; --raised: #1a1816; --line: #2c2925;
   --ink: #f3eee4; --muted: #8a8580; --on-frame: #000;
   --frame: #e9a24f; --frame-1: #d7a37a; --frame-2: #a9d6a5; /* amber, peach, pastel green */
-  --key: #a8a3e6; --nav: #f4dcae; --badge: #d7a37a;
+  /* types: objects amber, arrays cream, scalars lavender; the target is purple */
+  --key: #a8a3e6; --nav: #f4dcae; --badge: #a9d6a5; --focus: #c792ea; --on-focus: #000;
   --str: #f3eee4; --num: #ffc95c; --lit: #8fb8ff;
   --send: #8fd6e8; --send-hover: #a9e2f0; --on-send: #0b3a4a; /* beachy aqua */
   --q-loose: #e9a24f; --q-emergency: #ff7a45; --q-overfull: #ff4d6d;
@@ -17,7 +18,7 @@
   --bg: #07120c; --panel: #0e2217; --raised: #143022; --line: #23452f;
   --ink: #eef4ef; --muted: #7f9488; --on-frame: #07120c;
   --frame: #4a8f3c; --frame-1: #b56cff; --frame-2: #2fc4d6; /* forest green, violet, cyan */
-  --key: #9aa8b5; --nav: #ffd23f; --badge: #ff4fa3;
+  --key: #9aa8b5; --nav: #ffd23f; --badge: #ff4fa3; --focus: #b56cff; --on-focus: #07120c;
   --str: #eef4ef; --num: #ffc234; --lit: #ff4fa3;
   --send: #2fc4d6; --send-hover: #5ad6e4; --on-send: #07120c;
   --q-loose: #ffc234; --q-emergency: #ff8c1a; --q-overfull: #ff3d3d;
@@ -43,28 +44,30 @@
   --bg: #002b36; --panel: #073642; --raised: #0a4251; --line: #586e75;    /* base03, base02 */
   --ink: #839496; --str: #93a1a1; --muted: #586e75;                       /* base0, base1, base01 */
   --frame: #fdf6e3; --frame-1: #eee8d5; --frame-2: #93a1a1;               /* base3, base2, base1 */
-  --on-frame: #586e75; --title-ink: #93a1a1;                             /* base01 (light-mode content), base1 */
-  --nav: #eee8d5; --on-nav: #586e75;                                      /* chips: base2, text base01 */
+  --on-frame: #586e75;                                                    /* base01 (light-mode content) */
+  --nav: #93a1a1; --on-nav: #002b36;                                      /* arrays: base1 */
+  --focus: #6c71c4; --on-focus: #fdf6e3;                                  /* target: violet */
   --badge: #93a1a1; --on-badge: #002b36;                                  /* filled: see note */
   --key: #859900; --on-key: #002b36;                                      /* green accent */
   --num: #2aa198; --lit: #268bd2;                                         /* cyan, blue */
   --send: #268bd2; --send-hover: #4aa3e0; --on-send: #fdf6e3;
   --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
-  --urgent: #dc322f; --on-urgent: #fdf6e3; --focus-title: #b58900;      /* yellow */
+  --urgent: #dc322f; --on-urgent: #fdf6e3;
   color-scheme: dark;
 }
 [data-theme="solar-light"] {
   --bg: #fdf6e3; --panel: #eee8d5; --raised: #e6dfc9; --line: #93a1a1;    /* base3, base2 */
   --ink: #657b83; --str: #586e75; --muted: #93a1a1;                       /* base00, base01, base1 */
   --frame: #002b36; --frame-1: #073642; --frame-2: #586e75;               /* base03, base02, base01 */
-  --on-frame: #93a1a1; --title-ink: #586e75;                             /* base1 (dark-mode content), base01 */
-  --nav: #073642; --on-nav: #93a1a1;                                      /* chips: base02, text base1 */
+  --on-frame: #93a1a1;                                                    /* base1 (dark-mode content) */
+  --nav: #586e75; --on-nav: #fdf6e3;                                      /* arrays: base01 */
+  --focus: #6c71c4; --on-focus: #fdf6e3;                                  /* target: violet */
   --badge: #586e75; --on-badge: #fdf6e3;                                  /* filled: see note */
   --key: #c2d35b; --on-key: #002b36; --code-key: #859900;                 /* green accent, lightened */
   --num: #2aa198; --lit: #268bd2;
   --send: #268bd2; --send-hover: #1a73b5; --on-send: #fdf6e3;
   --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
-  --urgent: #dc322f; --on-urgent: #fdf6e3; --focus-title: #b58900;      /* yellow */
+  --urgent: #dc322f; --on-urgent: #fdf6e3;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -181,17 +184,22 @@ button { font: inherit; color: inherit; }
 .view.layout { padding: 8px; }
 .pv-layout { position: relative; margin: 0 auto; }
 .pv-layout > * { position: absolute; box-sizing: border-box; }
-.pv-frame { overflow: visible; }
-.pv-frame.depth-0 { fill: var(--frame); }
-.pv-frame.depth-1 { fill: var(--frame-1); }
-.pv-frame.depth-2 { fill: var(--frame-2); }
+/* Colour = type (object, array, scalar) + status (the target is purple). */
+.pv-frame { overflow: visible; pointer-events: none; }
+.pv-frame path { pointer-events: visiblePainted; cursor: pointer; } /* the border is clickable */
+.pv-frame.ty-object { fill: var(--frame); }
+.pv-frame.ty-array { fill: var(--nav); }
+.pv-frame.ty-scalar { fill: var(--key); }
+.pv-frame.target { fill: var(--focus); }
 .pv-title { background: var(--bg); padding: 0 10px; font-family: Antonio, sans-serif; font-weight: 600;
   letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  text-align: center; }
-.pv-title.depth-0 { color: var(--title-ink, var(--frame)); }
-.pv-title.depth-1 { color: var(--title-ink, var(--frame-1)); }
-.pv-title.depth-2 { color: var(--title-ink, var(--frame-2)); }
-.pv-title.focus { color: var(--focus-title, var(--nav)); }
+  text-align: center; color: var(--muted); }
+.pv-title.ty-object, .pv-title .ty-object { color: var(--frame); }
+.pv-title.ty-array, .pv-title .ty-array { color: var(--nav); }
+.pv-title.ty-scalar, .pv-title .ty-scalar { color: var(--key); }
+.pv-title.target { color: var(--focus); }
+.pv-title .step { cursor: pointer; }
+.pv-title .step:hover { text-decoration: underline; text-underline-offset: 3px; }
 .pv-key, .pv-crumb, .pv-segment, .pv-chip { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .05em;
   text-transform: uppercase; color: var(--on-frame); white-space: nowrap; overflow: hidden; }
 .pv-key { background: var(--key); color: var(--on-key, var(--on-frame)); border-radius: 14px 0 0 14px; /* same curvature at any height */
@@ -228,6 +236,20 @@ button { font: inherit; color: inherit; }
 .pv-title.nav:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* A focused array or leaf: its T bar (and crumbs) take the chip colour. */
-.unframed .pv-frame { fill: var(--nav); }
-.unframed .pv-crumb, .unframed .pv-menu button { background: var(--nav); color: var(--on-nav, var(--on-frame)); }
-.unframed .pv-title { color: var(--nav); }
+/* Keys, chips, segments and crumbs take their node's type colour. */
+.pv-key.ty-array, .pv-crumb.ty-array, .pv-segment.ty-array, .pv-chip.ty-array b {
+  background: var(--nav); color: var(--on-nav, var(--on-frame)); }
+.pv-key.ty-object, .pv-crumb.ty-object, .pv-segment.ty-object, .pv-chip.ty-object b {
+  background: var(--frame); color: var(--on-frame); }
+.pv-key.ty-scalar, .pv-crumb.ty-scalar, .pv-segment.ty-scalar, .pv-chip.ty-scalar b {
+  background: var(--key); color: var(--on-key, var(--on-frame)); }
+.pv-menu li.ty-object { color: var(--frame); } .pv-menu li.ty-array { color: var(--nav); }
+
+/* Blink: the click needs an enclosing container to be targeted first. */
+@keyframes pv-blink { 50% { opacity: .2; } }
+@keyframes pv-outline { 50% { box-shadow: 0 0 0 3px var(--focus); } }
+.pv-layout.blink .pv-frame.outer { animation: pv-blink .3s ease-in-out 3; }
+.pv-layout.blink:not(:has(.outer)) { animation: pv-outline .3s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) {
+  .pv-layout.blink .pv-frame.outer { animation: none; outline: 3px solid var(--focus); }
+}

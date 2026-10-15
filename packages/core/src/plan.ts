@@ -17,21 +17,42 @@ export interface Rect {
   h: number;
 }
 
+/** One step of a breadcrumb trail. */
+export interface Crumb {
+  ptr: string;
+  text: string;
+  type: Kind;
+}
+
+/**
+ * Every mark carries the JSON Pointer of its node; `type` is the node's kind
+ * (renderers colour by it). `outer` marks the outermost frame of the view.
+ */
 export type Mark =
-  | { kind: 'frame'; ptr: string; rect: Rect; arch: ArchVariant; geom: ArchGeometry; depth: number }
-  | { kind: 'title'; ptr: string; rect: Rect; text: string; /** font size relative to key labels */ scale: number }
-  | { kind: 'key'; ptr: string; rect: Rect; text: string }
+  | { kind: 'frame'; ptr: string; rect: Rect; arch: ArchVariant; geom: ArchGeometry; depth: number; type: Kind; outer: boolean }
+  | {
+      kind: 'title'; ptr: string; rect: Rect; text: string;
+      /** The container's breadcrumbs from its enclosing frame (exclusive) to itself. */
+      trail: Crumb[];
+      /** font size relative to key labels */ scale: number; outer: boolean;
+    }
+  | { kind: 'key'; ptr: string; rect: Rect; text: string; type: Kind }
   | { kind: 'token'; ptr: string; rect: Rect; text: string; type: Kind }
   | { kind: 'text'; ptr: string; rect: Rect; text: string; scroll: boolean; contentHeight: number }
   | { kind: 'tag'; ptr: string; rect: Rect; text: string; type: Kind }
-  | { kind: 'chip'; ptr: string; rect: Rect; text: string; badge: string }
-  | { kind: 'segment'; ptr: string; rect: Rect; text: string; badge: string }
-  | { kind: 'crumb'; ptr: string; rect: Rect; text: string }
-  | { kind: 'menu'; ptr: string; rect: Rect; items: { ptr: string; text: string }[] };
+  | { kind: 'chip'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
+  | { kind: 'segment'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
+  | { kind: 'crumb'; ptr: string; rect: Rect; text: string; type: Kind }
+  | { kind: 'menu'; ptr: string; rect: Rect; items: Crumb[] };
 
 export interface Viewport {
   w: number;
   h: number;
+}
+
+export interface PlanOptions {
+  /** Nodes to expand in place: shown in preference to everything else. */
+  expanded?: Iterable<string>;
 }
 
 export interface Plan {
@@ -43,8 +64,21 @@ export interface Plan {
   overflow: boolean;
 }
 
-/** Marks that the user can click to move the focus. */
+/** Marks that the user can click (to target or expand their node). */
 export const NAVIGABLE = new Set<Mark['kind']>(['chip', 'segment', 'crumb', 'title', 'key']);
+
+/** Marks that stand for a node without showing it. */
+const COLLAPSED = new Set<Mark['kind']>(['chip', 'segment', 'crumb', 'menu']);
+
+/** Whether the plan shows `ptr` itself (not just a chip or crumb for it). */
+export function isShown(plan: Plan, ptr: string): boolean {
+  return plan.marks.some((m) => m.ptr === ptr && !COLLAPSED.has(m.kind));
+}
+
+/** Separates the steps of a container's breadcrumb trail in its title. */
+export const TRAIL_SEPARATOR = ' \u203a ';
+
+const crumb = (n: TreeNode): Crumb => ({ ptr: n.ptr, text: n.label, type: n.kind });
 
 export class Planner {
   readonly measurer: Measurer;
@@ -53,9 +87,10 @@ export class Planner {
     this.measurer = new Measurer(metrics, theme);
   }
 
-  plan(focusPtr: string, vp: Viewport): Plan {
+  plan(focusPtr: string, vp: Viewport, options: PlanOptions = {}): Plan {
     const focus = find(this.tree, focusPtr) ?? this.tree;
     this.measurer.setDepthLimit(focus.depth + this.theme.maxDepth);
+    this.measurer.setPriority(options.expanded ?? []);
     const marks: Mark[] = [];
     const height = focus.kind === 'object' && !isLeaf(focus)
       ? this.planObject(focus, vp, marks)
@@ -68,7 +103,7 @@ export class Planner {
     const t = this.theme;
     const g = t.root;
     const m = this.measurer;
-    const frame: Mark = { kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'LTR', geom: g, depth: focus.depth };
+    const frame: Mark = { kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'LTR', geom: g, depth: focus.depth, type: focus.kind, outer: true };
     marks.push(frame);
     const path = ancestors(focus);
     const title = this.title(focus, g.side + g.inner, vp.w - g.outer, g.bar, path.length > 0);
@@ -83,7 +118,11 @@ export class Planner {
     const capacity = Math.max(0, Math.floor((vp.h - segTop + t.segGap) / (t.segH + t.segGap)));
 
     // Collapsed children fill side-bar segments first; any extra become chips.
-    const scored = m.rows(focus, cw, 'sidebar').map((rows) => {
+    // The side-bar front assumes collapsing is free, which is only true up to
+    // the segment capacity, so the chip front (honest collapse costs) is
+    // considered too, and every candidate is scored by its exact height.
+    const candidates = [...m.rows(focus, cw, 'sidebar'), ...m.rows(focus, cw, 'chips')];
+    const scored = candidates.map((rows) => {
       const extra = rows.collapsed.slice(capacity);
       const chipsH = flow(extra.map((n) => m.chipWidth(n, m.snap(cw))), m.snap(cw), t.chipH, t.gap).h;
       const h = rows.rowsH + (rows.rowsH && chipsH ? t.gap : 0) + chipsH;
@@ -91,10 +130,10 @@ export class Planner {
     });
     const { point } = bestFit(scored, maxH);
     const { rows, extra } = point.data;
-    this.placeRows(rows, cx, cy, extra, marks);
+    this.placeRows(rows, cx, cy, extra, focus, marks);
     rows.collapsed.slice(0, capacity).forEach((n, i) => {
       marks.push({
-        kind: 'segment', ptr: n.ptr, text: n.label, badge: badge(n),
+        kind: 'segment', ptr: n.ptr, text: n.label, badge: badge(n), type: n.kind,
         rect: { x: 0, y: segTop + i * (t.segH + t.segGap), w: g.side, h: t.segH },
       });
     });
@@ -110,7 +149,7 @@ export class Planner {
     const side = 2 * t.gap + t.pad; // page gutter
     let top = t.pad;
     if (focus.parent) {
-      marks.push({ kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: g.bar }, arch: 'T', geom: g, depth: focus.depth });
+      marks.push({ kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: g.bar }, arch: 'T', geom: g, depth: focus.depth, type: focus.kind, outer: true });
       const title = this.title(focus, g.bar / 2, vp.w - g.bar / 2, g.bar, true);
       marks.push(title);
       this.crumbs(ancestors(focus), g.bar / 2, title.rect.x - t.gap, g.bar, marks);
@@ -129,7 +168,7 @@ export class Planner {
     if (front.length === 0) return top;
     const { point } = bestFit(front, avail);
     const x = Math.round((vp.w - this.measurer.snap(w)) / 2);
-    this.placeValue(focus, point.data, x, top, marks);
+    this.placeValue(focus, point.data, x, top, focus, marks);
     return top + point.h + t.pad;
   }
 
@@ -143,7 +182,10 @@ export class Planner {
     const natural = Math.ceil(this.metrics.key(node.label) * t.titleScale) + 2 * t.pad;
     const reserve = crumbs ? bar + 4 + t.gap : 0;
     const w = Math.max(0, Math.min(natural, right - left - reserve));
-    return { kind: 'title', ptr: node.ptr, text: node.label, scale: t.titleScale, rect: { x: right - w, y: 0, w, h: bar } };
+    return {
+      kind: 'title', ptr: node.ptr, text: node.label, trail: [crumb(node)], scale: t.titleScale, outer: true,
+      rect: { x: right - w, y: 0, w, h: bar },
+    };
   }
 
   /** Breadcrumbs as square bar segments; those that don't fit go in a menu. */
@@ -165,18 +207,19 @@ export class Planner {
       }
       marks.push({
         kind: 'menu', ptr: path[0]!.ptr, rect: { x, y: 0, w: bar, h: bar },
-        items: path.slice(0, shownFrom).map((n) => ({ ptr: n.ptr, text: n.label })),
+        items: path.slice(0, shownFrom).map(crumb),
       });
       x += bar + cut;
     }
     for (let i = shownFrom; i < path.length; i++) {
       const n = path[i]!;
-      marks.push({ kind: 'crumb', ptr: n.ptr, text: n.label, rect: { x, y: 0, w: widths[i]!, h: bar } });
+      marks.push({ kind: 'crumb', ptr: n.ptr, text: n.label, type: n.kind, rect: { x, y: 0, w: widths[i]!, h: bar } });
       x += widths[i]! + cut;
     }
   }
 
-  private placeRows(rows: Rows, x: number, y: number, chips: readonly TreeNode[], marks: Mark[]): void {
+  /** `owner` is the node of the nearest enclosing frame (for breadcrumb trails). */
+  private placeRows(rows: Rows, x: number, y: number, chips: readonly TreeNode[], owner: TreeNode, marks: Mark[]): void {
     const t = this.theme;
     const m = this.measurer;
     const shown = rows.rows.filter((r) => r.opt);
@@ -187,11 +230,11 @@ export class Planner {
         // Single column: frames open to the right (L); bar at the bottom at
         // the top or bottom of the column, otherwise on top.
         const arch = i === 0 || i === shown.length - 1 ? 'LB' : 'LT';
-        this.placeFrame(row.node, opt.v, x, yy, arch, marks);
+        this.placeFrame(row.node, opt.v, x, yy, arch, owner, marks);
       } else {
         // The key capsule is as tall as its value (a rounded rectangle when tall).
-        marks.push({ kind: 'key', ptr: row.node.ptr, text: row.node.label, rect: { x, y: yy, w: rows.keyW, h: m.rowHeight(row) } });
-        this.placeValue(row.node, opt, x + rows.keyW + t.gap, yy, marks);
+        marks.push({ kind: 'key', ptr: row.node.ptr, text: row.node.label, type: row.node.kind, rect: { x, y: yy, w: rows.keyW, h: m.rowHeight(row) } });
+        this.placeValue(row.node, opt, x + rows.keyW + t.gap, yy, owner, marks);
       }
       yy += m.rowHeight(row) + t.gap;
     });
@@ -201,26 +244,36 @@ export class Planner {
     const pos = flow(widths, rows.width, t.chipH, t.gap);
     chips.forEach((n, i) => {
       marks.push({
-        kind: 'chip', ptr: n.ptr, text: n.label, badge: badge(n),
+        kind: 'chip', ptr: n.ptr, text: n.label, badge: badge(n), type: n.kind,
         rect: { x: x + pos[i]!.x, y: top + pos[i]!.y, w: widths[i]!, h: t.chipH },
       });
     });
   }
 
-  private placeFrame(node: TreeNode, v: Extract<Value, { t: 'frame' }>, x: number, y: number, arch: ArchVariant, marks: Mark[]): void {
+  private placeFrame(
+    node: TreeNode, v: Extract<Value, { t: 'frame' }>, x: number, y: number, arch: ArchVariant, owner: TreeNode, marks: Mark[],
+  ): void {
     const t = this.theme;
     const g = t.frame;
-    marks.push({ kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h: v.h }, arch, geom: g, depth: node.depth });
+    marks.push({ kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h: v.h }, arch, geom: g, depth: node.depth, type: node.kind, outer: false });
     const bottom = arch.endsWith('B');
     const barY = bottom ? y + v.h - g.bar : y;
-    const titleW = Math.min(Math.ceil(this.metrics.key(node.label)) + 2 * t.pad, v.w - g.bar / 2 - g.outer);
-    marks.push({ kind: 'title', ptr: node.ptr, text: node.label, scale: 1, rect: { x: x + v.w - g.bar / 2 - titleW, y: barY, w: titleW, h: g.bar } });
+    // The title is a breadcrumb trail from the enclosing frame: an object in
+    // an (unframed) array reads "packages › 0".
+    const trail: Crumb[] = [];
+    for (let n: TreeNode | null = node; n && n !== owner; n = n.parent) trail.unshift(crumb(n));
+    const text = trail.map((c) => c.text).join(TRAIL_SEPARATOR);
+    const titleW = Math.min(Math.ceil(this.metrics.key(text)) + 2 * t.pad, v.w - g.bar / 2 - g.outer);
+    marks.push({
+      kind: 'title', ptr: node.ptr, text, trail, scale: 1, outer: false,
+      rect: { x: x + v.w - g.bar / 2 - titleW, y: barY, w: titleW, h: g.bar },
+    });
     const cx = x + g.side + t.pad;
     const cy = (bottom ? y : y + g.bar) + t.pad;
-    this.placeRows(v.rows, cx, cy, v.rows.collapsed, marks);
+    this.placeRows(v.rows, cx, cy, v.rows.collapsed, node, marks);
   }
 
-  private placeValue(node: TreeNode, opt: Option, x: number, y: number, marks: Mark[]): void {
+  private placeValue(node: TreeNode, opt: Option, x: number, y: number, owner: TreeNode, marks: Mark[]): void {
     const t = this.theme;
     const v = opt.v;
     switch (v.t) {
@@ -236,10 +289,10 @@ export class Planner {
         }
         break;
       case 'list':
-        this.placeRows(v.rows, x, y, v.rows.collapsed, marks);
+        this.placeRows(v.rows, x, y, v.rows.collapsed, owner, marks);
         break;
       case 'frame':
-        this.placeFrame(node, v, x, y, 'LT', marks);
+        this.placeFrame(node, v, x, y, 'LT', owner, marks);
         break;
     }
   }

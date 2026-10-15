@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { archPath, buildTree, pareto, Planner, type Json } from '../src/index';
+import { archPath, buildTree, isShown, pareto, Planner, type Json } from '../src/index';
 import { fakeMetrics } from './contracts.test';
 
 const PKG: Json = {
@@ -16,11 +16,11 @@ describe('pareto', () => {
   it('keeps the front and thins it', () => {
     const pts = [{ h: 1, s: 1 }, { h: 2, s: 1 }, { h: 2, s: 3 }, { h: 3, s: 2 }, { h: 4, s: 5 }].map((p) => ({ ...p, data: 0 }));
     expect(pareto(pts, 10).map((p) => [p.h, p.s])).toEqual([[1, 1], [2, 3], [4, 5]]);
-    // Thinning keeps the lowest point and the best point in each height bucket.
+    // Thinning keeps the lowest and the best point in each height bucket.
     expect(pareto(pts, 2).map((p) => [p.h, p.s])).toEqual([[1, 1], [2, 3], [4, 5]]);
     const many = Array.from({ length: 100 }, (_, i) => ({ h: i, s: i, data: 0 }));
     const thin = pareto(many, 10);
-    expect(thin.length).toBeLessThanOrEqual(11);
+    expect(thin.length).toBeLessThanOrEqual(20);
     expect(thin[0]!.h).toBe(0);
     expect(thin.at(-1)!.h).toBe(99);
   });
@@ -51,6 +51,28 @@ describe('planner', () => {
     expect(plan.marks.find((m) => m.ptr === '/a/b/c/d/e')).toMatchObject({ kind: 'chip' });
     const deeper = new Planner(buildTree(doc), fakeMetrics).plan('/a', { w: 1400, h: 1000 });
     expect(deeper.marks.find((m) => m.ptr === '/a/b/c/d/e')).toMatchObject({ kind: 'frame' });
+  });
+
+  it('expands a collapsed node in place, keeping its parent', () => {
+    const tree = buildTree(PKG, 'package');
+    const planner = new Planner(tree, fakeMetrics);
+    const vp = { w: 520, h: 300 };
+    const before = planner.plan('', vp);
+    const collapsed = before.marks.find((m) => m.kind === 'segment' || m.kind === 'chip')!;
+    expect(isShown(before, collapsed.ptr)).toBe(false);
+    const after = planner.plan('', vp, { expanded: [collapsed.ptr] });
+    expect(isShown(after, collapsed.ptr)).toBe(true);
+    expect(after.focus).toBe('');
+  });
+
+  it('expands past the depth limit, and titles carry breadcrumb trails', () => {
+    const doc: Json = { a: { b: { c: { d: { e: { f: 1 } } } } }, list: [{ x: 1 }] };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const plan = planner.plan('', { w: 1400, h: 1000 }, { expanded: ['/a/b/c/d/e'] });
+    expect(isShown(plan, '/a/b/c/d/e')).toBe(true);
+    const item = plan.marks.find((m) => m.kind === 'title' && m.ptr === '/list/0');
+    expect(item).toMatchObject({ text: 'list \u203a 0' });
+    if (item?.kind === 'title') expect(item.trail.map((c) => c.type)).toEqual(['array', 'object']);
   });
 
   it('makes key capsules as tall as their values', () => {

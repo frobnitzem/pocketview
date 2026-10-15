@@ -30,7 +30,7 @@ function containers(root: TreeNode): TreeNode[] {
   return [...walk(root)];
 }
 
-function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: number }): void {
+function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: number }, expanding = false): void {
   // 3. The plan fits: within the viewport (or the scrolled content height).
   expect(plan.width).toBe(vp.w);
   if (!plan.overflow) expect(plan.height).toBe(vp.h);
@@ -63,7 +63,7 @@ function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: 
   // Depth bound: nothing more than maxDepth levels below the focus is shown
   // (the scalar items of a tags display sit one level further).
   const limit = focus.depth + defaultTheme.maxDepth;
-  for (const m of plan.marks) {
+  for (const m of expanding ? [] : plan.marks) { // expanded nodes may go deeper
     if (m.kind === 'crumb' || m.kind === 'menu' || m.kind === 'chip' || m.kind === 'segment') continue;
     const node = find(tree, m.ptr)!;
     expect(node.depth - (m.kind === 'tag' ? 1 : 0), `${m.kind} ${m.ptr} too deep`).toBeLessThanOrEqual(limit);
@@ -108,6 +108,18 @@ describe('navigation contracts', () => {
       const plan = new Planner(tree, fakeMetrics).plan(focus.ptr, vp);
       check(plan, tree, focus, vp);
     }), { numRuns: 300 });
+  });
+
+  it('hold with random nodes expanded in place', () => {
+    fc.assert(fc.property(json, viewport, fc.array(fc.nat(), { maxLength: 3 }), (doc, vp, picks) => {
+      const tree = buildTree(doc);
+      const nodes = containers(tree);
+      const expanded = picks.map((p) => nodes[p % nodes.length]!.ptr);
+      const plan = new Planner(tree, fakeMetrics).plan('', vp, { expanded });
+      check(plan, tree, tree, vp, true);
+      // Titles carry breadcrumb trails that end at their own node.
+      for (const m of plan.marks) if (m.kind === 'title') expect(m.trail.at(-1)!.ptr).toBe(m.ptr);
+    }), { numRuns: 200 });
   });
 
   it('are deterministic', () => {

@@ -7,7 +7,7 @@ export interface Point<T> {
 
 /**
  * Keeps the Pareto-optimal points, sorted by increasing height (and so
- * increasing `shown`), thinned to about `keep` points spread over the range.
+ * increasing `shown`), thinned to at most 2 × `keep` points spread over the range.
  */
 export function pareto<T>(points: readonly Point<T>[], keep: number): Point<T>[] {
   const sorted = [...points].sort((a, b) => a.h - b.h || b.s - a.s);
@@ -20,20 +20,27 @@ export function pareto<T>(points: readonly Point<T>[], keep: number): Point<T>[]
     }
   }
   if (front.length <= keep) return front;
-  // Thin by height: split the height range into `keep` buckets and keep the
-  // point showing the most in each (the last one, as the front is sorted).
-  // This keeps the best option at every scale of height.
+  // Thin by height: split the height range into `keep` buckets and keep, in
+  // each, the lowest point and the one showing the most (the first and last,
+  // as the front is sorted). Keeping both means a point just under any
+  // height budget survives, not only the best point of its bucket.
   const lo = front[0]!.h;
   const span = front[front.length - 1]!.h - lo || 1;
   const out: Point<T>[] = [];
   let bucket = -1;
+  let first: Point<T> | null = null;
   for (const p of front) {
     const b = Math.min(keep - 1, Math.floor(((p.h - lo) / span) * keep));
-    if (b === bucket) out[out.length - 1] = p;
-    else out.push(p);
-    bucket = b;
+    if (b !== bucket) {
+      out.push(p);
+      first = p;
+      bucket = b;
+    } else if (out[out.length - 1] === first) {
+      out.push(p);
+    } else {
+      out[out.length - 1] = p;
+    }
   }
-  if (out[0] !== front[0]) out.unshift(front[0]!); // always keep the lowest
   return out;
 }
 
