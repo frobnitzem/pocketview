@@ -14,13 +14,13 @@
   --urgent: #ff8a7a; /* salmon: modal and alert frames */
   color-scheme: dark;
 }
-[data-theme="lux"] { /* light trails on deep green: forest-green arches, steel gray keys */
-  --bg: #07120c; --panel: #0e2217; --raised: #143022; --line: #23452f;
-  --ink: #eef4ef; --muted: #7f9488; --on-frame: #07120c;
-  --frame: #4a8f3c; --frame-1: #b56cff; --frame-2: #2fc4d6; /* forest green, violet, cyan */
-  --key: #9aa8b5; --nav: #ffd23f; --badge: #ff4fa3; --focus: #b56cff; --on-focus: #07120c;
-  --str: #eef4ef; --num: #ffc234; --lit: #ff4fa3;
-  --send: #2fc4d6; --send-hover: #5ad6e4; --on-send: #07120c;
+[data-theme="lux"] { /* light trails on deep green: forest-green arches */
+  --bg: #043049; --panel: #0e2217; --raised: #143022; --line: #23452f;
+  --ink: #eef4ef; --muted: #4697ce; --on-frame: #ffffff;
+  --frame: #215921; --frame-1: #b56cff; --frame-2: #fffe5e;
+  --key: #b742c4; --nav: #ba7324; --badge: #cc851b; --focus: #46e6ca; --on-focus: #07120c;
+  --str: #eef4ef; --num: #ffc234; --lit: #cc851b;
+  --send: #e0c4fe; --send-hover: #d6c2fd; --on-send: #07120c;
   --q-loose: #ffc234; --q-emergency: #ff8c1a; --q-overfull: #ff3d3d;
   --urgent: #ff3d3d;
   color-scheme: dark;
@@ -43,8 +43,8 @@
 [data-theme="solar-dark"] {
   --bg: #002b36; --panel: #073642; --raised: #0a4251; --line: #586e75;    /* base03, base02 */
   --ink: #839496; --str: #93a1a1; --muted: #586e75;                       /* base0, base1, base01 */
-  --frame: #fdf6e3; --frame-1: #eee8d5; --frame-2: #93a1a1;               /* base3, base2, base1 */
-  --on-frame: #586e75;                                                    /* base01 (light-mode content) */
+  --frame: #fdf6e3; --frame-1: #eee8d5; --frame-2: #d33682;               /* base3, base2, magena */
+  --on-frame: #d6c2fd;                                                    /* orange */
   --nav: #93a1a1; --on-nav: #002b36;                                      /* arrays: base1 */
   --focus: #6c71c4; --on-focus: #fdf6e3;                                  /* target: violet */
   --badge: #93a1a1; --on-badge: #002b36;                                  /* filled: see note */
@@ -58,8 +58,8 @@
 [data-theme="solar-light"] {
   --bg: #fdf6e3; --panel: #eee8d5; --raised: #e6dfc9; --line: #93a1a1;    /* base3, base2 */
   --ink: #657b83; --str: #586e75; --muted: #93a1a1;                       /* base00, base01, base1 */
-  --frame: #002b36; --frame-1: #073642; --frame-2: #586e75;               /* base03, base02, base01 */
-  --on-frame: #93a1a1;                                                    /* base1 (dark-mode content) */
+  --frame: #002b36; --frame-1: #073642; --frame-2: #d33682;               /* base03, base02, magenta */
+  --on-frame: #d6c2fd;                                                    /* orange */
   --nav: #586e75; --on-nav: #fdf6e3;                                      /* arrays: base01 */
   --focus: #6c71c4; --on-focus: #fdf6e3;                                  /* target: violet */
   --badge: #586e75; --on-badge: #fdf6e3;                                  /* filled: see note */
