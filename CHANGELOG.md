@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Array containers: an array that doesn't fit is drawn between top and
+  bottom bars, showing a window of elements with the range (`6–8 of 12`)
+  and ◀ ▶ paging; an opened array is a full-view container target. Bare
+  tags and lists are kept for arrays that fit.
+- The outer side bar pages its segments with ▲ ▼ instead of overflowing
+  into chips.
+- Only objects and arrays are targets; an opened scalar's bar is not.
+- Planner: logarithmic thinning buckets (small options survive next to
+  very tall ones); very long text in rows is estimated, not typeset at every
+  width (the book example plans in under 0.2 s instead of 2 s).
+- Demo: "The Invisible Man" (YAML) example, loaded on demand.
+
 - Colour by type and status: objects amber at every depth, arrays cream,
   scalars lavender (arches, keys, chips, segments, crumbs, titles); the
   target arch is purple.

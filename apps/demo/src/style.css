@@ -245,6 +245,21 @@ button { font: inherit; color: inherit; }
   background: var(--key); color: var(--on-key, var(--on-frame)); }
 .pv-menu li.ty-object { color: var(--frame); } .pv-menu li.ty-array { color: var(--nav); }
 
+/* Array containers: the range in the bottom bar, and paging arrows. */
+.pv-range { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--nav);
+  background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 0 10px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-pager { display: grid; place-items: center; font-size: 12px; cursor: pointer; user-select: none;
+  border-left: 4px solid var(--bg); color: var(--on-frame); }
+.pv-pager.ty-object { background: var(--frame); }
+.pv-pager.ty-array { background: var(--nav); color: var(--on-nav, var(--on-frame)); }
+.pv-pager.target { background: var(--focus); color: var(--on-focus, var(--on-frame)); }
+.pv-pager.disabled { opacity: .35; cursor: default; }
+.pv-pager:not(.disabled):hover { filter: brightness(1.12); }
+/* side-bar arrows are horizontal strips, cut off from the segments between them */
+.pv-pager[aria-label="Previous segments"] { border-left: none; border-bottom: 4px solid var(--bg); }
+.pv-pager[aria-label="More segments"] { border-left: none; border-top: 4px solid var(--bg); }
+
 /* Blink: the click needs an enclosing container to be targeted first. */
 @keyframes pv-blink { 50% { opacity: .2; } }
 @keyframes pv-outline { 50% { box-shadow: 0 0 0 3px var(--focus); } }

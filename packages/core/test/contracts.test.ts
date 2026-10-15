@@ -75,17 +75,22 @@ function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: 
     if (m.kind === 'menu') for (const it of m.items) inPath.add(it.ptr);
   }
   for (const a of ancestors(focus)) expect(inPath.has(a.ptr), `ancestor ${a.ptr}`).toBe(true);
-  // 5. Everything is reachable: each node under the focus is marked, or sits
-  // under a collapsed chip or segment.
-  const marked = new Set(plan.marks.map((m) => m.ptr));
+  // 5. Everything is reachable: each node under the focus is marked, sits
+  // under a collapsed chip or segment, or is paged out of a container that
+  // has paging arrows (an array window, or the outer side bar).
+  const marked = new Set(plan.marks.filter((m) => m.kind !== 'pager' && m.kind !== 'range').map((m) => m.ptr));
   const collapsed = new Set(plan.marks.filter((m) => m.kind === 'chip' || m.kind === 'segment').map((m) => m.ptr));
+  const paged = new Set(plan.marks.filter((m) => m.kind === 'pager').map((m) => m.ptr));
   for (const n of walk(focus)) {
-    if (n === tree && n === focus && !n.parent) continue;
+    if (n === focus) continue;
     let ok = marked.has(n.ptr);
-    for (let p = n.parent; !ok && p && p !== focus.parent; p = p.parent) ok = collapsed.has(p.ptr);
-    if (n === focus) ok = ok || !focus.parent;
+    for (let q: TreeNode | null = n; !ok && q && q !== focus; q = q.parent) {
+      ok = collapsed.has(q.ptr) || (q.parent !== null && paged.has(q.parent.ptr) && !marked.has(q.ptr));
+    }
     expect(ok, `node ${JSON.stringify(n.ptr)} unreachable`).toBe(true);
   }
+  // The focus itself is always drawn (as its frame, bar, text or value).
+  if (focus.parent) expect(marked.has(focus.ptr), 'focus drawn').toBe(true);
 }
 
 const viewport = fc.record({ w: fc.integer({ min: 240, max: 1600 }), h: fc.integer({ min: 200, max: 1200 }) });

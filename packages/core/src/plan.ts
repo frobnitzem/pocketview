@@ -5,10 +5,22 @@
  */
 import { bestFit } from './frontier';
 import { ancestors, find, isLeaf, type Kind, type TreeNode } from './json';
-import { badge, flow, Measurer, type Option, type Rows, type Value } from './measure';
+import { badge, flow, Measurer, type ArrayWindow, type Option, type Rows, type Value } from './measure';
 import { defaultTheme, type ArchGeometry, type Metrics, type Theme } from './theme';
 
-export type ArchVariant = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T';
+/** Arch shapes; 'TB' is the array container (top and bottom bars), 'T' a bar alone. */
+export type ArchVariant = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T' | 'TB';
+
+/**
+ * Display variants of containers: an object as the outermost 'arch' (wide
+ * side bar with segments) or a nested 'frame' (thin side); an array in a
+ * 'container' (top and bottom bars, paged); 'bar' carries the breadcrumbs
+ * of an opened scalar.
+ */
+export type FrameVariant = 'arch' | 'frame' | 'container' | 'bar';
+
+/** What a paging arrow sets: an array container's window, or a side bar's offset. */
+export type PageSet = { window: ArrayWindow } | { offset: number };
 
 export interface Rect {
   x: number;
@@ -29,7 +41,12 @@ export interface Crumb {
  * (renderers colour by it). `outer` marks the outermost frame of the view.
  */
 export type Mark =
-  | { kind: 'frame'; ptr: string; rect: Rect; arch: ArchVariant; geom: ArchGeometry; depth: number; type: Kind; outer: boolean }
+  | {
+      kind: 'frame'; ptr: string; rect: Rect; arch: ArchVariant; geom: ArchGeometry; depth: number; type: Kind;
+      variant: FrameVariant; outer: boolean;
+      /** Only objects and arrays can be targets (an opened scalar's bar cannot). */
+      targetable: boolean;
+    }
   | {
       kind: 'title'; ptr: string; rect: Rect; text: string;
       /** The container's breadcrumbs from its enclosing frame (exclusive) to itself. */
@@ -43,7 +60,11 @@ export type Mark =
   | { kind: 'chip'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
   | { kind: 'segment'; ptr: string; rect: Rect; text: string; badge: string; type: Kind }
   | { kind: 'crumb'; ptr: string; rect: Rect; text: string; type: Kind }
-  | { kind: 'menu'; ptr: string; rect: Rect; items: Crumb[] };
+  | { kind: 'menu'; ptr: string; rect: Rect; items: Crumb[] }
+  /** An array container's shown range, 1-based: "6–8 of 12". */
+  | { kind: 'range'; ptr: string; rect: Rect; text: string; start: number; end: number; total: number }
+  /** A paging arrow of a container (array window) or of the outer side bar. */
+  | { kind: 'pager'; ptr: string; rect: Rect; dir: 'up' | 'down' | 'prev' | 'next'; disabled: boolean; set: PageSet; type: Kind; outer: boolean };
 
 export interface Viewport {
   w: number;
@@ -53,6 +74,10 @@ export interface Viewport {
 export interface PlanOptions {
   /** Nodes to expand in place: shown in preference to everything else. */
   expanded?: Iterable<string>;
+  /** Page windows of array containers, by pointer (default: from element 0). */
+  windows?: Readonly<Record<string, ArrayWindow>>;
+  /** First side-bar segment shown, by object pointer (default 0). */
+  offsets?: Readonly<Record<string, number>>;
 }
 
 export interface Plan {
@@ -68,7 +93,7 @@ export interface Plan {
 export const NAVIGABLE = new Set<Mark['kind']>(['chip', 'segment', 'crumb', 'title', 'key']);
 
 /** Marks that stand for a node without showing it. */
-const COLLAPSED = new Set<Mark['kind']>(['chip', 'segment', 'crumb', 'menu']);
+const COLLAPSED = new Set<Mark['kind']>(['chip', 'segment', 'crumb', 'menu', 'range', 'pager']);
 
 /** Whether the plan shows `ptr` itself (not just a chip or crumb for it). */
 export function isShown(plan: Plan, ptr: string): boolean {
@@ -82,6 +107,7 @@ const crumb = (n: TreeNode): Crumb => ({ ptr: n.ptr, text: n.label, type: n.kind
 
 export class Planner {
   readonly measurer: Measurer;
+  private offsets: Readonly<Record<string, number>> = {};
 
   constructor(readonly tree: TreeNode, readonly metrics: Metrics, readonly theme: Theme = defaultTheme) {
     this.measurer = new Measurer(metrics, theme);
@@ -91,10 +117,12 @@ export class Planner {
     const focus = find(this.tree, focusPtr) ?? this.tree;
     this.measurer.setDepthLimit(focus.depth + this.theme.maxDepth);
     this.measurer.setPriority(options.expanded ?? []);
+    this.measurer.setWindows(options.windows ?? {});
+    this.offsets = options.offsets ?? {};
     const marks: Mark[] = [];
-    const height = focus.kind === 'object' && !isLeaf(focus)
-      ? this.planObject(focus, vp, marks)
-      : this.planUnframed(focus, vp, marks);
+    const height = isLeaf(focus) ? this.planUnframed(focus, vp, marks)
+      : focus.kind === 'object' ? this.planObject(focus, vp, marks)
+      : this.planArray(focus, vp, marks);
     return { focus: focus.ptr, marks, width: vp.w, height: Math.max(vp.h, height), overflow: height > vp.h };
   }
 
@@ -103,7 +131,10 @@ export class Planner {
     const t = this.theme;
     const g = t.root;
     const m = this.measurer;
-    const frame: Mark = { kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'LTR', geom: g, depth: focus.depth, type: focus.kind, outer: true };
+    const frame: Mark = {
+      kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'LTR', geom: g, depth: focus.depth,
+      type: focus.kind, variant: 'arch', outer: true, targetable: true,
+    };
     marks.push(frame);
     const path = ancestors(focus);
     const title = this.title(focus, g.side + g.inner, vp.w - g.outer, g.bar, path.length > 0);
@@ -114,42 +145,116 @@ export class Planner {
     const cy = g.bar + t.pad;
     const cw = vp.w - g.side - g.sideR - 2 * t.pad;
     const maxH = vp.h - g.bar - 2 * t.pad;
-    const segTop = g.bar + g.outer;
-    const capacity = Math.max(0, Math.floor((vp.h - segTop + t.segGap) / (t.segH + t.segGap)));
-
-    // Collapsed children fill side-bar segments first; any extra become chips.
-    // The side-bar front assumes collapsing is free, which is only true up to
-    // the segment capacity, so the chip front (honest collapse costs) is
-    // considered too, and every candidate is scored by its exact height.
-    const candidates = [...m.rows(focus, cw, 'sidebar'), ...m.rows(focus, cw, 'chips')];
-    const scored = candidates.map((rows) => {
-      const extra = rows.collapsed.slice(capacity);
-      const chipsH = flow(extra.map((n) => m.chipWidth(n, m.snap(cw))), m.snap(cw), t.chipH, t.gap).h;
-      const h = rows.rowsH + (rows.rowsH && chipsH ? t.gap : 0) + chipsH;
-      return { h, s: rows.s, data: { rows, extra } };
-    });
+    // Collapsed children go in side-bar segments, which page (with arrows at
+    // the top and bottom of the bar) when there are more than fit.
+    const scored = m.rows(focus, cw, 'sidebar').map((rows) => ({ h: rows.rowsH, s: rows.s, data: rows }));
     const { point } = bestFit(scored, maxH);
-    const { rows, extra } = point.data;
-    this.placeRows(rows, cx, cy, extra, focus, marks);
-    rows.collapsed.slice(0, capacity).forEach((n, i) => {
-      marks.push({
-        kind: 'segment', ptr: n.ptr, text: n.label, badge: badge(n), type: n.kind,
-        rect: { x: 0, y: segTop + i * (t.segH + t.segGap), w: g.side, h: t.segH },
-      });
-    });
+    const rows = point.data;
+    this.placeRows(rows, cx, cy, [], focus, marks);
     const height = cy + point.h + t.pad;
     if (height > vp.h) frame.rect.h = height;
+    this.sidebar(focus, rows.collapsed, Math.max(vp.h, height), marks);
     return height;
   }
 
-  /** Arrays and leaves are drawn without a frame; a T bar carries breadcrumbs. */
+  /** Side-bar segments for collapsed children, paged by ▲ ▼ when they overflow. */
+  private sidebar(focus: TreeNode, collapsed: readonly TreeNode[], h: number, marks: Mark[]): void {
+    const t = this.theme;
+    const g = t.root;
+    const top = g.bar + g.outer;
+    const slot = t.segH + t.segGap;
+    let first = top;
+    let capacity = Math.max(0, Math.floor((h - top + t.segGap) / slot));
+    let offset = 0;
+    if (collapsed.length > capacity) {
+      const ph = t.chipH; // arrow segments
+      first = top + ph + t.segGap;
+      capacity = Math.max(1, Math.floor((h - first - ph - t.segGap + t.segGap) / slot));
+      const last = Math.max(0, collapsed.length - capacity);
+      offset = Math.min(last, Math.max(0, this.offsets[focus.ptr] ?? 0));
+      const pager = (dir: 'up' | 'down', y: number, disabled: boolean, to: number): Mark => ({
+        kind: 'pager', ptr: focus.ptr, dir, disabled, set: { offset: to }, type: focus.kind, outer: true,
+        rect: { x: 0, y, w: g.side, h: ph },
+      });
+      marks.push(pager('up', top, offset === 0, Math.max(0, offset - capacity)));
+      marks.push(pager('down', h - ph, offset >= last, Math.min(last, offset + capacity)));
+    }
+    collapsed.slice(offset, offset + capacity).forEach((n, i) => {
+      marks.push({
+        kind: 'segment', ptr: n.ptr, text: n.label, badge: badge(n), type: n.kind,
+        rect: { x: 0, y: first + i * slot, w: g.side, h: t.segH },
+      });
+    });
+  }
+
+  /** An opened (targeted) array fills the viewport as a paged container. */
+  private planArray(focus: TreeNode, vp: Viewport, marks: Mark[]): number {
+    const t = this.theme;
+    const g = t.root;
+    const R = Math.min(g.outer, g.bar);
+    const frame: Mark = {
+      kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'TB', geom: g, depth: focus.depth,
+      type: focus.kind, variant: 'container', outer: true, targetable: true,
+    };
+    marks.push(frame);
+    const path = ancestors(focus);
+    const title = this.title(focus, R, vp.w - R, g.bar, path.length > 0);
+    marks.push(title);
+    this.crumbs(path, R, title.rect.x - t.gap, g.bar, marks);
+
+    const cw = Math.min(t.listMax, vp.w - 2 * t.pad);
+    const cx = Math.round((vp.w - this.measurer.snap(cw)) / 2);
+    const cy = g.bar + t.pad;
+    const maxH = vp.h - 2 * g.bar - 2 * t.pad;
+    const windows = this.measurer.windowed(focus, cw).map((w) => ({ h: w.content.h, s: w.content.s, data: w }));
+    let height = vp.h;
+    if (windows.length) {
+      const { point } = bestFit(windows, maxH);
+      this.placeValue(focus, point.data.content, cx, cy, focus, marks);
+      height = Math.max(vp.h, cy + point.h + t.pad + g.bar);
+      frame.rect.h = height;
+      this.footer(focus, point.data.start, point.data.end, R, vp.w - R, height - g.bar, g.bar, true, marks);
+    }
+    return height;
+  }
+
+  /** An array container's bottom bar: the shown range, and ◀ ▶ when it overflows. */
+  private footer(node: TreeNode, start: number, end: number, left: number, right: number, y: number, bar: number, outer: boolean, marks: Mark[]): void {
+    const t = this.theme;
+    const total = node.children.length;
+    const overflow = start > 0 || end < total - 1;
+    const pw = Math.round(bar * 1.5);
+    const cut = 4;
+    let rangeRight = right;
+    if (overflow) {
+      const next: Mark = {
+        kind: 'pager', ptr: node.ptr, dir: 'next', disabled: end >= total - 1, set: { window: { start: end + 1 } },
+        type: node.kind, outer, rect: { x: right - pw, y, w: pw, h: bar },
+      };
+      const prev: Mark = {
+        kind: 'pager', ptr: node.ptr, dir: 'prev', disabled: start <= 0, set: { window: { end: start - 1 } },
+        type: node.kind, outer, rect: { x: right - 2 * pw - cut, y, w: pw, h: bar },
+      };
+      marks.push(prev, next);
+      rangeRight = prev.rect.x - t.gap;
+    }
+    const text = `${start + 1}\u2013${end + 1} of ${total}`;
+    const natural = Math.ceil(this.metrics.key(text)) + 2 * t.pad;
+    const w = Math.max(0, Math.min(natural, rangeRight - left));
+    marks.push({ kind: 'range', ptr: node.ptr, text, start, end, total, rect: { x: rangeRight - w, y, w, h: bar } });
+  }
+
+  /** An opened scalar (or empty container) has no frame; a bar carries its breadcrumbs. */
   private planUnframed(focus: TreeNode, vp: Viewport, marks: Mark[]): number {
     const t = this.theme;
     const g = t.root;
     const side = 2 * t.gap + t.pad; // page gutter
     let top = t.pad;
     if (focus.parent) {
-      marks.push({ kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: g.bar }, arch: 'T', geom: g, depth: focus.depth, type: focus.kind, outer: true });
+      marks.push({
+        kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: g.bar }, arch: 'T', geom: g, depth: focus.depth,
+        type: focus.kind, variant: 'bar', outer: true, targetable: false,
+      });
       const title = this.title(focus, g.bar / 2, vp.w - g.bar / 2, g.bar, true);
       marks.push(title);
       this.crumbs(ancestors(focus), g.bar / 2, title.rect.x - t.gap, g.bar, marks);
@@ -231,6 +336,8 @@ export class Planner {
         // the top or bottom of the column, otherwise on top.
         const arch = i === 0 || i === shown.length - 1 ? 'LB' : 'LT';
         this.placeFrame(row.node, opt.v, x, yy, arch, owner, marks);
+      } else if (opt.v.t === 'container') {
+        this.placeContainer(row.node, opt.v, x, yy, owner, marks);
       } else {
         // The key capsule is as tall as its value (a rounded rectangle when tall).
         marks.push({ kind: 'key', ptr: row.node.ptr, text: row.node.label, type: row.node.kind, rect: { x, y: yy, w: rows.keyW, h: m.rowHeight(row) } });
@@ -255,22 +362,42 @@ export class Planner {
   ): void {
     const t = this.theme;
     const g = t.frame;
-    marks.push({ kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h: v.h }, arch, geom: g, depth: node.depth, type: node.kind, outer: false });
+    marks.push({
+      kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h: v.h }, arch, geom: g, depth: node.depth, type: node.kind,
+      variant: 'frame', outer: false, targetable: true,
+    });
     const bottom = arch.endsWith('B');
     const barY = bottom ? y + v.h - g.bar : y;
     // The title is a breadcrumb trail from the enclosing frame: an object in
     // an (unframed) array reads "packages › 0".
-    const trail: Crumb[] = [];
-    for (let n: TreeNode | null = node; n && n !== owner; n = n.parent) trail.unshift(crumb(n));
-    const text = trail.map((c) => c.text).join(TRAIL_SEPARATOR);
-    const titleW = Math.min(Math.ceil(this.metrics.key(text)) + 2 * t.pad, v.w - g.bar / 2 - g.outer);
-    marks.push({
-      kind: 'title', ptr: node.ptr, text, trail, scale: 1, outer: false,
-      rect: { x: x + v.w - g.bar / 2 - titleW, y: barY, w: titleW, h: g.bar },
-    });
+    marks.push(this.trailTitle(node, owner, x + v.w - g.bar / 2, v.w - g.bar / 2 - g.outer, barY, g.bar));
     const cx = x + g.side + t.pad;
     const cy = (bottom ? y : y + g.bar) + t.pad;
     this.placeRows(v.rows, cx, cy, v.rows.collapsed, node, marks);
+  }
+
+  /** A nested container's title: its breadcrumb trail from the enclosing frame, ending at `right`. */
+  private trailTitle(node: TreeNode, owner: TreeNode, right: number, maxW: number, y: number, bar: number): Mark {
+    const trail: Crumb[] = [];
+    for (let n: TreeNode | null = node; n && n !== owner; n = n.parent) trail.unshift(crumb(n));
+    const text = trail.map((c) => c.text).join(TRAIL_SEPARATOR);
+    const w = Math.max(0, Math.min(Math.ceil(this.metrics.key(text)) + 2 * this.theme.pad, maxW));
+    return { kind: 'title', ptr: node.ptr, text, trail, scale: 1, outer: false, rect: { x: right - w, y, w, h: bar } };
+  }
+
+  /** A nested array container: title trail in the top bar, range and arrows in the bottom bar. */
+  private placeContainer(node: TreeNode, v: Extract<Value, { t: 'container' }>, x: number, y: number, owner: TreeNode, marks: Mark[]): void {
+    const t = this.theme;
+    const g = { ...t.frame, side: 0 };
+    const R = Math.min(g.outer, g.bar);
+    marks.push({
+      kind: 'frame', ptr: node.ptr, rect: { x, y, w: v.w, h: v.h }, arch: 'TB', geom: g, depth: node.depth, type: node.kind,
+      variant: 'container', outer: false, targetable: true,
+    });
+    const title = this.trailTitle(node, owner, x + v.w - R, v.w - 2 * R, y, g.bar);
+    marks.push(title);
+    this.placeValue(node, v.content, x + t.pad, y + g.bar + t.pad, node, marks);
+    this.footer(node, v.start, v.end, x + R, x + v.w - R, y + v.h - g.bar, g.bar, false, marks);
   }
 
   private placeValue(node: TreeNode, opt: Option, x: number, y: number, owner: TreeNode, marks: Mark[]): void {
@@ -293,6 +420,9 @@ export class Planner {
         break;
       case 'frame':
         this.placeFrame(node, v, x, y, 'LT', owner, marks);
+        break;
+      case 'container':
+        this.placeContainer(node, v, x, y, owner, marks);
         break;
     }
   }

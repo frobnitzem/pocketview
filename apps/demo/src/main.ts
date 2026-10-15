@@ -109,10 +109,11 @@ for (const sample of SAMPLES) {
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = sample.label;
-  b.addEventListener('click', () => {
+  b.addEventListener('click', async () => {
     modeSelect.value = sample.mode;
-    editor.setText(sample.text);
     dialog.close();
+    if (typeof sample.text !== 'string') status.textContent = 'Loading example…';
+    editor.setText(typeof sample.text === 'string' ? sample.text : await sample.text());
     show();
   });
   $('examples').append(b);

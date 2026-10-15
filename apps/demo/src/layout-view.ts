@@ -8,10 +8,13 @@
  * target's border un-targets it. Untargeted: clicking a collapsed node
  * expands it in place; clicking one already shown, or with no room, blinks
  * the outer border; breadcrumbs (top bar and container titles) still target.
+ * Paging arrows (array containers' ◀ ▶, the outer side bar's ▲ ▼) move by
+ * a page in either state. Only objects and arrays can be targets: an opened
+ * scalar's bar does not toggle.
  */
 import {
   archPath, buildTree, find, isShown, NAVIGABLE, Planner, TRAIL_SEPARATOR,
-  type Json, type Kind, type Mark, type Metrics, type Plan,
+  type ArrayWindow, type Json, type Kind, type Mark, type Metrics, type Plan,
 } from '@pocketview/core';
 import { canvasMeasure, prepare, renderLines, type Prepared } from '@pocketview/typeset';
 import { englishUS } from '@pocketview/typeset/en-us';
@@ -54,6 +57,9 @@ export class LayoutView {
   private targeted = true;
   /** Nodes expanded in place while untargeted. */
   private expanded: string[] = [];
+  /** Page windows of array containers, and side-bar offsets, by pointer. */
+  private windows: Record<string, ArrayWindow> = {};
+  private offsets: Record<string, number> = {};
   private plan: Plan | null = null;
   private drawnKey = '';
   private readonly observer = new ResizeObserver(() => this.render());
@@ -75,6 +81,8 @@ export class LayoutView {
     this.root = '';
     this.targeted = true;
     this.expanded = [];
+    this.windows = {};
+    this.offsets = {};
     this.plan = null; // a new document: never reuse the previous drawing
     this.drawnKey = '';
     this.observer.observe(this.scroller);
@@ -90,11 +98,13 @@ export class LayoutView {
     this.drawnKey = '';
   }
 
-  /** Makes `ptr` the target: the view is re-rooted at it. */
+  /** Opens `ptr`: the target shows it, and its breadcrumbs extend to it. */
   target(ptr: string): void {
     this.root = ptr;
     this.targeted = true;
     this.expanded = [];
+    this.windows = {};
+    this.offsets = {};
     this.scroller.scrollTop = 0;
     this.render();
     this.onFocus(ptr);
@@ -103,6 +113,8 @@ export class LayoutView {
 
   /** Clicking the outermost border toggles whether it is the target. */
   private toggleTarget(): void {
+    const outer = this.plan?.marks.find((m) => m.kind === 'frame' && m.outer);
+    if (outer?.kind === 'frame' && !outer.targetable) return this.blink(); // an opened scalar
     this.targeted = !this.targeted;
     this.expanded = [];
     this.render();
@@ -110,14 +122,42 @@ export class LayoutView {
 
   /** Untargeted click on a collapsed node: show it in place, or blink. */
   private expand(ptr: string): void {
-    if (!this.plan || isShown(this.plan, ptr)) return this.blink();
+    if (!this.plan || !this.planner || isShown(this.plan, ptr)) return this.blink();
+    const before = { expanded: this.expanded, windows: this.windows };
     this.expanded = [...this.expanded, ptr];
+    // An array element is expanded by paging its array so the element comes first.
+    const windows = { ...this.windows };
+    for (let n = find(this.planner.tree, ptr); n?.parent; n = n.parent) {
+      if (n.parent.kind === 'array') windows[n.parent.ptr] = { start: Number(n.label) };
+    }
+    this.windows = windows;
     this.render();
     if (this.plan && !isShown(this.plan, ptr)) {
-      this.expanded = this.expanded.slice(0, -1);
+      this.expanded = before.expanded;
+      this.windows = before.windows;
       this.render();
       this.blink();
     }
+  }
+
+  /** A paging arrow: move an array window or the side bar by a page. */
+  private page(mark: Extract<Mark, { kind: 'pager' }>): void {
+    if (mark.disabled) return this.blink();
+    if ('offset' in mark.set) this.offsets = { ...this.offsets, [mark.ptr]: mark.set.offset };
+    else this.windows = { ...this.windows, [mark.ptr]: mark.set.window };
+    this.render();
+    // Paging back lays out the page ending before the old one; remember where
+    // it starts, so the page stays put when the view is re-planned.
+    const range = this.plan?.marks.find((m) => m.kind === 'range' && m.ptr === mark.ptr);
+    if (range?.kind === 'range' && 'window' in mark.set && 'end' in mark.set.window) {
+      this.windows = { ...this.windows, [mark.ptr]: { start: range.start } };
+      this.drawnKey = this.stateKey();
+    }
+  }
+
+  private stateKey(): string {
+    const vp = [Math.floor(this.scroller.clientWidth), Math.floor(this.scroller.clientHeight)];
+    return JSON.stringify([this.root, this.targeted, this.expanded, this.windows, this.offsets, vp]);
   }
 
   /** Flashes the outermost border: some enclosure must be targeted first. */
@@ -148,10 +188,10 @@ export class LayoutView {
     if (!this.planner) return;
     const vp = { w: Math.floor(this.scroller.clientWidth), h: Math.floor(this.scroller.clientHeight) };
     if (vp.w <= 0 || vp.h <= 0) return;
-    const key = JSON.stringify([this.root, this.targeted, this.expanded, vp.w, vp.h]);
+    const key = this.stateKey();
     if (key === this.drawnKey && this.scroller.firstChild) return;
     this.drawnKey = key;
-    this.plan = this.planner.plan(this.root, vp, { expanded: this.expanded });
+    this.plan = this.planner.plan(this.root, vp, { expanded: this.expanded, windows: this.windows, offsets: this.offsets });
     const root = document.createElement('div');
     root.className = 'pv-layout';
     root.classList.toggle('targeted', this.targeted);
@@ -173,8 +213,8 @@ export class LayoutView {
     if (mark.kind === 'frame') {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
-      const status = mark.outer ? (this.targeted ? ' outer target' : ' outer') : '';
-      svg.setAttribute('class', `pv-frame ${typeClass(mark.type)}${status}`);
+      const status = mark.outer ? (this.targeted && mark.targetable ? ' outer target' : ' outer') : '';
+      svg.setAttribute('class', `pv-frame v-${mark.variant} ${typeClass(mark.type)}${status}`);
       svg.setAttribute('viewBox', `0 0 ${r.w} ${r.h}`);
       Object.assign(svg.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
       const path = document.createElementNS(ns, 'path');
@@ -197,7 +237,8 @@ export class LayoutView {
           // The outermost title is the target's own name: it toggles the target.
           el.textContent = mark.text;
           el.classList.add('outer', typeClass(mark.trail[0]!.type));
-          if (this.targeted) el.classList.add('target');
+          const outer = this.plan?.marks.find((m) => m.kind === 'frame' && m.outer);
+          if (this.targeted && outer?.kind === 'frame' && outer.targetable) el.classList.add('target');
           el.classList.add('nav');
           el.addEventListener('click', () => this.toggleTarget());
         } else {
@@ -239,6 +280,23 @@ export class LayoutView {
           el.title = `${par.quality} line breaking`;
         }
         break;
+      }
+      case 'range':
+        el.textContent = mark.text;
+        el.classList.add(typeClass('array'));
+        break;
+      case 'pager': {
+        el.textContent = { up: '\u25b2', down: '\u25bc', prev: '\u25c0', next: '\u25b6' }[mark.dir];
+        el.classList.add(typeClass(mark.type), 'nav');
+        if (mark.outer && this.targeted) el.classList.add('target');
+        if (mark.disabled) el.classList.add('disabled');
+        el.setAttribute('role', 'button');
+        el.setAttribute('aria-label', { up: 'Previous segments', down: 'More segments', prev: 'Previous page', next: 'Next page' }[mark.dir]);
+        el.tabIndex = mark.disabled ? -1 : 0;
+        const go = () => this.page(mark);
+        el.addEventListener('click', go);
+        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+        return el;
       }
       case 'menu': {
         el.innerHTML = '<button aria-label="More breadcrumbs">\u2630</button><ul hidden></ul>';

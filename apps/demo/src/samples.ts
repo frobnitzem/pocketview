@@ -98,9 +98,21 @@ export const ARRAY = JSON.stringify([
   { id: 3, title: 'The TeXbook', authors: ['Knuth'], year: 1984 },
 ], null, 2);
 
-export const SAMPLES = [
+export interface Sample {
+  label: string;
+  mode: 'auto' | 'json' | 'yaml' | 'text';
+  /** The input, or a loader for large inputs (fetched only when chosen). */
+  text: string | (() => Promise<string>);
+}
+
+export const SAMPLES: readonly [Sample & { text: string }, ...Sample[]] = [
   { label: 'Science and Hypothesis (text)', mode: 'auto', text: POINCARE },
   { label: 'A JSON string', mode: 'auto', text: JSON_STRING },
   { label: 'An object (YAML)', mode: 'auto', text: OBJECT },
   { label: 'An array of records (JSON)', mode: 'auto', text: ARRAY },
-] as const;
+  {
+    // H. G. Wells, 1897 (public domain): 27 chapters, about 290 KB.
+    label: 'The Invisible Man (YAML, a book)', mode: 'auto',
+    text: () => import('../../../examples/invisible_man.yaml?raw').then((m) => m.default),
+  },
+];

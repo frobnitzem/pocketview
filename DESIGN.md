@@ -145,24 +145,46 @@ Values themselves are coloured by JSON type: strings off-white, numbers
 gold (tabular figures), booleans and null blue italic. Chip count badges
 are pastel green.
 
-### Targeting and expanding
+### Display variants of containers
 
-The outermost arch is the **target**: the node the view is rooted at.
-- **Targeted** (the default): clicking any chip, segment, key, container
-  title or breadcrumb makes that node the target, and the view is re-rooted
-  at it. Clicking the target's own border (or its title) **un-targets** it.
-  The arch keeps its place but takes its type colour.
-- **Untargeted**: clicking a collapsed node (chip or segment) **expands it
-  in place**. It is prioritized when its enclosing container is laid out,
-  and its parent stays where it is (`expanded` in `PlanOptions`; expanded
-  nodes may go past the depth limit). Clicking a node that is already shown,
-  or that has no room to expand, **blinks** the outermost border: a hint
-  that an enclosing container must be targeted first.
-- **Breadcrumbs target in both states.** These are the ancestors in the
-  top bar, and the breadcrumb trail that every nested container now carries
-  in its title. The trail runs from the enclosing frame to the container,
-  so an object inside an unframed array reads `packages › 0`. Each step is
-  coloured by its type, and clicking it targets that node.
+| type | variant | when |
+|---|---|---|
+| object | **arch** | the outermost frame: wide side bar of segments, paged by ▲ ▼ when they overflow |
+| object | **frame** | nested: thin side bar, collapsed children as chips |
+| array | **tags** | short scalars, inline next to a cream key capsule (bare) |
+| array | **list** | vertical rows; objects as frames titled by trail (bare) |
+| array | **container** | top and bottom bars (rounded outside, square inside), used only when the array overflows; shows a window of consecutive elements, drawn as usual, with the 1-based range (`6–8 of 12`) and ◀ ▶ in the bottom bar |
+
+- **Bare arrays show every element.** They can't be targets; an array that
+  doesn't fit uses a container.
+- **An opened array is always a container,** because a target needs
+  breadcrumbs.
+- **Paging moves a page at a time.** ▶ starts after the last shown element.
+  ◀ lays out the page ending just before the first shown element.
+  Expanding an element pages its array so the element comes first.
+
+### Targeting, opening and expanding
+
+The **target** is the area where clicked things are drawn: the outermost
+object arch or array container. Only objects and arrays can be targets.
+- **Targeted** (the default; the border is purple): clicking a chip,
+  segment, key, container title or breadcrumb **opens** that node. The
+  target shows it, and its breadcrumbs extend to it.
+  - An opened object becomes an arch; an opened array becomes a container.
+  - An opened scalar is shown full-size under a bar that carries its
+    breadcrumbs. That bar is not a target.
+- **Clicking the target's border (or its title) un-targets it.** It keeps
+  its place and takes its type colour.
+- **Untargeted**: clicking a collapsed node **expands** it. It is drawn
+  inside its parent and becomes the active item; siblings drop out to make
+  room, and breadcrumbs don't change (`expanded` and `windows` in
+  `PlanOptions`; expanded nodes may go past the depth limit). Clicking a
+  node that is already shown, or that has no room, **blinks** the outer
+  border: some enclosure must be targeted first.
+- **Breadcrumbs open in both states.** These are the ancestors in the top
+  bar, and the trail every nested container carries in its title (an object
+  in a bare array reads `packages › 0`). Each step is coloured by its type.
+- **Paging arrows work in both states.**
 
 ### Regularity
 

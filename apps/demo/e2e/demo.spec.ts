@@ -14,7 +14,7 @@ async function noOverflow(page: Page) {
 test('typesets the sample text on load', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await ready(page);
-  await expect(page.locator('.pv-line').first()).toContainText('It is a truth universally acknowledged');
+  await expect(page.locator('.pv-line').first()).toContainText('Riemann');
   await expect(page.locator('#status')).toContainText('text → string');
   await noOverflow(page);
   await page.screenshot({ path: 'test-results/desktop.png' });
@@ -64,12 +64,13 @@ test('collapses into segments and chips when small, and they navigate', async ({
 test('switching between layout examples always redraws', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await ready(page);
+  // A root array is a container titled by its type; an object an arch.
   await example(page, 'An array of records (JSON)');
-  await expect(page.locator('.pv-title', { hasText: /^0$/ })).toBeVisible();
+  await expect(page.locator('.pv-title.outer')).toHaveText('array');
   await example(page, 'An object (YAML)');
-  await expect(page.locator('.pv-title').first()).toHaveText('object');
+  await expect(page.locator('.pv-title.outer')).toHaveText('object');
   await example(page, 'An array of records (JSON)');
-  await expect(page.locator('.pv-title').first()).toHaveText('0');
+  await expect(page.locator('.pv-title.outer')).toHaveText('array');
   // Typing new input and sending also redraws.
   await page.evaluate(() => (window as any).pocketview.setInput('{"fresh": "document"}'));
   await page.click('#send');
@@ -99,10 +100,11 @@ test('clipped labels get a tooltip; a focused string takes the chip colour', asy
   await page.waitForSelector('.pv-layout');
   await expect(page.locator(`[title^="${long}"]`)).toHaveCount(1); // label, plus its badge
   await page.locator('.pv-key', { hasText: /^a$/ }).click();
-  // A targeted string: its bar is the target colour; untargeted, the scalar colour.
-  await expect(page.locator('.pv-frame.outer.target.ty-scalar')).toHaveCount(1);
+  // An opened string sits under a scalar-coloured bar, which is not a target:
+  // clicking its title blinks instead of un-targeting.
+  await expect(page.locator('.pv-frame.outer.v-bar.ty-scalar:not(.target)')).toHaveCount(1);
   await page.locator('.pv-title.outer').click();
-  await expect(page.locator('.pv-frame.outer.ty-scalar:not(.target)')).toHaveCount(1);
+  await expect(page.locator('.pv-layout')).toHaveClass(/blink/);
 });
 
 test('colour schemes switch from the settings menu', async ({ page }) => {
@@ -138,6 +140,41 @@ test('untargeted: chips expand in place, and a shown node blinks the border', as
   // Breadcrumb titles still target.
   await page.locator('.pv-title.outer').click();
   await expect(page.locator('.pv-layout')).toHaveClass(/targeted/);
+});
+
+test('a long array pages in a container; opening it makes it the target', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await page.click('#settings-open');
+  await page.getByRole('button', { name: /Invisible Man/ }).click();
+  await page.waitForSelector('.pv-range');
+  const range = page.locator('.pv-range').first();
+  await expect(range).toHaveText(/^1\u2013\d+ of 29$/);
+  await expect(page.locator('.pv-pager[aria-label="Previous page"]').first()).toHaveClass(/disabled/);
+  const first = (await range.textContent())!;
+  const shown = Number(/\u2013(\d+)/.exec(first)![1]);
+  await page.locator('.pv-pager[aria-label="Next page"]').first().click();
+  await expect(range).toHaveText(new RegExp(`^${shown + 1}\u2013\\d+ of 29$`));
+  await page.locator('.pv-pager[aria-label="Previous page"]').first().click();
+  await expect(range).toHaveText(new RegExp(`^1\u2013\\d+ of 29$`));
+  // Open the array: it becomes the target container, with breadcrumbs.
+  await page.locator('.pv-title .step', { hasText: 'chapters' }).click();
+  await expect(page.locator('.pv-frame.outer.target.v-container')).toHaveCount(1);
+  await expect(page.locator('.pv-crumb')).toHaveText('object');
+});
+
+test('the outer side bar pages its segments with arrows', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 360 });
+  await ready(page);
+  const doc = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`key${i}`, { a: 1, b: 2 }]));
+  await page.evaluate((d) => (window as any).pocketview.setInput(JSON.stringify(d)), doc);
+  await page.click('#send');
+  await page.waitForSelector('.pv-pager[aria-label="More segments"]');
+  const before = await page.locator('.pv-segment').allTextContents();
+  await page.locator('.pv-pager[aria-label="More segments"]').click();
+  const after = await page.locator('.pv-segment').allTextContents();
+  expect(after[0]).not.toBe(before[0]);
+  await expect(page.locator('.pv-pager[aria-label="Previous segments"]')).not.toHaveClass(/disabled/);
 });
 
 test('desktop: the input pane folds to the left and back', async ({ page }) => {

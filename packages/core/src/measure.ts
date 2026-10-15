@@ -22,7 +22,15 @@ export type Value =
   | { t: 'text'; text: string; w: number; h: number; full: number; scroll: boolean }
   | { t: 'tags'; w: number; h: number; items: Tag[] }
   | { t: 'list'; rows: Rows }
-  | { t: 'frame'; w: number; h: number; rows: Rows };
+  | { t: 'frame'; w: number; h: number; rows: Rows }
+  /**
+   * An array that doesn't fit: top and bottom bars around a window of
+   * elements [start, end] (inclusive), drawn as tags or a list.
+   */
+  | { t: 'container'; w: number; h: number; content: Option; start: number; end: number; total: number };
+
+/** Which elements of an array container to show: from `start`, or ending at `end`. */
+export type ArrayWindow = { start: number } | { end: number };
 
 /** One display option: its size, how much it shows, and how to draw it. */
 export interface Option {
@@ -49,13 +57,25 @@ export interface Rows {
   s: number;
 }
 
-/** Where a container's collapsed children go: chips inside, or side-bar segments. */
-export type CollapseMode = 'chips' | 'sidebar';
+/**
+ * Where a container's collapsed children go: chips inside, or side-bar
+ * segments; 'none' means every child must be shown (a bare array).
+ */
+export type CollapseMode = 'chips' | 'sidebar' | 'none';
 
 type Chain = { row: Row; prev: Chain } | null;
 
 /** Added to the score of a prioritized child, so it wins whenever it fits. */
 const PRIORITY = 1e4;
+
+/** A container is worth slightly less than showing the same elements bare. */
+const CONTAINER_FACTOR = 0.95;
+
+/** Text longer than this (in characters) is shown in a row only in a scroll box. */
+const LONG_TEXT = 3000;
+
+/** Array windows are not grown past this height (bounds the work on huge arrays). */
+const WINDOW_MAX = 2400;
 
 export function flow(widths: readonly number[], W: number, rowH: number, gap: number): { x: number; y: number }[] & { h: number } {
   const pos = [] as unknown as { x: number; y: number }[] & { h: number };
@@ -96,6 +116,9 @@ export class Measurer {
   /** Nodes the user asked to expand: shown first, even past the depth limit. */
   private priority: ReadonlySet<string> = new Set();
   private prioritySig = '';
+  /** Page windows of array containers, by pointer. */
+  private windows: Readonly<Record<string, ArrayWindow>> = {};
+  private windowsSig = '';
 
   constructor(readonly metrics: Metrics, readonly theme: Theme) {}
 
@@ -112,6 +135,20 @@ export class Measurer {
   setPriority(ptrs: Iterable<string>): void {
     this.priority = new Set(ptrs);
     this.prioritySig = [...this.priority].sort().join('\u0000');
+  }
+
+  /** Sets which elements array containers show (see `ArrayWindow`). */
+  setWindows(windows: Readonly<Record<string, ArrayWindow>>): void {
+    this.windows = windows;
+    this.windowsSig = JSON.stringify(Object.entries(windows).sort());
+  }
+
+  windowOf(node: TreeNode): ArrayWindow {
+    return this.windows[node.ptr] ?? { start: 0 };
+  }
+
+  private get sig(): string {
+    return `${this.limit}|${this.prioritySig}|${this.windowsSig}`;
   }
 
   /** Whether `node` is, or contains, a prioritized node. */
@@ -143,10 +180,10 @@ export class Measurer {
     return Math.min(natural, Math.floor(maxW));
   }
 
-  /** Options for a node drawn as a value: a token, text, tags, a list, or a frame. */
+  /** Options for a node drawn as a value: a token, text, tags, a bare list, or a frame. */
   value(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`v|${this.limit}|${this.prioritySig}|${node.ptr}|${W}`, () => {
+    return this.cached(`v|${this.sig}|${node.ptr}|${W}`, () => {
       if (node.kind === 'object' && !isLeaf(node)) return this.frame(node, W);
       if (node.kind === 'array' && !isLeaf(node)) return this.array(node, W);
       return this.leaf(node, W);
@@ -161,8 +198,19 @@ export class Measurer {
       return [{ w: Math.ceil(width), h: t.rowH, s: 1, v: { t: 'token', text: token, w: Math.ceil(width) } }];
     }
     const text = node.kind === 'string' ? (node.value as string) : token;
-    const full = Math.ceil(this.metrics.text(node.ptr, text).height(W));
     const weight = Math.min(4, 1 + text.length / 400);
+    if (text.length > LONG_TEXT) {
+      // Very long text in a row only ever gets a scroll box (opening it shows
+      // it in full), so its full height is estimated, not typeset at every width.
+      const sample = text.slice(0, 400);
+      const perChar = this.metrics.value(sample) / Math.max(1, sample.length);
+      const full = Math.ceil((text.length * perChar) / Math.max(1, W)) * t.rowH;
+      return [{
+        w: W, h: t.scrollMax, s: weight * (0.5 + 0.5 * t.scrollMax / full),
+        v: { t: 'text', text, w: W, h: t.scrollMax, full, scroll: true },
+      }];
+    }
+    const full = Math.ceil(this.metrics.text(node.ptr, text).height(W));
     const opts: Option[] = [{
       w: W, h: Math.max(t.rowH, full), s: weight,
       v: { t: 'text', text, w: W, h: full, full, scroll: false },
@@ -190,13 +238,121 @@ export class Measurer {
         return [{ w: used, h: Math.max(t.rowH, pos.h), s, v: { t: 'tags', w: used, h: pos.h, items } }];
       }
     }
-    return this.rows(node, W, 'chips').map((r) => ({ w: W, h: r.h, s: t.depthDiscount * r.s, v: { t: 'list', rows: r } }));
+    // A bare list shows every element; an array that doesn't fit uses a container.
+    return this.rows(node, W, 'none').map((r) => ({ w: W, h: r.h, s: t.depthDiscount * r.s, v: { t: 'list', rows: r } }));
+  }
+
+  /** Whether all of an array's elements are short scalars (drawn as tags). */
+  private tagWidths(node: TreeNode, W: number): number[] | null {
+    if (!node.children.every((c) => isLeaf(c))) return null;
+    const t = this.theme;
+    const texts = node.children.map(tokenText);
+    const widths = texts.map((s) => Math.ceil(this.metrics.value(s) + t.tagPad));
+    return texts.every((s, i) => !s.includes('\n') && widths[i]! <= W) ? widths : null;
+  }
+
+  /**
+   * Options for an array in a container (full width): one per window of
+   * elements, from the array's page window, as many as fit at each height.
+   * `bar` is the thickness of the top and bottom bars.
+   */
+  container(node: TreeNode, maxW: number, bar = this.theme.frame.bar): Option[] {
+    const W = this.snap(maxW);
+    return this.cached(`c|${this.sig}|${bar}|${node.ptr}|${W}`, () => {
+      const t = this.theme;
+      const inner = W - 2 * t.pad;
+      if (isLeaf(node) || inner < t.keyMin + 4 * t.unit) return [];
+      return this.windowed(node, inner).map((w) => {
+        const h = 2 * bar + 2 * t.pad + w.content.h;
+        return {
+          w: W, h, s: CONTAINER_FACTOR * w.content.s,
+          v: { t: 'container', w: W, h, content: w.content, start: w.start, end: w.end, total: node.children.length },
+        };
+      });
+    });
+  }
+
+  /** Windows of consecutive elements, all shown, starting (or ending) at the page window. */
+  windowed(node: TreeNode, W: number): { start: number; end: number; content: Option }[] {
+    const t = this.theme;
+    const n = node.children.length;
+    const win = this.windowOf(node);
+    const backward = 'end' in win;
+    const first = Math.max(0, Math.min(n - 1, backward ? win.end : win.start));
+    const order: number[] = [];
+    for (let i = first; backward ? i >= 0 : i < n; i += backward ? -1 : 1) order.push(i);
+    const out: { start: number; end: number; content: Option }[] = [];
+
+    const widths = this.tagWidths(node, W);
+    if (widths) {
+      // Tags: each window length is one option.
+      for (let k = 1; k <= order.length; k++) {
+        const idx = order.slice(0, k).sort((a, b) => a - b);
+        const pos = flow(idx.map((i) => widths[i]!), W, t.tagH, t.gap);
+        if (pos.h > WINDOW_MAX) break;
+        const items = idx.map((i, j) => {
+          const c = node.children[i]!;
+          return { node: c, text: tokenText(c), x: pos[j]!.x, y: pos[j]!.y, w: widths[i]! };
+        });
+        const used = Math.max(...items.map((it) => it.x + it.w));
+        out.push({
+          start: idx[0]!, end: idx[k - 1]!,
+          content: { w: used, h: Math.max(t.rowH, pos.h), s: 1 + t.depthDiscount * (k - 1), v: { t: 'tags', w: used, h: pos.h, items } },
+        });
+      }
+      return out;
+    }
+
+    // A list: a knapsack where every element in the window must be shown.
+    const keyW = this.keyWidth(node);
+    const valueW = W - keyW - t.gap;
+    let front: Point<Chain>[] = [{ h: 0, s: 0, data: null }];
+    const candidates: Point<{ start: number; end: number; content: Option }>[] = [];
+    for (const i of order) {
+      const c = node.children[i]!;
+      const boost = this.prioritized(c) ? PRIORITY : 0;
+      const shown = c.depth > this.limit && !boost ? [] : this.childOptions(c, W, valueW);
+      if (shown.length === 0) break;
+      const next: Point<Chain>[] = [];
+      for (const f of front) {
+        for (const o of shown) {
+          const row = { node: c, opt: o };
+          next.push({ h: f.h + this.rowHeight(row) + t.gap, s: f.s + o.s + boost, data: { row, prev: f.data } });
+        }
+      }
+      front = pareto(next, t.keep);
+      for (const f of front) {
+        const rows: Row[] = [];
+        for (let ch = f.data; ch; ch = ch.prev) rows.push(ch.row);
+        rows.sort((a, b) => Number(a.node.label) - Number(b.node.label));
+        const rowsH = f.h - t.gap;
+        const r: Rows = { width: this.snap(W), keyW, rows, collapsed: [], rowsH, chipsH: 0, h: rowsH, s: f.s };
+        candidates.push({
+          h: rowsH, s: f.s,
+          data: {
+            start: Number(rows[0]!.node.label), end: Number(rows[rows.length - 1]!.node.label),
+            content: { w: this.snap(W), h: rowsH, s: t.depthDiscount * f.s, v: { t: 'list', rows: r } },
+          },
+        });
+      }
+      if (front[0]!.h > WINDOW_MAX) break;
+    }
+    return pareto(candidates, t.keep).map((p) => p.data);
+  }
+
+  /** How a child can be shown in a container `W` wide (with values `valueW` wide). */
+  private childOptions(c: TreeNode, W: number, valueW: number): Option[] {
+    const t = this.theme;
+    if (c.kind === 'object' && !isLeaf(c)) return this.frame(c, W);
+    const bare = valueW >= 3 * t.unit ? this.value(c, valueW) : [];
+    // An array that doesn't fit bare goes in a container, at full width.
+    return c.kind === 'array' && !isLeaf(c) ? [...bare, ...this.container(c, W)] : bare;
   }
 
   /** Options for an object drawn in a nested arch frame, at full width. */
   frame(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`f|${this.limit}|${this.prioritySig}|${node.ptr}|${W}`, () => {
+    return this.cached(`f|${this.sig}|${node.ptr}|${W}`, () => {
       const t = this.theme;
       const g = t.frame;
       const inner = W - g.side - 2 * t.pad;
@@ -211,13 +367,14 @@ export class Measurer {
   /** Height a shown child adds to a container (before the gap). */
   rowHeight(row: Row): number {
     if (!row.opt) return 0;
-    return row.opt.v.t === 'frame' ? row.opt.h : Math.max(this.theme.rowH, row.opt.h);
+    const full = row.opt.v.t === 'frame' || row.opt.v.t === 'container'; // full width, no key
+    return full ? row.opt.h : Math.max(this.theme.rowH, row.opt.h);
   }
 
   /** The Pareto front of ways to show a container's children as rows. */
   rows(node: TreeNode, maxW: number, mode: CollapseMode): Rows[] {
     const W = this.snap(maxW);
-    return this.cached(`r|${mode}|${this.limit}|${this.prioritySig}|${node.ptr}|${W}`, () => {
+    return this.cached(`r|${mode}|${this.sig}|${node.ptr}|${W}`, () => {
       const t = this.theme;
       const keyW = this.keyWidth(node);
       const valueW = W - keyW - t.gap;
@@ -227,15 +384,14 @@ export class Measurer {
       node.children.forEach((c, index) => {
         // On a tie, prefer showing earlier children (document order).
         const tieBreak = 1e-6 * (n - index) / n;
-        // Collapsing costs a share of a chip row (estimated), or nothing in a side bar.
+        // Collapsing costs a share of a chip row (estimated), or nothing in a
+        // side bar; a bare array cannot collapse its elements.
         const chipCost = mode === 'sidebar' ? 0 : ((this.chipWidth(c, W) + t.gap) * (t.chipH + t.gap)) / Math.max(1, W);
-        const options: Point<Row>[] = [{ h: chipCost, s: 0, data: { node: c, opt: null } }];
+        const options: Point<Row>[] = mode === 'none' ? [] : [{ h: chipCost, s: 0, data: { node: c, opt: null } }];
         // A prioritized child (or one containing a prioritized node) is worth
         // more than anything else, and may go past the depth limit.
         const boost = this.prioritized(c) ? PRIORITY : 0;
-        const shown = c.depth > this.limit && !boost ? []
-          : c.kind === 'object' && !isLeaf(c) ? this.frame(c, W)
-          : valueW >= 3 * t.unit ? this.value(c, valueW) : [];
+        const shown = c.depth > this.limit && !boost ? [] : this.childOptions(c, W, valueW);
         for (const o of shown) {
           const row = { node: c, opt: o };
           // The tie-break only applies to options that show something, or an
@@ -248,6 +404,7 @@ export class Measurer {
         }
         front = pareto(next, t.keep);
       });
+      if (front.length === 0) return []; // some element of a bare array cannot be shown
 
       const results = front.map((f) => {
         const rows: Row[] = [];

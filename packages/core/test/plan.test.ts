@@ -94,9 +94,62 @@ describe('planner', () => {
     expect(plan.marks.filter((m) => m.kind === 'crumb').at(-1)!.ptr).toBe(ptr.slice(0, ptr.lastIndexOf('/')));
   });
 
+  it('keeps arrays bare when they fit, and uses a paged container when not', () => {
+    const records = Array.from({ length: 12 }, (_, i) => ({ id: i, name: `item ${i}` }));
+    const doc: Json = { tags: ['a', 'b'], records };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const big = planner.plan('', { w: 1200, h: 2400 });
+    expect(big.marks.some((m) => m.kind === 'frame' && m.variant === 'container')).toBe(false);
+    expect(big.marks.filter((m) => m.kind === 'tag')).toHaveLength(2);
+    const small = planner.plan('', { w: 900, h: 500 });
+    const range = small.marks.find((m) => m.kind === 'range' && m.ptr === '/records');
+    expect(range).toBeTruthy();
+    if (range?.kind !== 'range') throw new Error('no range');
+    expect(range.start).toBe(0);
+    expect(range.text).toBe(`1\u2013${range.end + 1} of 12`);
+    const next = small.marks.find((m) => m.kind === 'pager' && m.dir === 'next' && m.ptr === '/records');
+    expect(next).toMatchObject({ disabled: false, set: { window: { start: range.end + 1 } } });
+    // Page forward, then back: the window starts after the last shown element.
+    const page2 = planner.plan('', { w: 900, h: 500 }, { windows: { '/records': { start: range.end + 1 } } });
+    const range2 = page2.marks.find((m) => m.kind === 'range' && m.ptr === '/records');
+    if (range2?.kind !== 'range') throw new Error('no range');
+    expect(range2.start).toBe(range.end + 1);
+    const back = planner.plan('', { w: 900, h: 500 }, { windows: { '/records': { end: range2.start - 1 } } });
+    const range3 = back.marks.find((m) => m.kind === 'range' && m.ptr === '/records');
+    if (range3?.kind !== 'range') throw new Error('no range');
+    expect(range3.end).toBe(range2.start - 1);
+  });
+
+  it('opens an array as a targetable container, and a scalar under an untargetable bar', () => {
+    const doc: Json = { list: Array.from({ length: 40 }, (_, i) => ({ i })), note: 'hello' };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const plan = planner.plan('/list', { w: 800, h: 400 });
+    expect(plan.marks[0]).toMatchObject({ kind: 'frame', arch: 'TB', variant: 'container', outer: true, targetable: true });
+    expect(plan.marks.find((m) => m.kind === 'crumb')).toMatchObject({ ptr: '' });
+    expect(plan.marks.some((m) => m.kind === 'pager' && m.dir === 'next')).toBe(true);
+    const note = planner.plan('/note', { w: 800, h: 400 });
+    expect(note.marks[0]).toMatchObject({ kind: 'frame', variant: 'bar', targetable: false });
+  });
+
+  it('pages the outer side bar when its segments overflow', () => {
+    const doc: Json = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`key${i}`, { a: 1, b: 2 }]));
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const plan = planner.plan('', { w: 600, h: 400 });
+    const up = plan.marks.find((m) => m.kind === 'pager' && m.dir === 'up');
+    const down = plan.marks.find((m) => m.kind === 'pager' && m.dir === 'down');
+    expect(up).toMatchObject({ disabled: true });
+    expect(down).toMatchObject({ disabled: false });
+    const first = plan.marks.filter((m) => m.kind === 'segment').map((m) => m.ptr);
+    if (down?.kind !== 'pager' || !('offset' in down.set)) throw new Error('no offset');
+    const paged = planner.plan('', { w: 600, h: 400 }, { offsets: { '': down.set.offset } });
+    const second = paged.marks.filter((m) => m.kind === 'segment').map((m) => m.ptr);
+    expect(second[0]).not.toBe(first[0]);
+    expect(second.some((p) => first.includes(p))).toBe(false);
+  });
+
   it('draws every arch variant as a closed path', () => {
     const g = { bar: 24, side: 8, sideR: 12, outer: 22, inner: 10 };
-    for (const v of ['LT', 'RT', 'LB', 'RB', 'LTR', 'T'] as const) {
+    for (const v of ['LT', 'RT', 'LB', 'RB', 'LTR', 'T', 'TB'] as const) {
       const d = archPath(v, 300, 120, g);
       expect(d.startsWith('M')).toBe(true);
       expect(d.endsWith('Z')).toBe(true);
