@@ -1,5 +1,5 @@
 /** Draws a laid-out paragraph as DOM elements. The browser never re-wraps it. */
-import type { Line, Paragraph } from './typeset';
+import type { Line, Paragraph } from './typeset.js';
 
 export interface RenderOptions {
   lineHeight: number;

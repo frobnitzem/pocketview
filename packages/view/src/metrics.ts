@@ -9,7 +9,7 @@ import type { Mark, Metrics, TextStyle, Variant } from '@pocketview/core';
 import { markdownVariant, renderMarkdown, type MarkdownData } from '@pocketview/markdown';
 import { canvasMeasure, prepare, type Prepared } from '@pocketview/typeset';
 import { englishUS } from '@pocketview/typeset/en-us';
-import { FONT, FONT_SIZE, LINE_HEIGHT } from './text';
+import { FONT, FONT_SIZE, LINE_HEIGHT } from './text.js';
 
 export const KEY_FONT = '600 14px Antonio';
 const KEY_TRACKING = 0.05 * 14; // letter-spacing of key labels (.05em), per character

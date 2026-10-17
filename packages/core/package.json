@@ -1,13 +1,50 @@
 {
   "name": "@pocketview/core",
-  "version": "0.2.0",
-  "private": true,
-  "type": "module",
+  "version": "2.0.0",
+  "description": "The pocketview layout engine: size options per JSON node (Pareto fronts), a top-down plan of positioned marks, and display variants as plugins. No DOM.",
+  "keywords": [
+    "json",
+    "layout",
+    "tree",
+    "viewer",
+    "pareto",
+    "plugins"
+  ],
+  "author": "David M. Rogers",
   "license": "Apache-2.0",
+  "homepage": "https://frobnitzem.github.io/pocketview/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frobnitzem/pocketview.git",
+    "directory": "packages/core"
+  },
+  "bugs": "https://github.com/frobnitzem/pocketview/issues",
+  "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "node ../../scripts/package-files.mjs --clean && tsc -p tsconfig.build.json && node ../../scripts/package-files.mjs",
+    "prepack": "pnpm run build",
     "test": "vitest run",
     "typecheck": "tsc -p ."
   },

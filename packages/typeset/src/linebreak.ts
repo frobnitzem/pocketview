@@ -4,7 +4,7 @@
  * Follows D. E. Knuth and M. F. Plass, "Breaking Paragraphs into Lines"
  * (1981), as earlier ported to JavaScript by Bram Stein (typeset, BSD).
  */
-import { INFINITY, isForced, type Node } from './nodes';
+import { INFINITY, isForced, type Node } from './nodes.js';
 
 export interface BreakOptions {
   /** Largest adjustment ratio accepted for a line. */

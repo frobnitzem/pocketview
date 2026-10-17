@@ -17,7 +17,7 @@ function licenses(): Plugin {
   };
   // The embeddable bundle (built first by `pnpm build`), used by embed.html.
   for (const name of ['pocketview.js', 'pocketview.css', ...Object.keys(LICENSES)]) {
-    files[`lib/${name}`] = here(`../../packages/view/dist/${name}`);
+    files[`lib/${name}`] = here(`../../packages/view/bundle/${name}`);
   }
   return {
     name: 'pocketview-licenses',

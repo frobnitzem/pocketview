@@ -1,15 +1,60 @@
 {
   "name": "@pocketview/view",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
+  "version": "2.0.0",
+  "description": "Embeddable JSON and YAML viewer: publication-quality typesetting, an automatic layout that decides what to show, and navigation that never gets stuck.",
+  "keywords": [
+    "json",
+    "yaml",
+    "viewer",
+    "json-viewer",
+    "typesetting",
+    "layout",
+    "lcars",
+    "embed"
+  ],
+  "author": "David M. Rogers",
   "license": "Apache-2.0",
+  "homepage": "https://frobnitzem.github.io/pocketview/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frobnitzem/pocketview.git",
+    "directory": "packages/view"
+  },
+  "bugs": "https://github.com/frobnitzem/pocketview/issues",
+  "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./style.css": "./src/pocketview.css"
   },
+  "sideEffects": [
+    "*.css",
+    "./dist/index.js",
+    "./src/index.ts"
+  ],
+  "files": [
+    "dist",
+    "src",
+    "bundle",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./style.css": "./dist/pocketview.css"
+    }
+  },
   "scripts": {
-    "build": "vite build",
+    "build": "node ../../scripts/package-files.mjs --clean && tsc -p tsconfig.build.json && node ../../scripts/package-files.mjs pocketview.css",
+    "bundle": "vite build",
+    "prepack": "pnpm run build && pnpm run bundle",
     "test": "vitest run",
     "typecheck": "tsc -p ."
   },

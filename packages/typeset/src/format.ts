@@ -1,7 +1,7 @@
 /** Turns plain text into Knuth–Plass boxes, glue and penalties. */
-import type { Hyphenator } from './hyphenate';
-import type { Measure } from './measure';
-import { box, FILL, glue, INFINITY, penalty, type Node } from './nodes';
+import type { Hyphenator } from './hyphenate.js';
+import type { Measure } from './measure.js';
+import { box, FILL, glue, INFINITY, penalty, type Node } from './nodes.js';
 
 export type Align = 'justify' | 'left';
 

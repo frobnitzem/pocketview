@@ -48,12 +48,13 @@ function woff2Only(): Plugin {
 }
 
 /**
- * The embeddable bundle: dist/pocketview.js (an ES module with every
- * dependency included) and dist/pocketview.css (with its fonts inlined).
+ * The embeddable bundle: bundle/pocketview.js (an ES module with every
+ * dependency included) and bundle/pocketview.css (with its fonts inlined).
  */
 export default defineConfig({
   plugins: [woff2Only(), licenses()],
   build: {
+    outDir: 'bundle',
     lib: { entry: 'src/index.ts', formats: ['es'], fileName: () => 'pocketview.js', cssFileName: 'pocketview' },
     chunkSizeWarningLimit: 1000,
   },

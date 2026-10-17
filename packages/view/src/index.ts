@@ -10,12 +10,12 @@
  */
 import './pocketview.css';
 import type { Json } from '@pocketview/core';
-import { Viewer, type ViewerOptions } from './viewer';
+import { Viewer, type ViewerOptions } from './viewer.js';
 
-export { Viewer, fontsReady, type Listener, type Shown, type ViewerEvent, type ViewerOptions } from './viewer';
-export type { Change, ChangeType, Spec, State } from './rules';
-export { THEMES, type Theme, type ViewSettings } from './options';
-export type { ViewStats } from './text';
+export { Viewer, fontsReady, type Listener, type Shown, type ViewerEvent, type ViewerOptions } from './viewer.js';
+export type { Change, ChangeType, Spec, State } from './rules.js';
+export { THEMES, type Theme, type ViewSettings } from './options.js';
+export type { ViewStats } from './text.js';
 export type { Json } from '@pocketview/core';
 
 /** Turns `element` into a viewer (see `Viewer`). */

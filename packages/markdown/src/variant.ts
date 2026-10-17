@@ -1,5 +1,5 @@
 import type { Option, Variant } from '@pocketview/core';
-import { isMarkdown } from './detect';
+import { isMarkdown } from './detect.js';
 
 export interface MarkdownOptions {
   /**

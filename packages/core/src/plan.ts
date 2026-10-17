@@ -3,11 +3,11 @@
  * per visible node and give every visible element a rectangle. The result
  * (the marked tree, as a flat list of marks) is all a renderer needs.
  */
-import { bestFit } from './frontier';
-import { ancestors, find, isLeaf, replaceAt, type Json, type Kind, type TreeNode } from './json';
-import { badge, flow, Measurer, type ArrayWindow, type Option, type Row, type Rows, type Value } from './measure';
-import { defaultTheme, type ArchGeometry, type Metrics, type TextStyle, type Theme } from './theme';
-import type { Variant } from './variant';
+import { bestFit } from './frontier.js';
+import { ancestors, find, isLeaf, replaceAt, type Json, type Kind, type TreeNode } from './json.js';
+import { badge, flow, Measurer, type ArrayWindow, type Option, type Row, type Rows, type Value } from './measure.js';
+import { defaultTheme, type ArchGeometry, type Metrics, type TextStyle, type Theme } from './theme.js';
+import type { Variant } from './variant.js';
 
 /** Arch shapes; 'TB' is the array container (top and bottom bars), 'T' a bar alone. */
 export type ArchVariant = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T' | 'TB';

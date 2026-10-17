@@ -1,9 +1,9 @@
 /** High-level API: prepare a text once, lay it out at any width. */
-import { format, type Align, type FormatOptions } from './format';
-import type { Hyphenator } from './hyphenate';
-import { breakGreedy, breakLines, lineStartAfter, type Break, type BreakOptions } from './linebreak';
-import type { Measure } from './measure';
-import type { Node } from './nodes';
+import { format, type Align, type FormatOptions } from './format.js';
+import type { Hyphenator } from './hyphenate.js';
+import { breakGreedy, breakLines, lineStartAfter, type Break, type BreakOptions } from './linebreak.js';
+import type { Measure } from './measure.js';
+import type { Node } from './nodes.js';
 
 export interface TypesetOptions {
   measure: Measure;

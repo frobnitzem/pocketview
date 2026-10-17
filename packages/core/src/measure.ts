@@ -13,10 +13,10 @@
  * container's cache intact, and a replaced subtree brings new node objects
  * with empty caches.
  */
-import { pareto, type Point } from './frontier';
-import { isLeaf, type TreeNode } from './json';
-import type { Metrics, TextStyle, Theme } from './theme';
-import { builtinVariants, type Variant } from './variant';
+import { pareto, type Point } from './frontier.js';
+import { isLeaf, type TreeNode } from './json.js';
+import type { Metrics, TextStyle, Theme } from './theme.js';
+import { builtinVariants, type Variant } from './variant.js';
 
 export interface Tag {
   node: TreeNode;

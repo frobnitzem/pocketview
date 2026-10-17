@@ -6,9 +6,9 @@
  */
 import { archPath, NAVIGABLE, OUTER, type Kind, type Mark, type Plan } from '@pocketview/core';
 import { renderLines } from '@pocketview/typeset';
-import { RENDERERS, type BrowserMetrics } from './metrics';
-import type { Input } from './rules';
-import { LINE_HEIGHT } from './text';
+import { RENDERERS, type BrowserMetrics } from './metrics.js';
+import type { Input } from './rules.js';
+import { LINE_HEIGHT } from './text.js';
 
 const SCROLLBAR = 14; // width kept free for a scroll box's scrollbar
 

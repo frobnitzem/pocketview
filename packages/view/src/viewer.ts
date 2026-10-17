@@ -9,14 +9,14 @@
  */
 import { buildTree, isShown as shownIn, OUTER, Planner, type Json, type Plan, type Viewport } from '@pocketview/core';
 import { isMarkdown } from '@pocketview/markdown';
-import { addTooltips, blink, drawPlan } from './draw';
-import { browserMetrics, KEY_FONT, plugins } from './metrics';
-import type { Theme, ViewSettings } from './options';
+import { addTooltips, blink, drawPlan } from './draw.js';
+import { browserMetrics, KEY_FONT, plugins } from './metrics.js';
+import type { Theme, ViewSettings } from './options.js';
 import {
   decide, expand, initialState, minify, open, pageBy, prune, setTarget, settleWindows,
   type Change, type ChangeType, type Context, type Input, type Outcome, type Pager, type Spec, type State,
-} from './rules';
-import { FONT, TextView, type ViewStats } from './text';
+} from './rules.js';
+import { FONT, TextView, type ViewStats } from './text.js';
 
 export interface ViewerOptions extends Partial<ViewSettings> {
   /** Colour scheme (default 'pastel'). */

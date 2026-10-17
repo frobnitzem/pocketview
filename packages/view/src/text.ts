@@ -4,7 +4,7 @@
  */
 import { canvasMeasure, prepare, renderLine, type Line, type Paragraph, type Prepared } from '@pocketview/typeset';
 import { englishUS } from '@pocketview/typeset/en-us';
-import type { ViewSettings as Settings } from './options';
+import type { ViewSettings as Settings } from './options.js';
 
 export const FONT_SIZE = 18;
 export const LINE_HEIGHT = 28;

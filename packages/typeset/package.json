@@ -1,18 +1,59 @@
 {
   "name": "@pocketview/typeset",
-  "version": "0.2.0",
-  "private": true,
-  "type": "module",
+  "version": "2.0.0",
+  "description": "Knuth-Plass line breaking with hyphenation, for justified paragraphs in the browser.",
+  "keywords": [
+    "typesetting",
+    "knuth-plass",
+    "line-breaking",
+    "hyphenation",
+    "justify",
+    "typography"
+  ],
+  "author": "David M. Rogers",
   "license": "Apache-2.0",
+  "homepage": "https://frobnitzem.github.io/pocketview/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frobnitzem/pocketview.git",
+    "directory": "packages/typeset"
+  },
+  "bugs": "https://github.com/frobnitzem/pocketview/issues",
+  "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./en-us": "./src/en-us.ts"
   },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./en-us": {
+        "types": "./dist/en-us.d.ts",
+        "default": "./dist/en-us.js"
+      }
+    }
+  },
   "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsc -p .",
+    "build": "node ../../scripts/package-files.mjs --clean && tsc -p tsconfig.build.json && node ../../scripts/package-files.mjs hyphen.d.ts",
     "demo": "vite",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "prepack": "pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
   },
   "dependencies": {
     "hyphen": "^1.14.1"

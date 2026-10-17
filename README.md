@@ -31,24 +31,38 @@ The layout fills that box exactly and never scrolls the page; only long
 text scrolls, inside its own frame. When the box is resized, the layout is
 redone.
 
-### From the built bundle
+### From npm
 
-The demo site serves the bundle: one ES module with every dependency
-included, and one stylesheet with the fonts inlined. Copy both files, and
-the `licenses/` folder beside them, to your own server, so your page
-doesn't change when the demo is updated.
+```sh
+npm install @pocketview/view
+```
 
-- https://frobnitzem.github.io/pocketview/lib/pocketview.js
-- https://frobnitzem.github.io/pocketview/lib/pocketview.css
+```ts
+import { mount } from '@pocketview/view'; // its styles come with it
+```
 
-The bundle is also built by `pnpm --filter @pocketview/view build`, into
-`packages/view/dist`.
+`@pocketview/core` (the layout engine, with no DOM), `@pocketview/typeset`
+(Knuth-Plass line breaking) and `@pocketview/markdown` (the Markdown
+plugin) are published too.
+
+### From a CDN, or the built bundle
+
+Without a bundler, use the single-file bundle: one ES module with every
+dependency included, and one stylesheet with the fonts inlined. It ships
+in the npm package under `bundle/`, so a CDN serves it at a fixed version:
+
+- https://cdn.jsdelivr.net/npm/@pocketview/view@2/bundle/pocketview.js
+- https://cdn.jsdelivr.net/npm/@pocketview/view@2/bundle/pocketview.css
+
+The demo site also serves the latest build at `lib/`. To host it yourself,
+copy both files and the `licenses/` folder beside them. The bundle is built
+by `pnpm --filter @pocketview/view bundle`, into `packages/view/bundle`.
 
 ```html
-<link rel="stylesheet" href="/vendor/pocketview.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@pocketview/view@2/bundle/pocketview.css">
 <div id="box" style="width: 720px; height: 480px"></div>
 <script type="module">
-  import { mount } from '/vendor/pocketview.js';
+  import { mount } from 'https://cdn.jsdelivr.net/npm/@pocketview/view@2/bundle/pocketview.js';
   const viewer = mount(document.getElementById('box'), { name: 'Ada', born: 1815 }, { label: 'person' });
 </script>
 ```
@@ -56,16 +70,6 @@ The bundle is also built by `pnpm --filter @pocketview/view build`, into
 There is a working example at
 https://frobnitzem.github.io/pocketview/embed.html (its source is
 `apps/demo/public/embed.html`).
-
-### From source, with a bundler
-
-The packages are not published to npm yet. In a pnpm workspace (or by
-copying `packages/` into one), depend on `@pocketview/view` and import it.
-Its stylesheet comes with the module:
-
-```ts
-import { mount } from '@pocketview/view';
-```
 
 ### API
 
@@ -148,6 +152,16 @@ The bundle includes third-party code under its own licences: markdown-it
 (MIT), DOMPurify (Apache-2.0), hyphen and its en-us patterns, and the
 Antonio and Source Serif 4 fonts (OFL). Their notices are in `licenses/`
 next to the bundle; keep them with it.
+
+## Plugins
+
+How a node is displayed is decided by display variants, and every variant,
+built in or not, is a plugin (`Variant` in `@pocketview/core`). A plugin
+matches the nodes it understands (by shape, schema or content) with a
+priority, and offers size options for them. The layout then chooses among
+them like any other options. When plugins match both a node and something
+inside it, the outermost node wins. `@pocketview/markdown` is the
+reference plugin. See "Variants and plugins" in `DESIGN.md`.
 
 The original 2017 prototype is on the `archive` branch.
 

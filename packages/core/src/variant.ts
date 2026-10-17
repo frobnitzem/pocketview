@@ -13,8 +13,8 @@
  * child back to the engine (`m.childOptions`). Conflicts therefore resolve in
  * favour of the outermost matching node, which usually has the richer display.
  */
-import { isLeaf, type TreeNode } from './json';
-import type { Measurer, Option } from './measure';
+import { isLeaf, type TreeNode } from './json.js';
+import type { Measurer, Option } from './measure.js';
 
 export interface Variant {
   /** Unique id, e.g. 'core/frame' or 'markdown'. Marks of custom variants carry it. */

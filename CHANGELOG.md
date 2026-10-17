@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 (2026-10-17)
+
+Published to npm as `@pocketview/view` (the embeddable viewer),
+`@pocketview/core` (the layout engine), `@pocketview/typeset` (line
+breaking) and `@pocketview/markdown` (the Markdown plugin). Breaking
+changes from 1.0: `Planner.plan(spec, viewport)` takes a `LayoutSpec`, the
+outermost frame's slot is `""`, and the viewer moved from the demo into
+`@pocketview/view`.
+
+- Packages ship compiled ES modules with type declarations (`dist/`); the
+  view package also ships its single-file bundle (`bundle/`) for use from
+  a CDN. A GitHub release publishes them (`.github/workflows/release.yml`).
 
 - `@pocketview/view`: the viewer as an embeddable package. `mount(element,
   value, options)` fills a fixed-size element and returns a `Viewer`

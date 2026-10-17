@@ -2,8 +2,8 @@
  * SVG paths for arch frames. Every variant is one closed path: rounded outer
  * elbow, concave inner corner, and a half-circle cap at a bar's open end.
  */
-import type { ArchVariant } from './plan';
-import type { ArchGeometry } from './theme';
+import type { ArchVariant } from './plan.js';
+import type { ArchGeometry } from './theme.js';
 
 type Seg = { t: 'M' | 'L'; x: number; y: number } | { t: 'A'; r: number; x: number; y: number; sweep: 0 | 1 };
 
