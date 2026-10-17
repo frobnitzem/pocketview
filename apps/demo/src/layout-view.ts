@@ -102,6 +102,7 @@ export class LayoutView {
   private offsets: Record<string, number> = {};
   private plan: Plan | null = null;
   private drawnKey = '';
+  private plannedKey = '';
   private readonly observer = new ResizeObserver(() => this.render());
 
   constructor(private readonly scroller: HTMLElement, private settings: Settings, private onFocus: (ptr: string) => void) {
@@ -234,8 +235,8 @@ export class LayoutView {
       const outer = this.plan?.marks.find((m) => m.kind === 'frame' && m.outer);
       if (outer?.kind === 'frame' && !outer.targetable) return this.blink(); // an opened scalar
     }
+    // Targeting changes how clicks act, not what is shown: no re-plan.
     this.targetPtr = this.targetPtr === slot ? null : slot;
-    this.expanded = [];
     this.render();
   }
 
@@ -280,6 +281,7 @@ export class LayoutView {
     const range = this.plan?.marks.find((m) => m.kind === 'range' && m.ptr === mark.ptr);
     if (range?.kind === 'range' && 'window' in mark.set && 'end' in mark.set.window) {
       this.windows = { ...this.windows, [mark.ptr]: { start: range.start } };
+      this.plannedKey = this.planKey();
       this.drawnKey = this.stateKey();
     }
   }
@@ -294,10 +296,15 @@ export class LayoutView {
     };
   }
 
-  private stateKey(): string {
+  /** Everything the plan depends on. */
+  private planKey(): string {
     const { w, h } = this.viewport();
-    const vp = [w, h];
-    return JSON.stringify([this.root, this.targetPtr, this.views, this.expanded, this.windows, this.offsets, vp]);
+    return JSON.stringify([this.root, this.views, this.expanded, this.windows, this.offsets, [w, h]]);
+  }
+
+  /** Everything the drawing depends on: the plan, and which container is the target. */
+  private stateKey(): string {
+    return JSON.stringify([this.planKey(), this.targetPtr]);
   }
 
   /** Flashes the outermost border: some enclosure must be targeted first. */
@@ -331,9 +338,13 @@ export class LayoutView {
     const key = this.stateKey();
     if (key === this.drawnKey && this.scroller.firstChild) return;
     this.drawnKey = key;
-    this.plan = this.planner.plan(this.root, vp, {
-      expanded: this.expanded, windows: this.windows, offsets: this.offsets, views: this.views,
-    });
+    const planKey = this.planKey();
+    if (!this.plan || planKey !== this.plannedKey) {
+      this.plannedKey = planKey;
+      this.plan = this.planner.plan(this.root, vp, {
+        expanded: this.expanded, windows: this.windows, offsets: this.offsets, views: this.views,
+      });
+    }
     // A nested target that is no longer on the page hands back to the root.
     const t = this.targetPtr;
     if (t !== null && t !== this.root && !this.plan.marks.some((m) => m.kind === 'frame' && m.slot === t)) {

@@ -339,3 +339,20 @@ test('bar segments abut, with background borders between them', async ({ page })
   for (let i = 1; i < crumbs.length; i++) expect(Math.abs(crumbs[i]!.l - crumbs[i - 1]!.r)).toBeLessThan(0.5);
   await page.screenshot({ path: 'test-results/role-crumbs.png' });
 });
+
+test('targeting never re-plans: what was expanded stays', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 420 });
+  await ready(page);
+  await example(page, 'An object (YAML)');
+  await border(page, '');
+  await page.locator('.pv-segment', { hasText: /^packages/i }).click();
+  const shown = page.locator('.pv-title', { hasText: /^packages$/ });
+  await expect(shown).toHaveCount(1);
+  const before = await page.locator('.pv-layout > *').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
+  const slot = await page.locator('.pv-frame:not(.outer)').first().getAttribute('data-slot');
+  await border(page, slot!);
+  await expect(page.locator('.pv-frame.target:not(.outer)')).toHaveCount(1);
+  await expect(shown).toHaveCount(1);
+  const after = await page.locator('.pv-layout > *').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
+  expect(after).toEqual(before);
+});
