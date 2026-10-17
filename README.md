@@ -13,6 +13,7 @@ are laid out in arch frames and can be navigated by clicking.
   and the display-variant plugin interface.
 - `packages/markdown`: the Markdown plugin (detection, sanitized rendering).
 - `packages/view`: the embeddable viewer (`mount()`), its styles and fonts.
+- `packages/pocketview`: the same viewer under the short npm name `pocketview`.
 - `apps/demo`: the demo site, published to the `gh-pages` branch by
   `.github/workflows/pages.yml`.
 
@@ -34,13 +35,14 @@ redone.
 ### From npm
 
 ```sh
-npm install @pocketview/view
+npm install pocketview
 ```
 
 ```ts
-import { mount } from '@pocketview/view'; // its styles come with it
+import { mount } from 'pocketview'; // its styles come with it
 ```
 
+`pocketview` is `@pocketview/view` under a shorter name; either works.
 `@pocketview/core` (the layout engine, with no DOM), `@pocketview/typeset`
 (Knuth-Plass line breaking) and `@pocketview/markdown` (the Markdown
 plugin) are published too.

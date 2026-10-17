@@ -2,7 +2,7 @@
 
 ## 2.0.0 (2026-10-17)
 
-Published to npm as `@pocketview/view` (the embeddable viewer),
+Published to npm as `pocketview` and `@pocketview/view` (the embeddable viewer),
 `@pocketview/core` (the layout engine), `@pocketview/typeset` (line
 breaking) and `@pocketview/markdown` (the Markdown plugin). Breaking
 changes from 1.0: `Planner.plan(spec, viewport)` takes a `LayoutSpec`, the
