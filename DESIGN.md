@@ -39,9 +39,9 @@ it means replacing a subtree, never mutating the caller's object.
   depth limit). A list, since several can be expanded.
 - `minified`: nodes to show collapsed (a chip or side-bar segment) even
   when there is room. The outermost choice wins: a minified node hides
-  everything inside it, expanded or not. The rules keep the two lists
-  apart (expanding a node un-minifies it and its ancestors; minifying one
-  drops what was expanded inside it).
+  everything inside it, expanded or not. Expanding a node un-minifies it
+  and its ancestors. Minifying one keeps what was expanded inside it on
+  the list, hidden, so expanding it again restores the same priorities.
 - `windows` and `offsets`: where array containers and the outer side bar
   are paged to.
 

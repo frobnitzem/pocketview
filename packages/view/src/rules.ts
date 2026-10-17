@@ -176,7 +176,8 @@ function crumb(slot: string, ptr: string, state: State, ctx: Context): Outcome {
  */
 export function expand(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
-  if (spec.expanded.includes(ptr) || !find(ctx.tree, ptr)) return { refuse: ptr };
+  const hidden = spec.minified.some((m) => within(ptr, m)); // it, or an ancestor, is minified
+  if (!find(ctx.tree, ptr) || (spec.expanded.includes(ptr) && !hidden)) return { refuse: ptr };
   const windows = { ...spec.windows };
   for (let n = find(ctx.tree, ptr); n?.parent; n = n.parent) {
     if (n.parent.kind === 'array') windows[n.parent.ptr] = { start: Number(n.label) };
@@ -187,7 +188,7 @@ export function expand(ptr: string, state: State, ctx: Context): Outcome {
       spec: {
         ...spec,
         windows,
-        expanded: [...spec.expanded, ptr],
+        expanded: spec.expanded.includes(ptr) ? spec.expanded : [...spec.expanded, ptr],
         // It and its ancestors must be drawn to show it.
         minified: spec.minified.filter((p) => !within(ptr, p)),
       },
@@ -203,13 +204,14 @@ export function expand(ptr: string, state: State, ctx: Context): Outcome {
  */
 function toggle(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
-  const shrink = spec.expanded.includes(ptr) || (!spec.minified.includes(ptr) && isShown(ctx.plan, ptr));
+  const shrink = !spec.minified.includes(ptr) && (spec.expanded.includes(ptr) || isShown(ctx.plan, ptr));
   return shrink ? minify(ptr, state, ctx) : expand(ptr, state, ctx);
 }
 
 /**
  * Minifies `ptr`: it is collapsed (a chip or side-bar segment) even when
- * there is room, and nothing inside it stays expanded.
+ * there is room. What is expanded inside it stays on the list, hidden
+ * while it is minified, so expanding it again restores the same priorities.
  */
 export function minify(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
@@ -217,11 +219,7 @@ export function minify(ptr: string, state: State, ctx: Context): Outcome {
   return {
     state: {
       ...state,
-      spec: {
-        ...spec,
-        expanded: spec.expanded.filter((p) => !within(p, ptr)),
-        minified: [...spec.minified, ptr],
-      },
+      spec: { ...spec, minified: [...spec.minified, ptr] },
     },
     change: { type: 'minify', path: ptr },
     // Elements of a bare array have nowhere to collapse to.

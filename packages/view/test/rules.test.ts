@@ -81,7 +81,22 @@ describe('interaction rules', () => {
     const again = run([{ on: 'chip', ptr: '/a' }], state);
     expect(again.state.spec).toMatchObject({ minified: [], expanded: ['/a'] });
     const off = run([{ on: 'key', ptr: '/a' }], again.state); // expanded: minified again
-    expect(off.state.spec).toMatchObject({ minified: ['/a'], expanded: [] });
+    expect(off.state.spec).toMatchObject({ minified: ['/a'], expanded: ['/a'] });
+  });
+
+  it('minifying keeps what is expanded inside, hidden; expanding again restores it', () => {
+    const untargeted: State = { ...initialState(), target: null };
+    const inner = run([{ on: 'chip', ptr: '/a/b' }], untargeted).state;
+    expect(inner.spec.expanded).toEqual(['/a/b']);
+    const mini = run([{ on: 'title', ptr: '/a' }], inner);
+    expect(mini.state.spec).toMatchObject({ minified: ['/a'], expanded: ['/a/b'] });
+    expect(isShown(mini.plan, '/a/b')).toBe(false); // the outermost choice wins
+    const back = run([{ on: 'chip', ptr: '/a' }], mini.state);
+    expect(back.state.spec).toMatchObject({ minified: [], expanded: ['/a/b', '/a'] });
+    expect(isShown(back.plan, '/a/b')).toBe(true);
+    // Expanding something inside a minified node un-minifies its ancestors.
+    const deep = run([{ on: 'title', ptr: '/a' }, { on: 'chip', ptr: '/a/b' }], untargeted);
+    expect(deep.state.spec.minified).toEqual([]);
   });
 
   it('expanding pages array ancestors to the element; expanding twice is refused', () => {
