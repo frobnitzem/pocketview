@@ -30,6 +30,11 @@ used inside the engine, in the layout spec, and in events.
 **Document.** The JSON value, and a tree of nodes built from it (`ptr`,
 `label`, `value`, `kind`, `children`). It is treated as immutable: changing
 it means replacing a subtree, never mutating the caller's object.
+`update(path, value)` reconciles the new value with the tree: nodes whose
+content is unchanged are kept (with their cached sizes), changed nodes and
+their ancestors are re-measured, and the ancestors' values are copied with
+the new part in place. The layout spec is then pruned of pointers that no
+longer resolve.
 
 **Layout spec** (`LayoutSpec` in core). Only what the user chose:
 - `views`: what each container on the page shows, as slot → node. The slot

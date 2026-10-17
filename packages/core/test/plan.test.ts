@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { archPath, buildTree, isShown, pareto, Planner, type Json, type Variant } from '../src/index';
+import { archPath, buildTree, find, isShown, pareto, Planner, replaceAt, type Json, type Variant } from '../src/index';
 import { fakeMetrics } from './helpers';
 
 const PKG: Json = {
@@ -221,5 +221,18 @@ describe('planner', () => {
     expect(measured).toBe(first);
     planner.plan({ minified: ['/b/u'] }, vp); // inside /b: measured again
     expect(measured).toBeGreaterThan(first);
+  });
+
+  it('updates a node in place, keeping the nodes (and sizes) of unchanged parts', () => {
+    const doc: Json = { a: { x: 1, y: { deep: true } }, b: [1, 2, 3], c: 'text' };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const keptY = find(planner.tree, '/a/y');
+    const changed: string[] = [];
+    expect(replaceAt(planner.tree, '/a', { x: 2, y: { deep: true } }, (n) => changed.push(n.ptr))).toBe(true);
+    expect(find(planner.tree, '/a/y')).toBe(keptY); // equal content: the same node
+    expect(changed.sort()).toEqual(['', '/a', '/a/x']);
+    expect(planner.tree.value).toEqual({ a: { x: 2, y: { deep: true } }, b: [1, 2, 3], c: 'text' });
+    expect(doc).toEqual({ a: { x: 1, y: { deep: true } }, b: [1, 2, 3], c: 'text' }); // never mutated
+    expect(planner.update('/nowhere', 1)).toBe(false);
   });
 });

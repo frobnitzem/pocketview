@@ -41,7 +41,7 @@ export type Input =
   /** Escape: the target shows its node's parent. */
   | { on: 'up' };
 
-export type ChangeType = 'target' | 'open' | 'expand' | 'minify' | 'page' | 'refuse';
+export type ChangeType = 'target' | 'open' | 'expand' | 'minify' | 'page' | 'update' | 'refuse';
 
 /** What an action did, as reported to listeners. */
 export interface Change {
@@ -276,4 +276,35 @@ export function settleWindows(spec: Spec, plan: Plan): Spec {
     windows[ptr] = { start: range.start };
   }
   return windows ? { ...spec, windows } : spec;
+}
+
+/**
+ * After the document changed: annotations whose nodes are gone are dropped.
+ * The outermost frame falls back to the nearest ancestor that still exists,
+ * and a nested target that no longer exists hands back to it.
+ */
+export function prune(state: State, tree: TreeNode): State {
+  const { spec } = state;
+  const node = (p: string) => find(tree, p);
+  const exists = (p: string) => node(p) !== undefined;
+  let root = rootOf(spec);
+  while (!exists(root)) root = root.slice(0, root.lastIndexOf('/'));
+  const views: Record<string, string> = {};
+  for (const [slot, ptr] of Object.entries(spec.views)) {
+    if (slot !== OUTER && exists(ptr) && below(ptr, slot) && (node(slot)?.children.length ?? 0) > 0) views[slot] = ptr;
+  }
+  if (root !== '') views[OUTER] = root;
+  const keep = <T>(rec: Record<string, T>) => Object.fromEntries(Object.entries(rec).filter(([k]) => exists(k)));
+  const target = state.target === null || state.target === OUTER || (node(state.target)?.children.length ?? 0) > 0
+    ? state.target : OUTER;
+  return {
+    target,
+    spec: {
+      views,
+      expanded: spec.expanded.filter(exists),
+      minified: spec.minified.filter(exists),
+      windows: keep(spec.windows),
+      offsets: keep(spec.offsets),
+    },
+  };
 }

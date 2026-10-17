@@ -4,7 +4,7 @@
  * (the marked tree, as a flat list of marks) is all a renderer needs.
  */
 import { bestFit } from './frontier';
-import { ancestors, find, isLeaf, type Kind, type TreeNode } from './json';
+import { ancestors, find, isLeaf, replaceAt, type Json, type Kind, type TreeNode } from './json';
 import { badge, flow, Measurer, type ArrayWindow, type Option, type Row, type Rows, type Value } from './measure';
 import { defaultTheme, type ArchGeometry, type Metrics, type TextStyle, type Theme } from './theme';
 import type { Variant } from './variant';
@@ -156,6 +156,15 @@ export class Planner {
   /** `plugins`: display variants tried alongside the built-in ones (see `Variant`). */
   constructor(readonly tree: TreeNode, readonly metrics: Metrics, readonly theme: Theme = defaultTheme, plugins: readonly Variant[] = []) {
     this.measurer = new Measurer(metrics, theme, plugins);
+  }
+
+  /**
+   * Replaces the value at `ptr` (see `replaceAt`): sizes cached for the
+   * unchanged parts are kept, those of changed nodes and their ancestors
+   * are forgotten. Returns false if there is no node at `ptr`.
+   */
+  update(ptr: string, value: Json): boolean {
+    return replaceAt(this.tree, ptr, value, (node) => this.measurer.forget(node));
   }
 
   /** Lays out the document for `spec` in a viewport: a pure function of the two. */

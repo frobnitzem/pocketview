@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTree, isShown, OUTER, Planner, type Json, type Plan } from '@pocketview/core';
 import { fakeMetrics } from '../../core/test/helpers';
-import { decide, expand, initialState, minify, pageBy, setTarget, settleWindows, type Input, type Outcome, type State } from '../src/rules';
+import { decide, expand, initialState, minify, pageBy, prune, setTarget, settleWindows, type Input, type Outcome, type State } from '../src/rules';
 
 const DOC: Json = {
   name: 'x',
@@ -123,5 +123,20 @@ describe('interaction rules', () => {
     const rooted = run([{ on: 'title', ptr: '/a/b' }]).state;
     expect(run([{ on: 'up' }], rooted).state.spec.views).toEqual({ [OUTER]: '/a' });
     expect(run([{ on: 'up' }]).outcomes[0]).toEqual({ refuse: '' }); // at the document root
+  });
+
+  it('after an update, annotations on nodes that are gone are dropped', () => {
+    const state: State = {
+      target: '/a/b',
+      spec: {
+        views: { [OUTER]: '/a/b/c', '/a/b': '/a/b/d' },
+        expanded: ['/a/e', '/f/g'], minified: ['/a/b/d/z'], windows: {}, offsets: {},
+      },
+    };
+    const smaller = buildTree({ a: { b: 7, e: 1 }, f: { g: 1 } });
+    expect(prune(state, smaller)).toEqual({
+      target: OUTER, // /a/b is no longer a container
+      spec: { views: { [OUTER]: '/a/b' }, expanded: ['/a/e', '/f/g'], minified: [], windows: {}, offsets: {} },
+    });
   });
 });

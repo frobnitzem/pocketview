@@ -399,6 +399,19 @@ test('the embeddable bundle fills fixed-size boxes on a plain page', async ({ pa
   expect(await api(`viewer.state.target`)).toBe('/author');
   expect(await api(`viewer.open('/author/name')`)).toBe(true);
   expect(await api(`viewer.state.spec.views['/author']`)).toBe('/author/name');
+  expect(await api(`viewer.isShown('/author/name')`)).toBe(true);
+  expect(await api(`viewer.isShown('/author/url')`)).toBe(false);
+  // Updating a node redraws it in place, keeping the navigation.
+  expect(await api(`viewer.update('/author/name', 'Ada Lovelace', true)`)).toBe(true);
+  await expect(page.locator('#log')).toHaveText('update "/author/name"');
+  await expect(box.getByText('Ada Lovelace')).toBeVisible();
+  expect(await api(`viewer.state.target`)).toBe('/author');
+  expect(await api(`viewer.value.author.name`)).toBe('Ada Lovelace');
+  expect(await api(`viewer.update('/nowhere', 1)`)).toBe(false);
+  // Replacing the whole document keeps what still exists.
+  expect(await api(`viewer.update('', { author: { name: 'Grace Hopper' } })`)).toBe(true);
+  await expect(box.getByText('Grace Hopper')).toBeVisible();
+  expect(await api(`viewer.state.spec.views['/author']`)).toBe('/author/name');
   await page.click('#swap');
   await expect(box.locator('.pv-title.outer')).toHaveText('solar system');
   await page.screenshot({ path: 'test-results/embed.png', fullPage: true });

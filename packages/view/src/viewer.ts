@@ -7,13 +7,13 @@
  * and a refused click blinks the outer border instead. The API calls
  * (`target`, `open`, `expand`, `minify`, `page`) run the same actions.
  */
-import { buildTree, OUTER, Planner, type Json, type Plan, type Viewport } from '@pocketview/core';
+import { buildTree, isShown as shownIn, OUTER, Planner, type Json, type Plan, type Viewport } from '@pocketview/core';
 import { isMarkdown } from '@pocketview/markdown';
 import { addTooltips, blink, drawPlan } from './draw';
 import { browserMetrics, KEY_FONT, plugins } from './metrics';
 import type { Theme, ViewSettings } from './options';
 import {
-  decide, expand, initialState, minify, open, pageBy, setTarget, settleWindows,
+  decide, expand, initialState, minify, open, pageBy, prune, setTarget, settleWindows,
   type Change, type ChangeType, type Context, type Input, type Outcome, type Pager, type Spec, type State,
 } from './rules';
 import { FONT, TextView, type ViewStats } from './text';
@@ -50,6 +50,8 @@ export class Viewer {
   /** The plan of the current spec, and the spec and viewport it was made for. */
   private planned: { key: string; plan: Plan } | null = null;
   private drawn = '';
+  /** Counts updates to the document. */
+  private version = 0;
 
   /**
    * Turns `element` into a viewer. With a `value`, it is shown as soon as the
@@ -112,6 +114,41 @@ export class Viewer {
     blink(this.element.querySelector('.pv-layout'));
     if (notify) this.emit({ type: 'refuse', path });
     return true;
+  }
+
+  /**
+   * Replaces the node at `path` with `value`, keeping the navigation and the
+   * sizes of everything unchanged. Annotations on nodes that are gone are
+   * dropped (the outermost frame falls back to the nearest remaining
+   * ancestor). Returns false if there is no node at `path`. The reading view
+   * (a document that is one plain string) only takes `path` "".
+   */
+  update(path: string, value: Json, notify = false): boolean {
+    if (!this.current) return false;
+    if (!this.planner) {
+      if (path !== '') return false;
+      this.show(value, this.current.label);
+    } else {
+      if (!this.planner.update(path, value)) return false;
+      this.current = { value: this.planner.tree.value, label: this.current.label };
+      this.version++;
+      this.now = prune(this.now, this.planner.tree);
+      this.render();
+    }
+    if (notify) this.emit({ type: 'update', path });
+    return true;
+  }
+
+  /** Whether the node at `path` is drawn itself (not only as a chip, segment or breadcrumb). */
+  isShown(path: string): boolean {
+    if (!this.current) return false;
+    if (!this.planner) return path === '';
+    return this.planned !== null && shownIn(this.planned.plan, path);
+  }
+
+  /** The document as currently shown, after any updates (the caller's objects are never mutated). */
+  get value(): Json | undefined {
+    return this.current?.value;
   }
 
   /** Shows a new document, resetting navigation. Fonts must be loaded (see `fontsReady`). */
@@ -244,8 +281,9 @@ export class Viewer {
     addTooltips(root);
   }
 
+  /** What a plan depends on: the document (its version), the spec and the viewport. */
   private keyOf(spec: Spec, vp: Viewport): string {
-    return JSON.stringify([spec, vp.w, vp.h]);
+    return JSON.stringify([this.version, spec, vp.w, vp.h]);
   }
 
   /** The space inside the element's padding: the plan fills it exactly. */

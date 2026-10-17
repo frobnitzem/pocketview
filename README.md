@@ -95,6 +95,9 @@ first package.
 | `minify(path, notify?)` | collapses a node even when there is room |
 | `page(path, dir, notify?)` | pages an array container (`'next'`, `'prev'`) or the side bar (`'down'`, `'up'`) |
 | `refuse(path?, notify?)` | blinks the outer border, as a refused click does |
+| `update(path, value, notify?)` | replaces the node at `path` (`""` for the whole document), keeping the navigation |
+| `isShown(path)` | whether the node is drawn itself, rather than only as a chip, segment or breadcrumb |
+| `value` | the document as currently shown, after any updates |
 | `destroy()` | removes the drawing and stops observing the element |
 
 The action calls run the same rules as clicks, then plan and draw. Each
@@ -104,6 +107,14 @@ call (for example, expanding a node there is no room for) changes nothing
 and doesn't blink. Listeners hear about a call only when `notify` is `true` (the
 default is `false`, so a page reacting to an event can call back without
 looping).
+
+`update` keeps everything about the view that still applies: what each
+container shows, what is expanded, minified and paged, and the target.
+Annotations on nodes that no longer exist are dropped, and if the
+outermost frame's node is gone it shows the nearest remaining ancestor.
+Parts of the document whose content didn't change keep their measured
+sizes, so updating a field of a large document is quick. The value you
+pass is never modified, and neither is the original document.
 
 Events are delivered after the change has been drawn, as
 `{ type, viewer, path, slot? }`:
@@ -115,6 +126,7 @@ Events are delivered after the change has been drawn, as
 | `expand` | a node is expanded in place | the node |
 | `minify` | a node is collapsed even though there is room | the node |
 | `page` | an array container or the side bar moves by a page | the container |
+| `update` | the document changed (only ever from `update`) | the node replaced |
 | `refuse` | a click changed nothing (the outer border blinks) | the node clicked |
 
 Call `show` only after `fontsReady()` has resolved, because the layout is

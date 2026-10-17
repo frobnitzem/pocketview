@@ -20,6 +20,11 @@
   `expand`, `minify`, `page` and `refuse`. Each returns whether it
   succeeded, and notifies listeners only when asked to. The current layout
   spec and target are read from `viewer.state`.
+- `viewer.update(path, value)` replaces part of the document (or all of
+  it) and keeps the navigation; nodes with unchanged content keep their
+  cached sizes (core: `Planner.update`, `replaceAt`). `viewer.isShown(path)`
+  says whether a node is drawn itself; `viewer.value` is the current
+  document. Updates are reported as `update` events when asked.
 - A minified node hides everything inside it: the outermost choice wins.
   Minifying keeps the expanded nodes inside it on the list, so expanding
   it again restores them; expanding a node un-minifies its ancestors.

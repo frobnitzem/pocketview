@@ -176,6 +176,23 @@ describe('navigation contracts', () => {
     }), { numRuns: 100 });
   });
 
+  it('a planner updated in place gives the same plans as one built from the new document', () => {
+    // Replacing a subtree must forget exactly the sizes that changed.
+    fc.assert(fc.property(json, json, viewport, fc.nat(), fc.array(fc.nat(), { maxLength: 2 }), (doc, part, vp, pick, picks) => {
+      const tree = buildTree(doc);
+      const nodes = [...walk(tree)];
+      const target = nodes[pick % nodes.length]!;
+      const spec = { expanded: picks.map((p) => nodes[p % nodes.length]!.ptr) };
+      const planner = new Planner(tree, fakeMetrics);
+      planner.plan(spec, vp); // warm the caches
+      const before = JSON.stringify(doc);
+      expect(planner.update(target.ptr, part)).toBe(true);
+      expect(JSON.stringify(doc)).toBe(before); // the caller's JSON is untouched
+      const fresh = new Planner(buildTree(planner.tree.value), fakeMetrics);
+      expect(planner.plan(spec, vp)).toEqual(fresh.plan(spec, vp));
+    }), { numRuns: 200 });
+  });
+
   it('are deterministic', () => {
     fc.assert(fc.property(json, viewport, (doc, vp) => {
       const tree = buildTree(doc);
