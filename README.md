@@ -88,8 +88,20 @@ first package.
 | `setTheme(theme)` | switches colour scheme (sets `data-theme` on the element) |
 | `configure({ align, diagnostics })` | changes the text settings and redraws |
 | `on(type, listener)` | calls `listener(event)` after each change of that type (or `'*'` for all); returns an unsubscribe function |
-| `spec`, `target` | the current layout spec and target (read only; see DESIGN.md, "Mental model") |
+| `state` | the current layout spec and target, read only (see DESIGN.md, "Mental model") |
+| `target(slot, notify?)` | makes a container on the page the target (`""` for the outermost frame), or none for `null` |
+| `open(path, notify?)` | opens a node into the target; it must lie under what the target shows |
+| `expand(path, notify?)` | expands a node in place |
+| `minify(path, notify?)` | collapses a node even when there is room |
+| `page(path, dir, notify?)` | pages an array container (`'next'`, `'prev'`) or the side bar (`'down'`, `'up'`) |
+| `refuse(path?, notify?)` | blinks the outer border, as a refused click does |
 | `destroy()` | removes the drawing and stops observing the element |
+
+The action calls run the same rules as clicks, then plan and draw. Each
+returns `true` if it succeeded. A failed call changes nothing and doesn't
+blink. Listeners hear about a call only when `notify` is `true` (the
+default is `false`, so a page reacting to an event can call back without
+looping).
 
 Events are delivered after the change has been drawn, as
 `{ type, viewer, path, slot? }`:

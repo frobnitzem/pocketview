@@ -190,7 +190,8 @@ export class Measurer {
   /** Sets the layout spec measured against (the planner does, before each plan). */
   setSpec(spec: MeasureSpec): void {
     this.spec = spec;
-    this.expanded = new Set(spec.expanded);
+    // The outermost choice wins: nothing inside a minified node is expanded.
+    this.expanded = new Set(spec.expanded.filter((p) => !spec.minified.some((m) => within(p, m))));
     this.minified = new Set(spec.minified);
     this.version++;
   }
@@ -230,9 +231,9 @@ export class Measurer {
     return false;
   }
 
-  /** Whether `node` is to be shown collapsed (unless something in it is expanded). */
+  /** Whether `node` is to be shown collapsed. */
   private minifiedNode(node: TreeNode): boolean {
-    return this.minified.has(node.ptr) && !this.prioritized(node);
+    return this.minified.has(node.ptr);
   }
 
   /** The spec inside `node`'s subtree, as a string. */

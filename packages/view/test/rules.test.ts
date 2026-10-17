@@ -2,13 +2,13 @@
 import { describe, expect, it } from 'vitest';
 import { buildTree, isShown, OUTER, Planner, type Json, type Plan } from '@pocketview/core';
 import { fakeMetrics } from '../../core/test/helpers';
-import { decide, initialState, settleWindows, type Input, type Outcome, type State } from '../src/rules';
+import { decide, expand, initialState, minify, pageBy, setTarget, settleWindows, type Input, type Outcome, type State } from '../src/rules';
 
 const DOC: Json = {
   name: 'x',
   a: { b: { c: { x: 1, y: 2 }, d: { z: 3 } }, e: 1 },
   f: { g: 1 },
-  list: Array.from({ length: 40 }, (_, i) => ({ n: i, text: 'some words here' })),
+  list: Array.from({ length: 40 }, (_, i) => `item number ${i} with some words`),
 };
 const tree = buildTree(DOC);
 const planner = new Planner(tree, fakeMetrics);
@@ -84,11 +84,22 @@ describe('interaction rules', () => {
     expect(off.state.spec).toMatchObject({ minified: ['/a'], expanded: [] });
   });
 
-  it('expanding pages array ancestors to the element; a click that changes nothing is refused', () => {
+  it('expanding pages array ancestors to the element; expanding twice is refused', () => {
     const untargeted: State = { ...initialState(), target: null };
     const { state } = run([{ on: 'chip', ptr: '/list/30' }], untargeted);
     expect(state.spec.windows['/list']).toEqual({ start: 30 });
-    expect(run([{ on: 'chip', ptr: '/name' }], untargeted).outcomes[0]).toEqual({ refuse: '/name' }); // already shown
+    expect(run([{ on: 'chip', ptr: '/list/30' }], state).outcomes[0]).toEqual({ refuse: '/list/30' });
+  });
+
+  it('the actions behind the API refuse what cannot be done', () => {
+    const state = initialState();
+    const plan = planner.plan(state.spec, VP);
+    const ctx = { tree, plan };
+    expect(setTarget('/nowhere', state, ctx)).toEqual({ refuse: '/nowhere' }); // not a container on the page
+    expect(setTarget(null, state, ctx)).toMatchObject({ state: { target: null }, change: { type: 'target', path: null } });
+    expect(expand('/nowhere', state, ctx)).toEqual({ refuse: '/nowhere' });
+    expect(minify('', state, ctx)).toEqual({ refuse: '' }); // the root itself
+    expect(pageBy('/list', 'prev', state, ctx)).toMatchObject({ refuse: '/list' }); // no arrow that way
   });
 
   it('escape shows the parent of what the target shows', () => {

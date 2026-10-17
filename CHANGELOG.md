@@ -16,6 +16,13 @@
   one plan and one redraw, then one event: `viewer.on(type, listener)`
   reports `target`, `open`, `expand`, `minify`, `page` and `refuse`, with
   the node's JSON Pointer.
+- Viewer API calls run the same actions as clicks: `target`, `open`,
+  `expand`, `minify`, `page` and `refuse`. Each returns whether it
+  succeeded, and notifies listeners only when asked to. The current layout
+  spec and target are read from `viewer.state`.
+- A minified node hides everything inside it: the outermost choice wins.
+- Solarized: body text is the other mode's panel tone (midnight blue on
+  light, cream on dark), for more contrast.
 - Untargeted, a key or a nested title toggles its node: shown or expanded
   nodes are minified (collapsed even when there is room), minified ones
   expanded. Minified nodes are a new list in the layout spec.

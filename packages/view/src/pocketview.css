@@ -35,12 +35,14 @@
 /*
  * Solarized (https://ethanschoonover.com/solarized/). Light and dark swap
  * the base tones: base03 <-> base3, base02 <-> base2, base01 <-> base1,
- * base00 <-> base0. Backgrounds and body text follow Solarized's own usage;
- * arches and chips take the complementary end of the base scale; key
+ * base00 <-> base0. Backgrounds follow Solarized's own usage. Body text is
+ * the other mode's panel tone (base02 on light, base2 on dark), for more
+ * contrast than Solarized's content tones give; arches and chips take the
+ * complementary end of the base scale; key
  * capsules, a third background, are green. Accents are kept for value text,
  * buttons and the urgent colour.
  *
- * Text is always a content tone or an accent. Arches and chips are
+ * Other text is a content tone or an accent. Arches and chips are
  * inverse-mode surfaces, so their labels use the other mode's content tone
  * (base01 on light arches, base1 on dark ones). The exception is text on
  * a filled accent (key capsules, badges, the urgent bar, the send button):
@@ -49,7 +51,7 @@
  */
 [data-theme="solar-dark"] {
   --bg: #002b36; --panel: #073642; --raised: #0a4251; --line: #586e75;    /* base03, base02 */
-  --ink: #839496; --str: #93a1a1; --muted: #586e75;                       /* base0, base1, base01 */
+  --ink: #eee8d5; --str: #93a1a1; --muted: #586e75;                       /* base2 (light panel), base1, base01 */
   --frame: #fdf6e3; --frame-1: #eee8d5; --frame-2: #d33682;               /* base3, base2, magena */
   --on-frame: #d6c2fd;                                                    /* orange */
   --nav: #93a1a1; --on-nav: #002b36;                                      /* arrays: base1 */
@@ -64,7 +66,7 @@
 }
 [data-theme="solar-light"] {
   --bg: #fdf6e3; --panel: #eee8d5; --raised: #e6dfc9; --line: #93a1a1;    /* base3, base2 */
-  --ink: #657b83; --str: #586e75; --muted: #93a1a1;                       /* base00, base01, base1 */
+  --ink: #073642; --str: #586e75; --muted: #93a1a1;                       /* base02 (dark panel), base01, base1 */
   --frame: #002b36; --frame-1: #073642; --frame-2: #d33682;               /* base03, base02, magenta */
   --on-frame: #d6c2fd;                                                    /* orange */
   --nav: #586e75; --on-nav: #fdf6e3;                                      /* arrays: base01 */

@@ -103,7 +103,11 @@ export interface LayoutSpec {
   views?: Readonly<Record<string, string>>;
   /** Nodes to show in preference to everything else (even past the depth limit). */
   expanded?: readonly string[];
-  /** Nodes to show collapsed, as chips or side-bar segments, even when there is room. */
+  /**
+   * Nodes to show collapsed, as chips or side-bar segments, even when there
+   * is room. The outermost choice wins: expanded nodes inside a minified
+   * one stay hidden.
+   */
   minified?: readonly string[];
   /** Page windows of array containers, by pointer (default: from element 0). */
   windows?: Readonly<Record<string, ArrayWindow>>;

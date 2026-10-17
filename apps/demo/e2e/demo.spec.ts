@@ -385,6 +385,20 @@ test('the embeddable bundle fills fixed-size boxes on a plain page', async ({ pa
   await expect(page.locator('#log')).toHaveText(/^open "\/.+"$/);
   await box.locator('.pv-crumb').first().click();
   await expect(page.locator('#log')).toHaveText('open ""');
+  // The same actions as API calls: silent unless asked, returning success.
+  const api = (code: string) => page.evaluate(code) as Promise<boolean>;
+  await expect(page.locator('#log')).toHaveText('open ""');
+  expect(await api(`viewer.minify('/author')`)).toBe(true);
+  await expect(box.locator('.pv-chip, .pv-segment').filter({ hasText: /^author/i })).toHaveCount(1);
+  await expect(page.locator('#log')).toHaveText('open ""'); // not notified
+  expect(await api(`viewer.expand('/author', true)`)).toBe(true);
+  await expect(page.locator('#log')).toHaveText('expand "/author"');
+  expect(await api(`viewer.open('/nowhere')`)).toBe(false);
+  expect(await api(`viewer.target('/author', true)`)).toBe(true);
+  await expect(page.locator('#log')).toHaveText('target "/author"');
+  expect(await api(`viewer.state.target`)).toBe('/author');
+  expect(await api(`viewer.open('/author/name')`)).toBe(true);
+  expect(await api(`viewer.state.spec.views['/author']`)).toBe('/author/name');
   await page.click('#swap');
   await expect(box.locator('.pv-title.outer')).toHaveText('solar system');
   await page.screenshot({ path: 'test-results/embed.png', fullPage: true });

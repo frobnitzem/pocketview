@@ -1,8 +1,11 @@
 /**
- * The interaction rules, as pure functions: a click and the current state
- * (layout spec and target) give a new state and the change to report, or a
- * refusal. Nothing here touches the DOM or plans; the viewer does both
- * (see "Mental model" and "Targeting, opening and expanding" in DESIGN.md).
+ * The interaction rules, as pure functions. Each action (`setTarget`,
+ * `open`, `expand`, `minify`, `pageBy`, …) takes its arguments and the
+ * current state (layout spec and target) and gives a new state and the
+ * change to report, or a refusal. `decide` maps a click to an action. The
+ * viewer's API calls the same actions. Nothing here touches the DOM or
+ * plans; the viewer does both (see "Mental model" and "Targeting, opening
+ * and expanding" in DESIGN.md).
  */
 import { find, isShown, OUTER, rootOf, type ArrayWindow, type Mark, type Plan, type TreeNode } from '@pocketview/core';
 
@@ -58,7 +61,7 @@ export type Outcome =
     }
   | { refuse: string | null };
 
-interface Context {
+export interface Context {
   tree: TreeNode;
   plan: Plan;
 }
@@ -77,7 +80,7 @@ export function decide(input: Input, state: State, ctx: Context): Outcome {
   switch (input.on) {
     case 'border': return border(input.slot, state, ctx);
     case 'chip':
-    case 'segment': return target !== null ? open(input.ptr, state) : expand(input.ptr, state, ctx);
+    case 'segment': return target !== null ? open(input.ptr, state, ctx) : expand(input.ptr, state, ctx);
     case 'key':
     case 'title': return activate(input.ptr, state, ctx);
     case 'crumb': return crumb(input.slot, input.ptr, state, ctx);
@@ -88,27 +91,35 @@ export function decide(input: Input, state: State, ctx: Context): Outcome {
 
 /** A border toggles whether its container is the target, in place. */
 function border(slot: string, state: State, ctx: Context): Outcome {
-  const frame = ctx.plan.marks.find((m) => m.kind === 'frame' && m.slot === slot);
-  if (frame?.kind === 'frame' && !frame.targetable) return { refuse: frame.ptr }; // an opened scalar's bar
-  const target = state.target === slot ? null : slot;
+  return setTarget(state.target === slot ? null : slot, state, ctx);
+}
+
+/**
+ * Makes the container `slot` the target (or none, for null). It must be a
+ * container on the page that can be a target: an opened scalar's bar cannot.
+ */
+export function setTarget(slot: string | null, state: State, ctx: Context): Outcome {
+  if (slot !== null && !ctx.plan.marks.some((m) => m.kind === 'frame' && m.slot === slot && m.targetable)) {
+    return { refuse: slot };
+  }
   return {
-    state: { ...state, target },
-    change: { type: 'target', path: target === null ? null : shown(state.spec, target) },
+    state: { ...state, target: slot },
+    change: { type: 'target', path: slot === null ? null : shown(state.spec, slot) },
   };
 }
 
 /** A key or title: open it if targeted, else toggle it. */
 function activate(ptr: string, state: State, ctx: Context): Outcome {
-  return state.target !== null ? open(ptr, state) : toggle(ptr, state, ctx);
+  return state.target !== null ? open(ptr, state, ctx) : toggle(ptr, state, ctx);
 }
 
 /**
  * Opens `ptr` into the target. It must lie under what the target shows.
  * Opening into the outermost frame re-roots the view.
  */
-function open(ptr: string, state: State): Outcome {
+export function open(ptr: string, state: State, ctx: Context): Outcome {
   const slot = state.target;
-  if (slot === null || !below(ptr, shown(state.spec, slot))) return { refuse: ptr };
+  if (slot === null || !find(ctx.tree, ptr) || !below(ptr, shown(state.spec, slot))) return { refuse: ptr };
   if (slot === OUTER) return reroot(ptr, state);
   return view(slot, ptr, state);
 }
@@ -159,10 +170,13 @@ function crumb(slot: string, ptr: string, state: State, ctx: Context): Outcome {
   return view(slot, within(slot, ptr) ? slot : ptr, state);
 }
 
-/** Expands `ptr` in place (untargeted): it is shown first, and its array ancestors page to it. */
-function expand(ptr: string, state: State, ctx: Context): Outcome {
+/**
+ * Expands `ptr` in place: it is shown in preference to everything else, its
+ * array ancestors page to it, and it and its ancestors are no longer minified.
+ */
+export function expand(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
-  if (spec.expanded.includes(ptr) || isShown(ctx.plan, ptr)) return { refuse: ptr };
+  if (spec.expanded.includes(ptr) || !find(ctx.tree, ptr)) return { refuse: ptr };
   const windows = { ...spec.windows };
   for (let n = find(ctx.tree, ptr); n?.parent; n = n.parent) {
     if (n.parent.kind === 'array') windows[n.parent.ptr] = { start: Number(n.label) };
@@ -184,20 +198,27 @@ function expand(ptr: string, state: State, ctx: Context): Outcome {
 }
 
 /**
- * A key or title, untargeted: a node that is expanded or shown is minified
- * (collapsed even when there is room); one that is minified or collapsed
- * is expanded.
+ * A key or title, untargeted: a node that is expanded or shown is minified;
+ * one that is minified or collapsed is expanded.
  */
 function toggle(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
-  const minify = spec.expanded.includes(ptr) || (!spec.minified.includes(ptr) && isShown(ctx.plan, ptr));
-  if (!minify) return expand(ptr, { ...state, spec: { ...spec, minified: spec.minified.filter((p) => p !== ptr) } }, ctx);
+  const shrink = spec.expanded.includes(ptr) || (!spec.minified.includes(ptr) && isShown(ctx.plan, ptr));
+  return shrink ? minify(ptr, state, ctx) : expand(ptr, state, ctx);
+}
+
+/**
+ * Minifies `ptr`: it is collapsed (a chip or side-bar segment) even when
+ * there is room, and nothing inside it stays expanded.
+ */
+export function minify(ptr: string, state: State, ctx: Context): Outcome {
+  const { spec } = state;
+  if (spec.minified.includes(ptr) || !find(ctx.tree, ptr) || ptr === rootOf(spec)) return { refuse: ptr };
   return {
     state: {
       ...state,
       spec: {
         ...spec,
-        // Nothing inside it stays expanded: that would show it again.
         expanded: spec.expanded.filter((p) => !within(p, ptr)),
         minified: [...spec.minified, ptr],
       },
@@ -206,6 +227,16 @@ function toggle(ptr: string, state: State, ctx: Context): Outcome {
     // Elements of a bare array have nowhere to collapse to.
     expect: (plan) => !isShown(plan, ptr),
   };
+}
+
+/**
+ * Pages the container `ptr` by one page: 'next' and 'prev' for an array
+ * container, 'down' and 'up' for the outer side bar. It must be paged on
+ * the page, with an arrow in that direction that is not disabled.
+ */
+export function pageBy(ptr: string, dir: Pager['dir'], state: State, ctx: Context): Outcome {
+  const mark = ctx.plan.marks.find((m): m is Pager => m.kind === 'pager' && m.ptr === ptr && m.dir === dir);
+  return mark ? page(mark, state) : { refuse: ptr };
 }
 
 /** A paging arrow moves an array window or the side bar by a page. */

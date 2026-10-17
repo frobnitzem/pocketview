@@ -4,14 +4,18 @@
  *
  *   rules (pure) → plan, if the spec changed → draw → notify listeners
  *
- * and a refused click blinks the outer border instead.
+ * and a refused click blinks the outer border instead. The API calls
+ * (`target`, `open`, `expand`, `minify`, `page`) run the same actions.
  */
 import { buildTree, OUTER, Planner, type Json, type Plan, type Viewport } from '@pocketview/core';
 import { isMarkdown } from '@pocketview/markdown';
 import { addTooltips, blink, drawPlan } from './draw';
 import { browserMetrics, KEY_FONT, plugins } from './metrics';
 import type { Theme, ViewSettings } from './options';
-import { decide, initialState, settleWindows, type Change, type ChangeType, type Input, type Spec, type State } from './rules';
+import {
+  decide, expand, initialState, minify, open, pageBy, setTarget, settleWindows,
+  type Change, type ChangeType, type Context, type Input, type Outcome, type Pager, type Spec, type State,
+} from './rules';
 import { FONT, TextView, type ViewStats } from './text';
 
 export interface ViewerOptions extends Partial<ViewSettings> {
@@ -64,14 +68,50 @@ export class Viewer {
     if (value !== undefined) void fontsReady().then(() => { if (!this.current) this.show(value); });
   }
 
-  /** The layout spec: what each container shows, what is expanded, minified and paged. */
-  get spec(): Readonly<Spec> {
-    return this.now.spec;
+  /**
+   * The layout spec (what each container shows, what is expanded, minified
+   * and paged) and the target (`""` for the outermost frame, or null).
+   */
+  get state(): Readonly<State> {
+    return this.now;
   }
 
-  /** The targeted container (`""` for the outermost frame), or null. */
-  get target(): string | null {
-    return this.now.target;
+  /*
+   * The actions, as API calls: each runs the same rule as the click, then
+   * plans and draws. Each returns whether it succeeded. A listener hears of
+   * it only when `notify` is true; a failure changes nothing and does not blink.
+   */
+
+  /** Makes the container `slot` the target (`""` for the outermost frame), or none for null. */
+  target(slot: string | null, notify = false): boolean {
+    return this.call((ctx) => setTarget(slot, this.now, ctx), notify);
+  }
+
+  /** Opens `path` into the target: it must lie under what the target shows. */
+  open(path: string, notify = false): boolean {
+    return this.call((ctx) => open(path, this.now, ctx), notify);
+  }
+
+  /** Expands `path` in place: it is shown in preference to everything else. */
+  expand(path: string, notify = false): boolean {
+    return this.call((ctx) => expand(path, this.now, ctx), notify);
+  }
+
+  /** Minifies `path`: it is collapsed even when there is room. */
+  minify(path: string, notify = false): boolean {
+    return this.call((ctx) => minify(path, this.now, ctx), notify);
+  }
+
+  /** Pages the container `path` by a page: 'next'/'prev' (array containers) or 'down'/'up' (the side bar). */
+  page(path: string, dir: Pager['dir'], notify = false): boolean {
+    return this.call((ctx) => pageBy(path, dir, this.now, ctx), notify);
+  }
+
+  /** Blinks the outer border, as a refused click does; with `notify`, reports a 'refuse' for `path`. */
+  refuse(path: string | null = null, notify = false): boolean {
+    blink(this.element.querySelector('.pv-layout'));
+    if (notify) this.emit({ type: 'refuse', path });
+    return true;
   }
 
   /** Shows a new document, resetting navigation. Fonts must be loaded (see `fontsReady`). */
@@ -125,25 +165,44 @@ export class Viewer {
     this.element.classList.remove('pocketview', 'pv-reading');
   }
 
-  /** One click: the rules decide, then plan, draw, and notify. */
+  /** One click: the rules decide, then plan, draw and notify; a refusal blinks. */
   private act(input: Input): void {
+    const outcome = this.run((ctx) => decide(input, this.now, ctx));
+    if (outcome === null) return;
+    if ('refuse' in outcome) {
+      this.refuse(outcome.refuse, true);
+      return;
+    }
+    this.element.focus({ preventScroll: true }); // keep the keyboard here after a redraw
+    this.emit(outcome.change);
+  }
+
+  /** An API call: like a click, but silent unless `notify`, and a refusal only returns false. */
+  private call(action: (ctx: Context) => Outcome, notify: boolean): boolean {
+    const outcome = this.run(action);
+    if (outcome === null || 'refuse' in outcome) return false;
+    if (notify) this.emit(outcome.change);
+    return true;
+  }
+
+  /**
+   * Runs an action against the current state; if it succeeds (and the new
+   * plan meets its expectation), makes the result current and draws it.
+   * Returns the outcome (a refusal if the plan failed it), or null with
+   * nothing to act on.
+   */
+  private run(action: (ctx: Context) => Outcome): Outcome | null {
     const planner = this.planner;
     const vp = this.viewport();
-    if (!planner || !this.planned || !vp) return;
-    const outcome = decide(input, this.now, { tree: planner.tree, plan: this.planned.plan });
-    if ('refuse' in outcome) return this.refuse(outcome.refuse);
+    if (!planner || !this.planned || !vp) return null;
+    const outcome = action({ tree: planner.tree, plan: this.planned.plan });
+    if ('refuse' in outcome) return outcome;
     const { state, change, expect } = outcome;
     const key = this.keyOf(state.spec, vp);
     const plan = key === this.planned.key ? this.planned.plan : planner.plan(state.spec, vp);
-    if (expect && !expect(plan)) return this.refuse(change.path);
+    if (expect && !expect(plan)) return { refuse: change.path };
     this.commit(state, plan, vp);
-    this.element.focus({ preventScroll: true }); // keep the keyboard here after a redraw
-    this.emit(change);
-  }
-
-  private refuse(path: string | null): void {
-    blink(this.element.querySelector('.pv-layout'));
-    this.emit({ type: 'refuse', path });
+    return outcome;
   }
 
   private emit(change: Change): void {

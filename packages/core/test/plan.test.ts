@@ -199,8 +199,8 @@ describe('planner', () => {
     const mini = planner.plan({ minified: ['/author'] }, vp);
     expect(isShown(mini, '/author')).toBe(false);
     expect(mini.marks.some((m) => (m.kind === 'chip' || m.kind === 'segment') && m.ptr === '/author')).toBe(true);
-    // Something expanded inside a minified node wins.
-    expect(isShown(planner.plan({ minified: ['/author'], expanded: ['/author/name'] }, vp), '/author/name')).toBe(true);
+    // The outermost choice wins: something expanded inside it stays hidden.
+    expect(isShown(planner.plan({ minified: ['/author'], expanded: ['/author/name'] }, vp), '/author/name')).toBe(false);
   });
 
   it('navigating in one container keeps the other containers measured', () => {
