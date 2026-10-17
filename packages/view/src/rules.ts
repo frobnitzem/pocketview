@@ -177,7 +177,10 @@ function crumb(slot: string, ptr: string, state: State, ctx: Context): Outcome {
 export function expand(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
   const hidden = spec.minified.some((m) => within(ptr, m)); // it, or an ancestor, is minified
-  if (!find(ctx.tree, ptr) || (spec.expanded.includes(ptr) && !hidden)) return { refuse: ptr };
+  if (!find(ctx.tree, ptr)) return { refuse: ptr };
+  const change: Change = { type: 'expand', path: ptr };
+  const expect = (plan: Plan) => isShown(plan, ptr);
+  if (spec.expanded.includes(ptr) && !hidden) return { state, change, expect }; // already: idempotent
   const windows = { ...spec.windows };
   for (let n = find(ctx.tree, ptr); n?.parent; n = n.parent) {
     if (n.parent.kind === 'array') windows[n.parent.ptr] = { start: Number(n.label) };
@@ -193,8 +196,8 @@ export function expand(ptr: string, state: State, ctx: Context): Outcome {
         minified: spec.minified.filter((p) => !within(ptr, p)),
       },
     },
-    change: { type: 'expand', path: ptr },
-    expect: (plan) => isShown(plan, ptr),
+    change,
+    expect,
   };
 }
 
@@ -215,15 +218,18 @@ function toggle(ptr: string, state: State, ctx: Context): Outcome {
  */
 export function minify(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
-  if (spec.minified.includes(ptr) || !find(ctx.tree, ptr) || ptr === rootOf(spec)) return { refuse: ptr };
+  if (!find(ctx.tree, ptr) || ptr === rootOf(spec)) return { refuse: ptr };
+  const change: Change = { type: 'minify', path: ptr };
+  // Elements of a bare array have nowhere to collapse to.
+  const expect = (plan: Plan) => !isShown(plan, ptr);
+  if (spec.minified.includes(ptr)) return { state, change, expect }; // already: idempotent
   return {
     state: {
       ...state,
       spec: { ...spec, minified: [...spec.minified, ptr] },
     },
-    change: { type: 'minify', path: ptr },
-    // Elements of a bare array have nowhere to collapse to.
-    expect: (plan) => !isShown(plan, ptr),
+    change,
+    expect,
   };
 }
 

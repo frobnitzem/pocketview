@@ -99,11 +99,13 @@ describe('interaction rules', () => {
     expect(deep.state.spec.minified).toEqual([]);
   });
 
-  it('expanding pages array ancestors to the element; expanding twice is refused', () => {
+  it('expanding pages array ancestors to the element; expanding or minifying twice changes nothing', () => {
     const untargeted: State = { ...initialState(), target: null };
-    const { state } = run([{ on: 'chip', ptr: '/list/30' }], untargeted);
+    const { state, plan } = run([{ on: 'chip', ptr: '/list/30' }], untargeted);
     expect(state.spec.windows['/list']).toEqual({ start: 30 });
-    expect(run([{ on: 'chip', ptr: '/list/30' }], state).outcomes[0]).toEqual({ refuse: '/list/30' });
+    expect(expand('/list/30', state, { tree, plan })).toMatchObject({ state, change: { type: 'expand' } });
+    const mini = run([{ on: 'title', ptr: '/a' }], untargeted);
+    expect(minify('/a', mini.state, { tree, plan: mini.plan })).toMatchObject({ state: mini.state, change: { type: 'minify' } });
   });
 
   it('the actions behind the API refuse what cannot be done', () => {

@@ -98,8 +98,10 @@ first package.
 | `destroy()` | removes the drawing and stops observing the element |
 
 The action calls run the same rules as clicks, then plan and draw. Each
-returns `true` if it succeeded. A failed call changes nothing and doesn't
-blink. Listeners hear about a call only when `notify` is `true` (the
+returns `true` if it succeeded. Repeating a call is harmless: expanding
+a node that is already expanded and shown returns `true` again. A failed
+call (for example, expanding a node there is no room for) changes nothing
+and doesn't blink. Listeners hear about a call only when `notify` is `true` (the
 default is `false`, so a page reacting to an event can call back without
 looping).
 

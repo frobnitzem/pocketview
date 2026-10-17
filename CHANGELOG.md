@@ -23,6 +23,7 @@
 - A minified node hides everything inside it: the outermost choice wins.
   Minifying keeps the expanded nodes inside it on the list, so expanding
   it again restores them; expanding a node un-minifies its ancestors.
+  Expanding or minifying a node twice is idempotent.
 - Solarized: body text is the other mode's panel tone (midnight blue on
   light, cream on dark), for more contrast.
 - Untargeted, a key or a nested title toggles its node: shown or expanded
