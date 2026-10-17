@@ -1,0 +1,205 @@
+/*
+ * pocketview: the viewer's styles. Every colour is a CSS variable, set per
+ * [data-theme] (mount() sets it on the viewer element; the default is pastel).
+ * Fonts: the layout is measured in these, so they are bundled (Latin
+ * scripts; other scripts fall back to system fonts).
+ */
+@import '@fontsource/antonio/latin-600.css';
+@import '@fontsource/antonio/latin-ext-600.css';
+@import '@fontsource/source-serif-4/latin-400.css';
+@import '@fontsource/source-serif-4/latin-ext-400.css';
+
+.pocketview, [data-theme="pastel"] { /* never :root: an embedding page keeps its own colours */
+  --bg: #000; --panel: #0d0c0b; --raised: #1a1816; --line: #2c2925;
+  --ink: #f3eee4; --muted: #8a8580; --on-frame: #000;
+  --frame: #e9a24f; --frame-1: #d7a37a; --frame-2: #a9d6a5; /* amber, peach, pastel green */
+  /* types: objects amber, arrays cream, scalars lavender; the target is purple */
+  --key: #a8a3e6; --nav: #f4dcae; --badge: #a9d6a5; --focus: #c792ea; --on-focus: #000;
+  --str: #f3eee4; --num: #ffc95c; --lit: #8fb8ff;
+  --send: #8fd6e8; --send-hover: #a9e2f0; --on-send: #0b3a4a; /* beachy aqua */
+  --q-loose: #e9a24f; --q-emergency: #ff7a45; --q-overfull: #ff4d6d;
+  --urgent: #ff8a7a; /* salmon: modal and alert frames */
+  color-scheme: dark;
+}
+[data-theme="lux"] { /* light trails on deep green: forest-green arches */
+  --bg: #043049; --panel: #0e2217; --raised: #143022; --line: #23452f;
+  --ink: #eef4ef; --muted: #4697ce; --on-frame: #ffffff;
+  --frame: #215921; --frame-1: #b56cff; --frame-2: #fffe5e;
+  --key: #b742c4; --nav: #ba7324; --badge: #cc851b; --focus: #46e6ca; --on-focus: #07120c;
+  --str: #eef4ef; --num: #ffc234; --lit: #cc851b;
+  --send: #e0c4fe; --send-hover: #d6c2fd; --on-send: #07120c;
+  --q-loose: #ffc234; --q-emergency: #ff8c1a; --q-overfull: #ff3d3d;
+  --urgent: #ff3d3d;
+  color-scheme: dark;
+}
+/*
+ * Solarized (https://ethanschoonover.com/solarized/). Light and dark swap
+ * the base tones: base03 <-> base3, base02 <-> base2, base01 <-> base1,
+ * base00 <-> base0. Backgrounds and body text follow Solarized's own usage;
+ * arches and chips take the complementary end of the base scale; key
+ * capsules, a third background, are green. Accents are kept for value text,
+ * buttons and the urgent colour.
+ *
+ * Text is always a content tone or an accent. Arches and chips are
+ * inverse-mode surfaces, so their labels use the other mode's content tone
+ * (base01 on light arches, base1 on dark ones). The exception is text on
+ * a filled accent (key capsules, badges, the urgent bar, the send button):
+ * no content tone is legible on those, so it uses a base tone, as Solarized
+ * does for selections.
+ */
+[data-theme="solar-dark"] {
+  --bg: #002b36; --panel: #073642; --raised: #0a4251; --line: #586e75;    /* base03, base02 */
+  --ink: #839496; --str: #93a1a1; --muted: #586e75;                       /* base0, base1, base01 */
+  --frame: #fdf6e3; --frame-1: #eee8d5; --frame-2: #d33682;               /* base3, base2, magena */
+  --on-frame: #d6c2fd;                                                    /* orange */
+  --nav: #93a1a1; --on-nav: #002b36;                                      /* arrays: base1 */
+  --focus: #6c71c4; --on-focus: #fdf6e3;                                  /* target: violet */
+  --badge: #93a1a1; --on-badge: #002b36;                                  /* filled: see note */
+  --key: #859900; --on-key: #002b36;                                      /* green accent */
+  --num: #2aa198; --lit: #268bd2;                                         /* cyan, blue */
+  --send: #268bd2; --send-hover: #4aa3e0; --on-send: #fdf6e3;
+  --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
+  --urgent: #dc322f; --on-urgent: #fdf6e3;
+  color-scheme: dark;
+}
+[data-theme="solar-light"] {
+  --bg: #fdf6e3; --panel: #eee8d5; --raised: #e6dfc9; --line: #93a1a1;    /* base3, base2 */
+  --ink: #657b83; --str: #586e75; --muted: #93a1a1;                       /* base00, base01, base1 */
+  --frame: #002b36; --frame-1: #073642; --frame-2: #d33682;               /* base03, base02, magenta */
+  --on-frame: #d6c2fd;                                                    /* orange */
+  --nav: #586e75; --on-nav: #fdf6e3;                                      /* arrays: base01 */
+  --focus: #6c71c4; --on-focus: #fdf6e3;                                  /* target: violet */
+  --badge: #586e75; --on-badge: #fdf6e3;                                  /* filled: see note */
+  --key: #c2d35b; --on-key: #002b36; --code-key: #859900;                 /* green accent, lightened */
+  --num: #2aa198; --lit: #268bd2;
+  --send: #268bd2; --send-hover: #1a73b5; --on-send: #fdf6e3;
+  --q-loose: #b58900; --q-emergency: #cb4b16; --q-overfull: #dc322f;
+  --urgent: #dc322f; --on-urgent: #fdf6e3;
+  color-scheme: light;
+}
+
+/* The viewer element: the page sets its size; the layout fills it exactly. */
+.pocketview { position: relative; overflow: hidden; padding: 8px; background: var(--bg); color: var(--ink);
+  box-sizing: border-box; outline: none; }
+.pocketview *, .pocketview *::before, .pocketview *::after { box-sizing: border-box; }
+/* A document that is one plain string: a scrolling reading view. */
+.pocketview.pv-reading { overflow-y: auto; overflow-x: hidden; padding: 28px 16px 64px; }
+
+.pv-text { position: relative; margin: 0 auto; font: 18px/28px "Source Serif 4", serif; font-kerning: normal;
+           color: var(--ink); }
+.pv-line.q-loose, .pv-line.q-emergency, .pv-line.q-overfull { cursor: help; }
+.diagnostics .pv-line[data-quality]::before { content: ""; position: absolute; left: -14px; top: 6px; bottom: 6px;
+           width: 4px; border-radius: 2px; background: var(--qc); }
+.diagnostics .pv-line[data-quality]::after { content: attr(data-quality); position: absolute; right: -76px; top: 0;
+           width: 68px; font: 600 11px/28px Antonio, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+           color: var(--qc); text-align: left; }
+.q-loose { --qc: var(--q-loose); } .q-emergency { --qc: var(--q-emergency); } .q-overfull { --qc: var(--q-overfull); }
+
+/* ---- Layout view: marks from @pocketview/core ---- */
+.pv-scroll { position: absolute; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin;
+  scrollbar-color: var(--frame) transparent; }
+.pv-scroll > div > * { position: absolute; box-sizing: border-box; }
+.pv-layout { position: relative; margin: 0 auto; }
+.pv-layout > * { position: absolute; box-sizing: border-box; }
+/* Colour = type (object, array, scalar) + status (the target is purple). */
+.pv-frame { overflow: visible; pointer-events: none; }
+.pv-frame path { pointer-events: visiblePainted; cursor: pointer; } /* the border is clickable */
+.pv-frame.ty-object { fill: var(--frame); }
+.pv-frame.ty-array { fill: var(--nav); }
+.pv-frame.ty-scalar { fill: var(--key); }
+.pv-frame.target { fill: var(--focus); }
+.pv-title { background: var(--bg); padding: 0 10px; font-family: Antonio, sans-serif; font-weight: 600;
+  letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-align: center; color: var(--muted); }
+.pv-title.ty-object { color: var(--frame); }
+.pv-title.ty-array { color: var(--nav); }
+.pv-title.ty-scalar { color: var(--key); }
+.pv-title.target { color: var(--focus); }
+.pv-key, .pv-crumb, .pv-segment, .pv-chip { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--on-frame); white-space: nowrap; overflow: hidden; }
+.pv-key { background: var(--key); color: var(--on-key, var(--on-frame)); border-radius: 14px 0 0 14px; /* same curvature at any height */
+  display: flex; align-items: flex-start; justify-content: flex-end; padding: 0 9px 0 12px; line-height: 28px; }
+.pv-key span, .pv-crumb span, .pv-segment span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* Bar segments abut, cut apart by background-coloured borders on both sides:
+   left and right in a top bar, top and bottom in a side bar. */
+.pv-crumb { background: var(--frame); border: solid var(--bg); border-width: 0 2px; display: flex; align-items: flex-end;
+  justify-content: flex-end; padding: 0 8px 4px; }
+.pv-segment { background: var(--frame); border: solid var(--bg); border-width: 2px 0; display: flex; align-items: flex-end;
+  justify-content: flex-end; padding: 0 10px 6px; }
+.pv-chip { display: flex; }
+.pv-chip b { background: var(--nav); color: var(--on-nav, var(--on-frame)); border-radius: 999px 0 0 999px; padding: 0 9px 0 13px; line-height: 28px;
+  overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; font-weight: inherit; }
+.pv-chip b:only-child { border-radius: 999px; }
+.pv-chip i { font-style: normal; background: var(--badge); color: var(--on-badge, var(--on-frame)); border-radius: 0 999px 999px 0; padding: 0 11px 0 7px;
+  margin-left: 3px; line-height: 28px; flex: none; }
+.pv-token { font: 18px/28px "Source Serif 4", serif; color: var(--str); white-space: nowrap; }
+.pv-tag { font: 16px/22px "Source Serif 4", serif; color: var(--str); border: 1.5px solid var(--frame-2);
+  border-radius: 999px; text-align: center; white-space: nowrap; }
+.t-number { color: var(--num); font-variant-numeric: tabular-nums; }
+.t-boolean, .t-null { color: var(--lit); font-style: italic; }
+.pv-textblock { font: 18px/28px "Source Serif 4", serif; color: var(--ink); }
+.pv-textblock.scroll { scrollbar-gutter: stable; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--frame) transparent; }
+.pv-textblock[data-quality] { outline: 1px dashed var(--q-loose); outline-offset: 3px; }
+.pv-menu button { width: 100%; height: 100%; border: solid var(--bg); border-width: 0 2px; background: var(--frame);
+  color: var(--on-frame); font-size: 18px; cursor: pointer; }
+.pv-menu ul { position: absolute; top: 100%; left: 0; margin: 4px 0 0; padding: 4px 0; list-style: none; z-index: 5;
+  background: var(--panel); border: 2px solid var(--frame); border-radius: 10px; min-width: 160px; }
+.pv-menu li { padding: 6px 14px; font: 600 14px Antonio, sans-serif; letter-spacing: .05em; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap; }
+.pv-menu li:hover { background: var(--raised); }
+.nav { cursor: pointer; }
+.pv-chip.nav:hover b, .pv-segment.nav:hover, .pv-crumb.nav:hover { filter: brightness(1.12); }
+.pv-key.nav:hover { filter: brightness(1.1); }
+.pv-title.nav:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* A focused array or leaf: its T bar (and crumbs) take the chip colour. */
+/* Keys, chips, segments and crumbs take their node's type colour. */
+.pv-key.ty-array, .pv-crumb.ty-array, .pv-segment.ty-array, .pv-chip.ty-array b {
+  background: var(--nav); color: var(--on-nav, var(--on-frame)); }
+.pv-key.ty-object, .pv-crumb.ty-object, .pv-segment.ty-object, .pv-chip.ty-object b {
+  background: var(--frame); color: var(--on-frame); }
+.pv-key.ty-scalar, .pv-crumb.ty-scalar, .pv-segment.ty-scalar, .pv-chip.ty-scalar b {
+  background: var(--key); color: var(--on-key, var(--on-frame)); }
+.pv-menu li.ty-object { color: var(--frame); } .pv-menu li.ty-array { color: var(--nav); }
+
+/* Array containers: the range in the bottom bar, and paging arrows. */
+.pv-range { font: 600 14px/1 Antonio, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--nav);
+  background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 0 10px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-pager { display: grid; place-items: center; font-size: 12px; cursor: pointer; user-select: none;
+  border: solid var(--bg); color: var(--on-frame); }
+.pv-pager.h { border-width: 0 2px; }
+.pv-pager.v { border-width: 2px 0; }
+.pv-pager.ty-object { background: var(--frame); }
+.pv-pager.ty-array { background: var(--nav); color: var(--on-nav, var(--on-frame)); }
+.pv-pager.target { background: var(--focus); color: var(--on-focus, var(--on-frame)); }
+.pv-pager.disabled { cursor: default; }
+.pv-pager.disabled span { opacity: .35; } /* dim the arrow, not the borders */
+.pv-pager:not(.disabled):hover { filter: brightness(1.12); }
+
+/* Blink: the click needs an enclosing container to be targeted first. */
+@keyframes pv-blink { 50% { opacity: .2; } }
+@keyframes pv-outline { 50% { box-shadow: 0 0 0 3px var(--focus); } }
+.pv-layout.blink .pv-frame.outer { animation: pv-blink .3s ease-in-out 3; }
+.pv-layout.blink:not(:has(.outer)) { animation: pv-outline .3s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) {
+  .pv-layout.blink .pv-frame.outer { animation: none; outline: 3px solid var(--focus); }
+}
+
+/* Markdown (plugin): drawn in the reading fonts and the scheme's colours. */
+.pv-custom.scroll { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--frame) transparent; }
+.pv-md { font: 18px/28px "Source Serif 4", serif; color: var(--ink); overflow-wrap: anywhere; }
+.pv-md > :first-child { margin-top: 0; }
+.pv-md > :last-child { margin-bottom: 0; }
+.pv-md p, .pv-md ul, .pv-md ol, .pv-md pre, .pv-md blockquote { margin: 0 0 9px; }
+.pv-md h1, .pv-md h2, .pv-md h3, .pv-md h4 { font-family: Antonio, sans-serif; font-weight: 600; letter-spacing: .04em;
+  color: var(--frame); margin: 0 0 6px; line-height: 1.2; }
+.pv-md h1 { font-size: 26px; } .pv-md h2 { font-size: 22px; } .pv-md h3, .pv-md h4 { font-size: 19px; }
+.pv-md ul, .pv-md ol { padding-left: 24px; }
+.pv-md a { color: var(--lit); }
+.pv-md code { font: 15px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--raised);
+  border-radius: 4px; padding: 1px 4px; }
+.pv-md pre { background: var(--raised); border-radius: 8px; padding: 8px 12px; overflow-x: auto; }
+.pv-md pre code { background: none; padding: 0; }
+.pv-md blockquote { border-left: 3px solid var(--key); padding-left: 12px; color: var(--muted); }
+.pv-md img { max-width: 100%; }

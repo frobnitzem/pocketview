@@ -356,3 +356,25 @@ test('targeting never re-plans: what was expanded stays', async ({ page }) => {
   const after = await page.locator('.pv-layout > *').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
   expect(after).toEqual(before);
 });
+
+test('the embeddable bundle fills fixed-size boxes on a plain page', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 1100 });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/embed.html');
+  // The viewer's colours stay on its own elements, not the host page.
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe('normal');
+  const box = page.locator('#manifest');
+  await expect(box.locator('.pv-title.outer')).toHaveText('package');
+  await expect(page.locator('#small .pv-frame.outer')).toHaveCount(1);
+  await expect(page.locator('#small')).toHaveAttribute('data-theme', 'lux');
+  // The layout fills the box exactly, and the page around it is untouched.
+  const outer = await box.boundingBox();
+  const layout = await box.locator('.pv-layout').boundingBox();
+  expect(layout!.width).toBeLessThanOrEqual(outer!.width);
+  expect(layout!.height).toBeLessThanOrEqual(outer!.height);
+  await page.click('#swap');
+  await expect(box.locator('.pv-title.outer')).toHaveText('solar system');
+  await page.screenshot({ path: 'test-results/embed.png', fullPage: true });
+  expect(errors).toEqual([]);
+});

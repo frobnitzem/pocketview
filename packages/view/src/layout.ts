@@ -3,14 +3,13 @@
  * positioned element, coloured by its node's type (object, array, scalar)
  * and status (the target is purple).
  *
- * Targeted (the default): clicking a chip, segment, key, title or crumb
- * makes that node the target, and the view is re-rooted at it. Clicking the
- * target's border un-targets it. Untargeted: clicking a collapsed node
- * expands it in place; clicking one already shown, or with no room, blinks
- * the outer border; breadcrumbs (top bar and container titles) still target.
- * Paging arrows (array containers' ◀ ▶, the outer side bar's ▲ ▼) move by
- * a page in either state. Only objects and arrays can be targets: an opened
- * scalar's bar does not toggle.
+ * The target is the container clicked things open into: the outermost
+ * frame by default, or any nested container (a border click toggles it, in
+ * place). Targeted, clicking a chip, segment, key or title opens that node
+ * into the target, if it lies under what the target shows (otherwise the
+ * outer border blinks). Untargeted, the same clicks expand the node in
+ * place. Breadcrumbs act on the container whose nav bar they are in, and
+ * paging arrows move by a page in either state. See DESIGN.md.
  */
 import {
   ancestors, archPath, buildTree, find, isShown, NAVIGABLE, Planner,
@@ -19,8 +18,8 @@ import {
 import { markdownVariant, renderMarkdown, type MarkdownData } from '@pocketview/markdown';
 import { canvasMeasure, prepare, renderLines, type Prepared } from '@pocketview/typeset';
 import { englishUS } from '@pocketview/typeset/en-us';
-import type { Settings } from './settings';
-import { FONT, FONT_SIZE, LINE_HEIGHT } from './view';
+import type { ViewSettings as Settings } from './options';
+import { FONT, FONT_SIZE, LINE_HEIGHT } from './text';
 
 export const KEY_FONT = '600 14px Antonio';
 const KEY_TRACKING = 0.05 * 14; // letter-spacing of key labels (.05em), per character
@@ -104,13 +103,14 @@ export class LayoutView {
   private drawnKey = '';
   private plannedKey = '';
   private readonly observer = new ResizeObserver(() => this.render());
+  private readonly abort = new AbortController();
 
   constructor(private readonly scroller: HTMLElement, private settings: Settings, private onFocus: (ptr: string) => void) {
     scroller.addEventListener('keydown', (e) => {
       if ((e.key === 'Escape' || e.key === 'Backspace') && this.planner) {
         this.up();
       }
-    });
+    }, { signal: this.abort.signal });
   }
 
   /** Shows a document; returns the time taken to plan it, in ms. */
@@ -130,6 +130,12 @@ export class LayoutView {
     const t0 = performance.now();
     this.render();
     return performance.now() - t0;
+  }
+
+  /** Stops for good: no more observing or listening. */
+  destroy(): void {
+    this.clear();
+    this.abort.abort();
   }
 
   clear(): void {

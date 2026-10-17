@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- `@pocketview/view`: the viewer as an embeddable package. `mount(element,
+  value, options)` fills a fixed-size element and returns a `Viewer`
+  (`show`, `setTheme`, `configure`, `destroy`; `onFocus` option). A
+  single-file bundle (`pocketview.js` and `pocketview.css`, with the Latin
+  font subsets inlined) is built and served from the demo site at `lib/`,
+  with an example page, `embed.html`. The demo uses the same API.
+- The viewer's colour schemes apply to the viewer element only, never to
+  the embedding page.
+- Targeting a container no longer re-plans or drops expansions.
+
+## 1.0.0
+
 - One breadcrumb style: every arch's top bar is a nav bar of square crumb
   segments followed by its title (crumb and menu marks carry their `slot`).
 - Titles activate their node (open when targeted, expand when not); only

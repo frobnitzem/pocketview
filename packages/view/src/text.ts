@@ -4,7 +4,7 @@
  */
 import { canvasMeasure, prepare, renderLine, type Line, type Paragraph, type Prepared } from '@pocketview/typeset';
 import { englishUS } from '@pocketview/typeset/en-us';
-import type { Settings } from './settings';
+import type { ViewSettings as Settings } from './options';
 
 export const FONT_SIZE = 18;
 export const LINE_HEIGHT = 28;
@@ -28,12 +28,21 @@ export class TextView {
   private width = 0;
   private rendered = new Map<number, HTMLElement>();
   private frame = 0;
+  private readonly observer = new ResizeObserver(() => this.relayout());
+  private readonly abort = new AbortController();
 
   constructor(private readonly scroller: HTMLElement, private settings: Settings) {
     this.column = document.createElement('div');
     this.column.className = 'pv-text';
-    scroller.addEventListener('scroll', () => this.schedule(), { passive: true });
-    new ResizeObserver(() => this.relayout()).observe(scroller);
+    scroller.addEventListener('scroll', () => this.schedule(), { passive: true, signal: this.abort.signal });
+    this.observer.observe(scroller);
+  }
+
+  /** Stops for good: no more observing or listening. */
+  destroy(): void {
+    this.clear();
+    this.observer.disconnect();
+    this.abort.abort();
   }
 
   /** Stops drawing (another view owns the scroller now). */

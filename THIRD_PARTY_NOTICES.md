@@ -54,14 +54,15 @@ copyleft). Each must be reviewed and listed here before it is used;
 
 The licence texts are included in each package.
 
-## Distributed with the demo site
-
 ### Source Serif 4 and Antonio (SIL Open Font License 1.1)
 
 Via `@fontsource/source-serif-4` (Copyright Adobe, with Reserved Font Name
 "Source") and `@fontsource/antonio` (Copyright The Antonio Project Authors).
-The font files are distributed under the OFL 1.1. The demo build copies each
-font's licence text to `licenses/` next to the site.
+The font files are distributed under the OFL 1.1. The embeddable bundle
+(`packages/view`) inlines their Latin subsets in `pocketview.css`; its build,
+and the demo's, copy each font's licence text to `licenses/` next to it.
+
+## Distributed with the demo site
 
 ### Demo-only libraries
 
