@@ -16,7 +16,7 @@
 <h1>Embedding pocketview</h1>
 <p>Each box below is a <code>div</code> with a fixed size; <code>mount()</code> fills it.</p>
 <div id="manifest" class="viewer"></div>
-<p><button id="swap">Show another document</button></p>
+<p><button id="swap">Show another document</button> <code id="log"></code></p>
 <div id="small" class="viewer small"></div>
 
 <script type="module">
@@ -33,10 +33,10 @@
       { name: '@pocketview/view', role: 'the embeddable viewer' },
     ],
   };
-  const viewer = mount(document.getElementById('manifest'), manifest, {
-    label: 'package',
-    onFocus: (ptr) => console.log('target shows', ptr || '(root)'),
-  });
+  const viewer = mount(document.getElementById('manifest'), manifest, { label: 'package' });
+  // Every change is reported after it is drawn, with the JSON Pointer of its node.
+  const log = document.getElementById('log');
+  viewer.on('*', (e) => { log.textContent = `${e.type} ${JSON.stringify(e.path)}`; });
   document.getElementById('swap').addEventListener('click', () => {
     viewer.show({ planets: ['Mercury', 'Venus', 'Earth', 'Mars'], moons: { Earth: 1, Mars: 2 } }, 'solar system');
   });

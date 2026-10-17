@@ -60,7 +60,7 @@ test('lays out an object in arch frames, and navigates', async ({ page }) => {
   await border(page, '');
   await expect(page.locator('.pv-frame.outer.target')).toHaveCount(1);
   await page.locator('.pv-key', { hasText: /^name$/ }).first().click();
-  await expect(page.locator('.pv-crumb[data-slot="/name"]')).toHaveText('object');
+  await expect(page.locator('.pv-crumb[data-slot=""]')).toHaveText('object');
 });
 
 test('collapses into segments and chips when small, and they navigate', async ({ page }) => {
@@ -131,7 +131,7 @@ test('colour schemes switch from the settings menu', async ({ page }) => {
   expect(await bg()).not.toBe(before);
 });
 
-test('untargeted: chips expand in place, and a shown node blinks the border', async ({ page }) => {
+test('untargeted: chips expand in place, and keys toggle between expanded and minified', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 420 });
   await ready(page);
   await example(page, 'An object (YAML)');
@@ -140,16 +140,23 @@ test('untargeted: chips expand in place, and a shown node blinks the border', as
   // Un-target by clicking the outer border.
   await border(page, '');
   await expect(page.locator('.pv-layout')).not.toHaveClass(/targeted/);
-  const chip = page.locator('.pv-segment.nav, .pv-chip.nav').first();
-  const name = (await chip.textContent())!.split(' ')[0]!;
+  // Expand a collapsed scalar in place: the root is unchanged (no crumbs).
+  const chip = page.locator('.pv-segment.nav.ty-scalar, .pv-chip.nav.ty-scalar').first();
+  const name = (await chip.textContent())!.trim().split(' ')[0]!.toLowerCase();
   await chip.click();
-  // Expanded in place: the root is unchanged (no crumbs) and the node is shown.
   await expect(page.locator('.pv-crumb')).toHaveCount(0);
-  const shown = page.locator('.pv-key, .pv-title .step').filter({ hasText: new RegExp(`^${name}$`) });
-  await expect(shown.first()).toBeVisible();
-  // Clicking something already shown blinks the outer border.
-  await shown.first().click();
-  await expect(page.locator('.pv-layout')).toHaveClass(/blink/);
+  const key = page.locator('.pv-key', { hasText: new RegExp(`^${name}$`, 'i') });
+  await expect(key).toBeVisible();
+  // Its key minifies it again, even though there is room.
+  await key.click();
+  await expect(key).toHaveCount(0);
+  const collapsed = page.locator('.pv-segment, .pv-chip').filter({ hasText: new RegExp(`^${name}`, 'i') });
+  await expect(collapsed).toHaveCount(1);
+  // A shown key minifies too, and its chip expands it back.
+  await page.locator('.pv-key', { hasText: /^version$/ }).click();
+  await expect(page.locator('.pv-key', { hasText: /^version$/ })).toHaveCount(0);
+  await page.locator('.pv-segment, .pv-chip').filter({ hasText: /^version/i }).click();
+  await expect(page.locator('.pv-key', { hasText: /^version$/ })).toHaveCount(1);
   // The border targets again.
   await border(page, '');
   await expect(page.locator('.pv-layout')).toHaveClass(/targeted/);
@@ -334,7 +341,7 @@ test('bar segments abut, with background borders between them', async ({ page })
   await page.locator('.pv-segment', { hasText: /^packages/i }).click();
   await page.locator('.pv-title', { hasText: /^0$/ }).first().click();
   await page.locator('.pv-key', { hasText: /^role$/ }).click();
-  const crumbs = await page.locator('.pv-crumb[data-slot="/packages/0/role"]').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right })));
+  const crumbs = await page.locator('.pv-crumb[data-slot=""]').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right })));
   expect(crumbs.length).toBe(3);
   for (let i = 1; i < crumbs.length; i++) expect(Math.abs(crumbs[i]!.l - crumbs[i - 1]!.r)).toBeLessThan(0.5);
   await page.screenshot({ path: 'test-results/role-crumbs.png' });
@@ -373,6 +380,11 @@ test('the embeddable bundle fills fixed-size boxes on a plain page', async ({ pa
   const layout = await box.locator('.pv-layout').boundingBox();
   expect(layout!.width).toBeLessThanOrEqual(outer!.width);
   expect(layout!.height).toBeLessThanOrEqual(outer!.height);
+  // Changes are reported after they are drawn: here, a title opens into the root.
+  await box.locator('.pv-title:not(.outer)').first().click();
+  await expect(page.locator('#log')).toHaveText(/^open "\/.+"$/);
+  await box.locator('.pv-crumb').first().click();
+  await expect(page.locator('#log')).toHaveText('open ""');
   await page.click('#swap');
   await expect(box.locator('.pv-title.outer')).toHaveText('solar system');
   await page.screenshot({ path: 'test-results/embed.png', fullPage: true });

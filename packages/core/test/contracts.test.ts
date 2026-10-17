@@ -81,7 +81,7 @@ function check(plan: Plan, tree: TreeNode, focus: TreeNode, vp: { w: number; h: 
   const paged = new Set(plan.marks.filter((m) => m.kind === 'pager').map((m) => m.ptr));
   // Containers opened to a descendant: their other contents are reachable
   // through the container's own breadcrumbs.
-  const opened = plan.marks.filter((m) => m.kind === 'frame' && m.slot !== m.ptr).map((m) => [m.kind === 'frame' ? m.slot : '', m.ptr] as const);
+  const opened = plan.marks.filter((m) => m.kind === 'frame' && !m.outer && m.slot !== m.ptr).map((m) => [m.kind === 'frame' ? m.slot : '', m.ptr] as const);
   const underSlot = (p: string) => opened.some(([slot, shown]) =>
     p === slot || (p.startsWith(`${slot}/`) && p !== shown && !p.startsWith(`${shown}/`)));
   for (const n of walk(focus)) {
@@ -103,7 +103,7 @@ describe('navigation contracts', () => {
   it('hold at the root for any document and viewport', () => {
     fc.assert(fc.property(json, viewport, (doc, vp) => {
       const tree = buildTree(doc);
-      const plan = new Planner(tree, fakeMetrics).plan('', vp);
+      const plan = new Planner(tree, fakeMetrics).plan({}, vp);
       check(plan, tree, tree, vp);
     }), { numRuns: 300 });
   });
@@ -113,7 +113,7 @@ describe('navigation contracts', () => {
       const tree = buildTree(doc);
       const nodes = containers(tree);
       const focus = nodes[pick % nodes.length]!;
-      const plan = new Planner(tree, fakeMetrics).plan(focus.ptr, vp);
+      const plan = new Planner(tree, fakeMetrics).plan({ views: { '': focus.ptr } }, vp);
       check(plan, tree, focus, vp);
     }), { numRuns: 300 });
   });
@@ -123,7 +123,7 @@ describe('navigation contracts', () => {
       const tree = buildTree(doc);
       const nodes = containers(tree);
       const expanded = picks.map((p) => nodes[p % nodes.length]!.ptr);
-      const plan = new Planner(tree, fakeMetrics).plan('', vp, { expanded });
+      const plan = new Planner(tree, fakeMetrics).plan({ expanded }, vp);
       check(plan, tree, tree, vp, true);
       // Titles carry breadcrumb trails that end at their own node.
       for (const m of plan.marks) if (m.kind === 'title') expect(m.trail.at(-1)!.ptr).toBe(m.ptr);
@@ -138,7 +138,7 @@ describe('navigation contracts', () => {
       const slot = containers[a % containers.length]!;
       const below = [...walk(slot)].filter((n) => n !== slot);
       const shown = below[b % below.length]!;
-      const plan = new Planner(tree, fakeMetrics).plan('', vp, { views: { [slot.ptr]: shown.ptr } });
+      const plan = new Planner(tree, fakeMetrics).plan({ views: { [slot.ptr]: shown.ptr } }, vp);
       check(plan, tree, tree, vp, true);
       // A slot drawn on the page shows the opened node, with its breadcrumbs.
       const frame = plan.marks.find((m) => m.kind === 'frame' && m.slot === slot.ptr);
@@ -146,11 +146,41 @@ describe('navigation contracts', () => {
     }), { numRuns: 200 });
   });
 
+  it('hold with random nodes minified', () => {
+    fc.assert(fc.property(json, viewport, fc.array(fc.nat(), { maxLength: 3 }), (doc, vp, picks) => {
+      const tree = buildTree(doc);
+      const nodes = [...walk(tree)].filter((n) => n.parent);
+      if (nodes.length === 0) return;
+      const minified = picks.map((p) => nodes[p % nodes.length]!.ptr);
+      const plan = new Planner(tree, fakeMetrics).plan({ minified }, vp);
+      check(plan, tree, tree, vp);
+    }), { numRuns: 200 });
+  });
+
+  it('a shared planner gives the same plans as fresh ones, whatever was planned before', () => {
+    // The per-node caches must never leak one spec's sizes into another's.
+    const spec = (nodes: TreeNode[]) => fc.record({
+      expanded: fc.array(fc.constantFrom(...nodes.map((n) => n.ptr)), { maxLength: 2 }),
+      minified: fc.array(fc.constantFrom(...nodes.map((n) => n.ptr)), { maxLength: 2 }),
+      root: fc.constantFrom(...nodes.filter((n) => n.children.length > 0 || !n.parent).map((n) => n.ptr)),
+    });
+    fc.assert(fc.property(json.chain((doc) => {
+      const tree = buildTree(doc);
+      return fc.tuple(fc.constant(tree), fc.array(spec([...walk(tree)]), { minLength: 2, maxLength: 4 }), viewport);
+    }), ([tree, specs, vp]) => {
+      const shared = new Planner(tree, fakeMetrics);
+      for (const { root, ...rest } of specs) {
+        const s = { ...rest, views: { '': root } };
+        expect(shared.plan(s, vp)).toEqual(new Planner(tree, fakeMetrics).plan(s, vp));
+      }
+    }), { numRuns: 100 });
+  });
+
   it('are deterministic', () => {
     fc.assert(fc.property(json, viewport, (doc, vp) => {
       const tree = buildTree(doc);
-      const a = new Planner(tree, fakeMetrics).plan('', vp);
-      const b = new Planner(tree, fakeMetrics).plan('', vp);
+      const a = new Planner(tree, fakeMetrics).plan({}, vp);
+      const b = new Planner(tree, fakeMetrics).plan({}, vp);
       expect(a).toEqual(b);
     }), { numRuns: 50 });
   });

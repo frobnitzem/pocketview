@@ -1,0 +1,99 @@
+/** The interaction rules are pure: they are tested here without a browser. */
+import { describe, expect, it } from 'vitest';
+import { buildTree, isShown, OUTER, Planner, type Json, type Plan } from '@pocketview/core';
+import { fakeMetrics } from '../../core/test/helpers';
+import { decide, initialState, settleWindows, type Input, type Outcome, type State } from '../src/rules';
+
+const DOC: Json = {
+  name: 'x',
+  a: { b: { c: { x: 1, y: 2 }, d: { z: 3 } }, e: 1 },
+  f: { g: 1 },
+  list: Array.from({ length: 40 }, (_, i) => ({ n: i, text: 'some words here' })),
+};
+const tree = buildTree(DOC);
+const planner = new Planner(tree, fakeMetrics);
+const VP = { w: 1200, h: 900 };
+
+/** Applies `inputs` in turn, planning after each accepted one, as the viewer does. */
+function run(inputs: Input[], start: State = initialState()): { state: State; plan: Plan; outcomes: Outcome[] } {
+  let state = start;
+  let plan = planner.plan(state.spec, VP);
+  const outcomes: Outcome[] = [];
+  for (const input of inputs) {
+    const out = decide(input, state, { tree, plan });
+    outcomes.push(out);
+    if ('refuse' in out) continue;
+    const next = planner.plan(out.state.spec, VP);
+    if (out.expect && !out.expect(next)) { outcomes[outcomes.length - 1] = { refuse: out.change.path }; continue; }
+    state = { ...out.state, spec: settleWindows(out.state.spec, next) };
+    plan = next;
+  }
+  return { state, plan, outcomes };
+}
+
+describe('interaction rules', () => {
+  it('borders toggle the target in place, without changing the spec', () => {
+    const { state, outcomes } = run([{ on: 'border', slot: '/a/b' }]);
+    expect(state.target).toBe('/a/b');
+    expect(state.spec).toEqual(initialState().spec);
+    expect(outcomes[0]).toMatchObject({ change: { type: 'target', path: '/a/b' } });
+    expect(run([{ on: 'border', slot: OUTER }]).state.target).toBeNull();
+  });
+
+  it('opening into the outermost frame re-roots, dropping annotations outside the new root', () => {
+    const start: State = { ...initialState(), spec: { ...initialState().spec, expanded: ['/f/g', '/a/e'] } };
+    const { state, outcomes } = run([{ on: 'title', ptr: '/a' }], start);
+    expect(state.spec.views).toEqual({ [OUTER]: '/a' });
+    expect(state.spec.expanded).toEqual(['/a/e']);
+    expect(state.target).toBe(OUTER);
+    expect(outcomes[0]).toMatchObject({ change: { type: 'open', path: '/a', slot: OUTER } });
+  });
+
+  it('opening into a nested target redraws only that slot; outside it is refused', () => {
+    const { state, outcomes } = run([
+      { on: 'border', slot: '/a/b' },
+      { on: 'key', ptr: '/a/b/c/x' },
+      { on: 'key', ptr: '/f/g' }, // not under what /a/b shows
+    ]);
+    expect(state.spec.views).toEqual({ '/a/b': '/a/b/c/x' });
+    expect(outcomes[2]).toEqual({ refuse: '/f/g' });
+  });
+
+  it("the target's crumbs step back within it; the outermost bar's crumbs re-root", () => {
+    const { state } = run([
+      { on: 'border', slot: '/a/b' },
+      { on: 'key', ptr: '/a/b/c/x' },
+      { on: 'crumb', slot: '/a/b', ptr: '/a/b/c' },
+    ]);
+    expect(state.spec.views).toEqual({ '/a/b': '/a/b/c' });
+    const back = run([{ on: 'crumb', slot: '/a/b', ptr: '/a' }], state).state;
+    expect(back.spec.views).toEqual({}); // at or above the slot: the slot shows itself
+    const rooted = run([{ on: 'title', ptr: '/a/b/c' }]).state;
+    expect(run([{ on: 'crumb', slot: OUTER, ptr: '/a' }], rooted).state.spec.views).toEqual({ [OUTER]: '/a' });
+  });
+
+  it('untargeted, keys and titles toggle between minified and expanded', () => {
+    const untargeted: State = { ...initialState(), target: null };
+    const { state, plan, outcomes } = run([{ on: 'title', ptr: '/a' }], untargeted);
+    expect(outcomes[0]).toMatchObject({ change: { type: 'minify', path: '/a' } });
+    expect(state.spec.minified).toEqual(['/a']);
+    expect(isShown(plan, '/a')).toBe(false);
+    const again = run([{ on: 'chip', ptr: '/a' }], state);
+    expect(again.state.spec).toMatchObject({ minified: [], expanded: ['/a'] });
+    const off = run([{ on: 'key', ptr: '/a' }], again.state); // expanded: minified again
+    expect(off.state.spec).toMatchObject({ minified: ['/a'], expanded: [] });
+  });
+
+  it('expanding pages array ancestors to the element; a click that changes nothing is refused', () => {
+    const untargeted: State = { ...initialState(), target: null };
+    const { state } = run([{ on: 'chip', ptr: '/list/30' }], untargeted);
+    expect(state.spec.windows['/list']).toEqual({ start: 30 });
+    expect(run([{ on: 'chip', ptr: '/name' }], untargeted).outcomes[0]).toEqual({ refuse: '/name' }); // already shown
+  });
+
+  it('escape shows the parent of what the target shows', () => {
+    const rooted = run([{ on: 'title', ptr: '/a/b' }]).state;
+    expect(run([{ on: 'up' }], rooted).state.spec.views).toEqual({ [OUTER]: '/a' });
+    expect(run([{ on: 'up' }]).outcomes[0]).toEqual({ refuse: '' }); // at the document root
+  });
+});

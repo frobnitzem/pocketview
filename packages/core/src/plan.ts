@@ -55,7 +55,8 @@ type MarkBody =
       /**
        * The container this frame is on the page (its "slot"). It differs from
        * `ptr` when the container was opened to a descendant: the frame then
-       * shows that descendant, with breadcrumbs from the slot to it.
+       * shows that descendant, with breadcrumbs from the slot to it. The
+       * outermost frame's slot is `OUTER` ("").
        */
       slot: string;
     }
@@ -88,19 +89,33 @@ export interface Viewport {
   h: number;
 }
 
-export interface PlanOptions {
-  /** Nodes to expand in place: shown in preference to everything else. */
-  expanded?: Iterable<string>;
+/**
+ * What the user chose, as annotations over document nodes by JSON Pointer
+ * (see "Mental model" in DESIGN.md). Everything else about a plan is derived.
+ */
+export interface LayoutSpec {
+  /**
+   * What each container on the page shows, by container (slot) pointer. The
+   * slot `""` is the outermost frame: it shows the document root unless set.
+   * A nested container keeps its place but shows the node, with breadcrumbs
+   * from itself to it.
+   */
+  views?: Readonly<Record<string, string>>;
+  /** Nodes to show in preference to everything else (even past the depth limit). */
+  expanded?: readonly string[];
+  /** Nodes to show collapsed, as chips or side-bar segments, even when there is room. */
+  minified?: readonly string[];
   /** Page windows of array containers, by pointer (default: from element 0). */
   windows?: Readonly<Record<string, ArrayWindow>>;
   /** First side-bar segment shown, by object pointer (default 0). */
   offsets?: Readonly<Record<string, number>>;
-  /**
-   * Containers opened to a descendant, by container pointer: each keeps its
-   * place but shows that node, with breadcrumbs from itself to it.
-   */
-  views?: Readonly<Record<string, string>>;
 }
+
+/** The slot of the outermost frame (in `views`, and in marks' `slot`). */
+export const OUTER = '';
+
+/** The pointer of the node the outermost frame shows. */
+export const rootOf = (spec: LayoutSpec): string => spec.views?.[OUTER] ?? '';
 
 export interface Plan {
   focus: string;
@@ -139,13 +154,19 @@ export class Planner {
     this.measurer = new Measurer(metrics, theme, plugins);
   }
 
-  plan(focusPtr: string, vp: Viewport, options: PlanOptions = {}): Plan {
-    const focus = find(this.tree, focusPtr) ?? this.tree;
-    this.measurer.setDepthLimit(focus.depth + this.theme.maxDepth);
-    this.measurer.setPriority(options.expanded ?? []);
-    this.measurer.setWindows(options.windows ?? {});
-    this.measurer.setViews(options.views ?? {});
-    this.offsets = options.offsets ?? {};
+  /** Lays out the document for `spec` in a viewport: a pure function of the two. */
+  plan(spec: LayoutSpec, vp: Viewport): Plan {
+    const focus = find(this.tree, rootOf(spec)) ?? this.tree;
+    const views = { ...spec.views };
+    delete views[OUTER]; // the outermost slot shows the focus itself
+    this.measurer.setSpec({
+      limit: focus.depth + this.theme.maxDepth,
+      expanded: spec.expanded ?? [],
+      minified: spec.minified ?? [],
+      windows: spec.windows ?? {},
+      views,
+    });
+    this.offsets = spec.offsets ?? {};
     const marks: Mark[] = [];
     this.scroll = undefined;
     if (isLeaf(focus)) this.planUnframed(focus, vp, marks);
@@ -172,13 +193,13 @@ export class Planner {
     const m = this.measurer;
     const frame: Mark = {
       kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'LTR', geom: g, depth: focus.depth,
-      type: focus.kind, variant: 'arch', outer: true, targetable: true, slot: focus.ptr,
+      type: focus.kind, variant: 'arch', outer: true, targetable: true, slot: OUTER,
     };
     marks.push(frame);
     const path = ancestors(focus);
     const title = this.title(focus, g.side + g.inner, vp.w - g.outer, g.bar, path.length > 0);
     marks.push(title);
-    this.crumbs(path, g.side + g.inner, title.rect.x - t.gap, 0, g.bar, focus, marks);
+    this.crumbs(path, g.side + g.inner, title.rect.x - t.gap, 0, g.bar, OUTER, marks);
 
     const cx = g.side + t.pad;
     const cy = g.bar + t.pad;
@@ -239,13 +260,13 @@ export class Planner {
     const R = Math.min(g.outer, g.bar);
     const frame: Mark = {
       kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: vp.h }, arch: 'TB', geom: g, depth: focus.depth,
-      type: focus.kind, variant: 'container', outer: true, targetable: true, slot: focus.ptr,
+      type: focus.kind, variant: 'container', outer: true, targetable: true, slot: OUTER,
     };
     marks.push(frame);
     const path = ancestors(focus);
     const title = this.title(focus, R, vp.w - R, g.bar, path.length > 0);
     marks.push(title);
-    this.crumbs(path, R, title.rect.x - t.gap, 0, g.bar, focus, marks);
+    this.crumbs(path, R, title.rect.x - t.gap, 0, g.bar, OUTER, marks);
 
     const cw = Math.min(t.listMax, vp.w - 2 * t.pad);
     const cx = Math.round((vp.w - this.measurer.snap(cw)) / 2);
@@ -295,11 +316,11 @@ export class Planner {
     if (focus.parent) {
       marks.push({
         kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: g.bar }, arch: 'T', geom: g, depth: focus.depth,
-        type: focus.kind, variant: 'bar', outer: true, targetable: false, slot: focus.ptr,
+        type: focus.kind, variant: 'bar', outer: true, targetable: false, slot: OUTER,
       });
       const title = this.title(focus, g.bar / 2, vp.w - g.bar / 2, g.bar, true);
       marks.push(title);
-      this.crumbs(ancestors(focus), g.bar / 2, title.rect.x - t.gap, 0, g.bar, focus, marks);
+      this.crumbs(ancestors(focus), g.bar / 2, title.rect.x - t.gap, 0, g.bar, OUTER, marks);
       top = g.bar + 2 * t.pad;
     }
     const avail = vp.h - top - t.pad;
@@ -337,7 +358,7 @@ export class Planner {
     const reserve = crumbs ? bar + 4 + t.gap : 0;
     const w = Math.max(0, Math.min(natural, right - left - reserve));
     return {
-      kind: 'title', ptr: node.ptr, text: node.label, trail: [crumb(node)], scale: t.titleScale, outer: true, slot: node.ptr,
+      kind: 'title', ptr: node.ptr, text: node.label, trail: [crumb(node)], scale: t.titleScale, outer: true, slot: OUTER,
       rect: { x: right - w, y: 0, w, h: bar },
     };
   }
@@ -347,7 +368,7 @@ export class Planner {
    * and x1 at height y; those that don't fit go in a menu. Crumbs abut: each
    * box includes half the gap on either side (drawn as background borders).
    */
-  private crumbs(path: TreeNode[], x0: number, x1: number, y: number, bar: number, slot: TreeNode, marks: Mark[]): void {
+  private crumbs(path: TreeNode[], x0: number, x1: number, y: number, bar: number, slot: string, marks: Mark[]): void {
     if (path.length === 0) return;
     const t = this.theme;
     const widths = path.map((n) => Math.ceil(this.metrics.key(n.label)) + t.crumbPad + t.segGap);
@@ -364,14 +385,14 @@ export class Planner {
         shownFrom--;
       }
       marks.push({
-        kind: 'menu', ptr: path[0]!.ptr, rect: { x, y, w: mw, h: bar }, slot: slot.ptr,
+        kind: 'menu', ptr: path[0]!.ptr, rect: { x, y, w: mw, h: bar }, slot,
         items: path.slice(0, shownFrom).map(crumb),
       });
       x += mw;
     }
     for (let i = shownFrom; i < path.length; i++) {
       const n = path[i]!;
-      marks.push({ kind: 'crumb', ptr: n.ptr, text: n.label, type: n.kind, slot: slot.ptr, rect: { x, y, w: widths[i]!, h: bar } });
+      marks.push({ kind: 'crumb', ptr: n.ptr, text: n.label, type: n.kind, slot, rect: { x, y, w: widths[i]!, h: bar } });
       x += widths[i]!;
     }
   }
@@ -468,7 +489,7 @@ export class Planner {
     marks.push(title);
     const x0 = right - maxW;
     const x1 = title.rect.x - t.gap;
-    if (x1 - x0 >= bar + t.segGap) this.crumbs(path, x0, x1, y, bar, slot, marks); // else the title alone
+    if (x1 - x0 >= bar + t.segGap) this.crumbs(path, x0, x1, y, bar, slot.ptr, marks); // else the title alone
   }
 
   /** A container opened to a descendant: the descendant's display, in the container's place. */

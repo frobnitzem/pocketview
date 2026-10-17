@@ -19,7 +19,7 @@ const pointPlugin: Variant = {
 describe('display variants (plugins)', () => {
   it('a higher-priority plugin replaces the built-in display of the nodes it matches', () => {
     const doc: Json = { a: 'md:# hello', b: 'plain' };
-    const plan = new Planner(buildTree(doc), fakeMetrics, undefined, [stringPlugin]).plan('', { w: 900, h: 600 });
+    const plan = new Planner(buildTree(doc), fakeMetrics, undefined, [stringPlugin]).plan({}, { w: 900, h: 600 });
     expect(plan.marks.find((m) => m.ptr === '/a' && m.kind === 'custom')).toMatchObject({ variant: 'test/md', rect: { h: 56 } });
     expect(plan.marks.find((m) => m.ptr === '/b' && m.kind === 'token')).toBeTruthy();
   });
@@ -28,7 +28,7 @@ describe('display variants (plugins)', () => {
     // The point plugin displays its whole subtree, so the string plugin is
     // never asked about the string inside it.
     const doc: Json = { p: { x: 'md:inner', y: 2 }, q: 'md:outer' };
-    const plan = new Planner(buildTree(doc), fakeMetrics, undefined, [stringPlugin, pointPlugin]).plan('', { w: 900, h: 600 });
+    const plan = new Planner(buildTree(doc), fakeMetrics, undefined, [stringPlugin, pointPlugin]).plan({}, { w: 900, h: 600 });
     expect(plan.marks.find((m) => m.ptr === '/p')).toMatchObject({ kind: 'custom', variant: 'test/point' });
     expect(plan.marks.some((m) => m.ptr === '/p/x')).toBe(false);
     expect(plan.marks.find((m) => m.ptr === '/q' && m.kind === 'custom')).toMatchObject({ variant: 'test/md' });

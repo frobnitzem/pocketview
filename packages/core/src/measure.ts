@@ -2,8 +2,16 @@
  * Bottom-up measurement. For a node and a maximum width, the engine returns
  * the Pareto front of its display options over (height, shown). A parent
  * combines its children's fronts (a knapsack over rows) into its own front.
- * Results are memoized per (node, width), and widths are snapped to
+ * Results are memoized per node object and width, and widths are snapped to
  * `theme.unit`, so only the widths the planner actually asks for are computed.
+ *
+ * A node's intrinsic sizes (a leaf's options, its key column) depend only on
+ * the node. A container's options also depend on the layout spec, but only
+ * on the part of it inside the container's subtree (and the depth limit):
+ * that part is the container's signature, and its cache is kept while the
+ * signature is unchanged. Navigating in one container so leaves every other
+ * container's cache intact, and a replaced subtree brings new node objects
+ * with empty caches.
  */
 import { pareto, type Point } from './frontier';
 import { isLeaf, type TreeNode } from './json';
@@ -141,19 +149,36 @@ export function tokenText(node: TreeNode): string {
   }
 }
 
-export class Measurer {
-  private readonly memo = new Map<string, unknown>();
-  /** Children deeper than this are always collapsed (set by the planner). */
-  private limit = Infinity;
-  /** Nodes the user asked to expand: shown first, even past the depth limit. */
-  private priority: ReadonlySet<string> = new Set();
-  private prioritySig = '';
+/** The part of the layout spec the measurer reads (see `LayoutSpec` in plan.ts). */
+export interface MeasureSpec {
+  /** Children deeper than this (absolute depth) are collapsed unless expanded. */
+  limit: number;
+  /** Nodes to show in preference to everything else (with their ancestors). */
+  expanded: readonly string[];
+  /** Nodes to show collapsed, even when there is room. */
+  minified: readonly string[];
   /** Page windows of array containers, by pointer. */
-  private windows: Readonly<Record<string, ArrayWindow>> = {};
-  private windowsSig = '';
+  windows: Readonly<Record<string, ArrayWindow>>;
   /** Containers opened to a descendant: slot pointer → pointer of the node shown. */
-  private views: Readonly<Record<string, string>> = {};
-  private viewsSig = '';
+  views: Readonly<Record<string, string>>;
+}
+
+const EMPTY_SPEC: MeasureSpec = { limit: Infinity, expanded: [], minified: [], windows: {}, views: {} };
+
+/** Whether `ptr` is `root` or lies below it. */
+const within = (ptr: string, root: string): boolean => ptr === root || ptr.startsWith(`${root}/`);
+
+export class Measurer {
+  /** Sizes that depend only on the node. */
+  private readonly intrinsic = new WeakMap<TreeNode, Map<string, unknown>>();
+  /** Sizes that also depend on the spec inside the node's subtree, for one signature. */
+  private readonly options = new WeakMap<TreeNode, { sig: string; entries: Map<string, unknown> }>();
+  /** Each node's signature, for the current spec (`version`). */
+  private readonly sigs = new WeakMap<TreeNode, { version: number; sig: string }>();
+  private version = 0;
+  private spec: MeasureSpec = EMPTY_SPEC;
+  private expanded: ReadonlySet<string> = new Set();
+  private minified: ReadonlySet<string> = new Set();
 
   private readonly variants: readonly Variant[];
 
@@ -162,9 +187,24 @@ export class Measurer {
     this.variants = [...plugins, ...builtinVariants];
   }
 
+  /** Sets the layout spec measured against (the planner does, before each plan). */
+  setSpec(spec: MeasureSpec): void {
+    this.spec = spec;
+    this.expanded = new Set(spec.expanded);
+    this.minified = new Set(spec.minified);
+    this.version++;
+  }
+
+  /** Forgets everything cached for `node` (after its subtree changed); its ancestors must be forgotten too. */
+  forget(node: TreeNode): void {
+    this.intrinsic.delete(node);
+    this.options.delete(node);
+    this.sigs.delete(node);
+  }
+
   /** The variants that display `node`: those matching with the highest priority. */
   variantsFor(node: TreeNode): Variant[] {
-    return this.cached(`vf|${node.ptr}`, () => {
+    return this.intrinsicOf(node, 'vf', () => {
       let best = -Infinity;
       let out: Variant[] = [];
       for (const v of this.variants) {
@@ -180,53 +220,62 @@ export class Measurer {
     return Math.max(0, Math.floor(w / this.theme.unit) * this.theme.unit);
   }
 
-  /** Collapse every node deeper than `depth` (absolute). */
-  setDepthLimit(depth: number): void {
-    this.limit = depth;
-  }
-
-  /** Nodes to show in preference to everything else (with their ancestors). */
-  setPriority(ptrs: Iterable<string>): void {
-    this.priority = new Set(ptrs);
-    this.prioritySig = [...this.priority].sort().join('\u0000');
-  }
-
-  /** Sets which elements array containers show (see `ArrayWindow`). */
-  setWindows(windows: Readonly<Record<string, ArrayWindow>>): void {
-    this.windows = windows;
-    this.windowsSig = JSON.stringify(Object.entries(windows).sort());
-  }
-
-  /** Sets which descendant each opened container shows (see the 'slot' value). */
-  setViews(views: Readonly<Record<string, string>>): void {
-    this.views = views;
-    this.viewsSig = JSON.stringify(Object.entries(views).sort());
-  }
-
   windowOf(node: TreeNode): ArrayWindow {
-    return this.windows[node.ptr] ?? { start: 0 };
+    return this.spec.windows[node.ptr] ?? { start: 0 };
   }
 
-  private get sig(): string {
-    return `${this.limit}|${this.prioritySig}|${this.windowsSig}|${this.viewsSig}`;
-  }
-
-  /** Whether `node` is, or contains, a prioritized node. */
+  /** Whether `node` is, or contains, an expanded node. */
   prioritized(node: TreeNode): boolean {
-    for (const p of this.priority) if (p === node.ptr || p.startsWith(`${node.ptr}/`)) return true;
+    for (const p of this.expanded) if (within(p, node.ptr)) return true;
     return false;
   }
 
-  private cached<T>(key: string, compute: () => T): T {
-    if (this.memo.has(key)) return this.memo.get(key) as T;
+  /** Whether `node` is to be shown collapsed (unless something in it is expanded). */
+  private minifiedNode(node: TreeNode): boolean {
+    return this.minified.has(node.ptr) && !this.prioritized(node);
+  }
+
+  /** The spec inside `node`'s subtree, as a string. */
+  private signature(node: TreeNode): string {
+    const known = this.sigs.get(node);
+    if (known?.version === this.version) return known.sig;
+    const { limit, expanded, minified, windows, views } = this.spec;
+    const inside = (ptrs: Iterable<string>) => [...ptrs].filter((p) => within(p, node.ptr)).sort();
+    const sig = JSON.stringify([
+      limit,
+      inside(expanded),
+      inside(minified),
+      inside(Object.keys(windows)).map((k) => [k, windows[k]]),
+      inside(Object.keys(views)).map((k) => [k, views[k]]),
+    ]);
+    this.sigs.set(node, { version: this.version, sig });
+    return sig;
+  }
+
+  /** Memoizes a size that depends only on `node`. */
+  private intrinsicOf<T>(node: TreeNode, key: string, compute: () => T): T {
+    let entries = this.intrinsic.get(node);
+    if (!entries) this.intrinsic.set(node, (entries = new Map()));
+    if (entries.has(key)) return entries.get(key) as T;
     const v = compute();
-    this.memo.set(key, v);
+    entries.set(key, v);
+    return v;
+  }
+
+  /** Memoizes options of `node` that depend on the spec inside its subtree. */
+  private cached<T>(node: TreeNode, key: string, compute: () => T): T {
+    const sig = this.signature(node);
+    let slot = this.options.get(node);
+    if (!slot || slot.sig !== sig) this.options.set(node, (slot = { sig, entries: new Map() }));
+    if (slot.entries.has(key)) return slot.entries.get(key) as T;
+    const v = compute();
+    slot.entries.set(key, v);
     return v;
   }
 
   /** Width of the key column of a container. */
   keyWidth(node: TreeNode): number {
-    return this.cached(`k|${node.ptr}`, () => {
+    return this.intrinsicOf(node, 'k', () => {
       const t = this.theme;
       const widest = Math.max(0, ...node.children.map((c) => this.metrics.key(c.label)));
       return Math.min(t.keyMax, Math.max(t.keyMin, Math.ceil(widest + t.keyPad)));
@@ -243,7 +292,7 @@ export class Measurer {
   /** Options for a node drawn beside a key (its 'value' variants). */
   value(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`v|${this.sig}|${node.ptr}|${W}`, () => this.tagged(node, W, W, 'value'));
+    return this.cached(node, `v|${W}`, () => this.tagged(node, W, W, 'value'));
   }
 
   /** Options of the node's variants, measured `W` wide (blocks) or `valueW` wide (values). */
@@ -260,14 +309,15 @@ export class Measurer {
 
   /** How a child can be shown in a container `W` wide (with values `valueW` wide). */
   childOptions(c: TreeNode, W: number, valueW: number): Option[] {
-    const shown = this.views[c.ptr];
+    const shown = this.spec.views[c.ptr];
     if (shown !== undefined && shown !== c.ptr) return this.slot(c, shown, this.snap(W));
-    return this.tagged(c, this.snap(W), this.snap(valueW));
+    const [w, vw] = [this.snap(W), this.snap(valueW)];
+    return this.cached(c, `o|${w}|${vw}`, () => this.tagged(c, w, vw));
   }
 
   /** Options for container `c` opened to its descendant at `ptr` (full width). */
   private slot(c: TreeNode, ptr: string, W: number): Option[] {
-    return this.cached(`s|${this.sig}|${c.ptr}|${W}`, () => {
+    return this.cached(c, `s|${W}`, () => {
       const t = this.theme;
       let node: TreeNode | undefined = c;
       for (const part of ptr.slice(c.ptr.length + 1).split('/')) {
@@ -291,13 +341,13 @@ export class Measurer {
   /** Options for a scalar (or empty container): a token, or wrapped or typeset text. */
   leafOptions(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`l|${node.ptr}|${W}`, () => this.leaf(node, W));
+    return this.intrinsicOf(node, `l|${W}`, () => this.leaf(node, W));
   }
 
   /** Options for a bare array (every element shown): tags, or a list. */
   bareArray(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`a|${this.sig}|${node.ptr}|${W}`, () => this.array(node, W));
+    return this.cached(node, `a|${W}`, () => this.array(node, W));
   }
 
   private leaf(node: TreeNode, W: number): Option[] {
@@ -371,7 +421,7 @@ export class Measurer {
    */
   container(node: TreeNode, maxW: number, bar = this.theme.frame.bar): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`c|${this.sig}|${bar}|${node.ptr}|${W}`, () => {
+    return this.cached(node, `c|${bar}|${W}`, () => {
       const t = this.theme;
       const inner = W - 2 * t.pad;
       if (isLeaf(node) || inner < t.keyMin + 4 * t.unit) return [];
@@ -425,7 +475,7 @@ export class Measurer {
     for (const [step, i] of order.entries()) {
       const c = node.children[i]!;
       const boost = this.prioritized(c) ? PRIORITY : 0;
-      const shown = c.depth > this.limit && !boost ? [] : this.childOptions(c, W, valueW);
+      const shown = c.depth > this.spec.limit && !boost ? [] : this.childOptions(c, W, valueW);
       if (shown.length === 0) break;
       const weight = step === 0 ? FIRST_WEIGHT : 1;
       const next: Point<Chain>[] = [];
@@ -473,7 +523,7 @@ export class Measurer {
   /** Options for an object drawn in a nested arch frame, at full width. */
   frame(node: TreeNode, maxW: number): Option[] {
     const W = this.snap(maxW);
-    return this.cached(`f|${this.sig}|${node.ptr}|${W}`, () => {
+    return this.cached(node, `f|${W}`, () => {
       const t = this.theme;
       const g = t.frame;
       const inner = W - g.side - 2 * t.pad;
@@ -494,7 +544,7 @@ export class Measurer {
   /** The Pareto front of ways to show a container's children as rows. */
   rows(node: TreeNode, maxW: number, mode: CollapseMode): Rows[] {
     const W = this.snap(maxW);
-    return this.cached(`r|${mode}|${this.sig}|${node.ptr}|${W}`, () => {
+    return this.cached(node, `r|${mode}|${W}`, () => {
       const t = this.theme;
       const keyW = this.keyWidth(node);
       const valueW = W - keyW - t.gap;
@@ -511,7 +561,9 @@ export class Measurer {
         // A prioritized child (or one containing a prioritized node) is worth
         // more than anything else, and may go past the depth limit.
         const boost = this.prioritized(c) ? PRIORITY : 0;
-        const shown = c.depth > this.limit && !boost ? [] : this.childOptions(c, W, valueW);
+        // A minified child is only ever collapsed (where it has somewhere to go).
+        const hidden = (c.depth > this.spec.limit && !boost) || (mode !== 'none' && this.minifiedNode(c));
+        const shown = hidden ? [] : this.childOptions(c, W, valueW);
         for (const o of shown) {
           const row = { node: c, opt: o };
           // The tie-break only applies to options that show something, or an

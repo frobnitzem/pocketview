@@ -103,7 +103,7 @@ export const NOTES = JSON.stringify({
   version: '0.3.0',
   notes: '# What changed\n\n- Display **variants** are plugins now\n- Markdown is the first plugin\n- Short strings wrap plainly\n\n'
     + 'Read the [design notes](https://github.com/frobnitzem/pocketview/blob/main/DESIGN.md).\n\n```ts\n'
-    + "planner.plan('', { w: 800, h: 600 });\n```",
+    + "planner.plan({ views: { '': '/chapters' } }, { w: 800, h: 600 });\n```",
   summary: 'Plain wrapping for short strings; Knuth–Plass typesetting for long ones.',
 }, null, 2);
 

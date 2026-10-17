@@ -6,6 +6,64 @@ layout decide what to show. This rewrite keeps that idea and adds what the
 prototype lacked: publication-quality text, several display variants per
 element, and navigation contracts so that browsing can never get stuck.
 
+## Mental model
+
+A viewer is one JavaScript object, built in layers. Each layer points only
+at the layers above it, and each is either chosen (by the user or the
+embedding page) or derived (recomputed, never stored as state).
+
+```
+document     the JSON and its node tree                      chosen: show(), update()
+   ▲
+layout spec  annotations over document nodes, by pointer     chosen: clicks
+   ▲
+plan         marks: what is shown, where, and how             derived
+   ▲
+cursor       the target: a container on the page              chosen: border clicks
+```
+
+**Paths are JSON Pointers** (RFC 6901) into the document the viewer shows:
+`""` is its root, `/packages/0/role` a node below it, and `~1` stands for a
+`/` inside a key. They are positions, not identities. The same pointers are
+used inside the engine, in the layout spec, and in events.
+
+**Document.** The JSON value, and a tree of nodes built from it (`ptr`,
+`label`, `value`, `kind`, `children`). It is treated as immutable: changing
+it means replacing a subtree, never mutating the caller's object.
+
+**Layout spec** (`LayoutSpec` in core). Only what the user chose:
+- `views`: what each container on the page shows, as slot → node. The slot
+  `""` is the outermost frame, so re-rooting is opening into the outermost
+  slot; a nested container shows itself unless it has an entry.
+- `expanded`: nodes to show in preference to everything else (and past the
+  depth limit). A list, since several can be expanded.
+- `minified`: nodes to show collapsed (a chip or side-bar segment) even
+  when there is room. Kept disjoint from `expanded`.
+- `windows` and `offsets`: where array containers and the outer side bar
+  are paged to.
+
+**Plan** (`Planner.plan(spec, viewport)`). A pure function of document,
+spec, viewport and theme, producing a flat list of positioned marks. Which
+nodes are drawn in full and which are collapsed into chips or segments is
+decided here, from the space available, and so is the depth limit (the
+outer slot's node, plus four levels). Nothing in the plan is state.
+
+**Cursor.** The target: which container clicks open into, or none. It
+changes how clicks are read, never what is shown, so changing it redraws
+the same plan.
+
+**Sizes are cached per document node.** Intrinsic sizes (a string's height
+at a width, a key column's width) depend only on the node. A container's
+size options also depend on the layout spec, but only on the part inside
+its own subtree, so navigating in one container leaves every other
+container's cache intact. Replacing a subtree drops the cache of its nodes
+and recomputes its ancestors.
+
+**Every action follows one path.** A rule maps (spec, cursor, click) to a
+new (spec, cursor) or a refusal. If the spec changed, the viewer re-plans;
+then it draws, and emits one event carrying the viewer, the action and
+the node's pointer. A refusal blinks the outer border instead.
+
 ## Pipeline
 
 ```
@@ -181,15 +239,14 @@ the title `0`), then its title.
   - Opening into the outermost frame re-roots the view: its top bar's
     breadcrumbs extend to the node.
   - Opening into a nested container redraws that container's area (its
-    *slot*, `views` in `PlanOptions`) with the node, titled by it, with
+    *slot*, `views` in the layout spec) with the node, titled by it, with
     crumbs from the container to it (`B` `C`, title `x`). The root stays at
     the top, and the container stays where it was.
   - An opened object becomes an arch or frame; an opened array becomes a
     container; an opened scalar is shown under a bar carrying its trail.
     The outermost scalar bar is not a target.
 - **Titles activate their node**: targeted, the title opens it (subject to
-  the rule above); untargeted, it expands it, giving it priority so its
-  siblings make room (or blinks if that changes nothing).
+  the rule above); untargeted, it toggles it, like a key (below).
 - **Breadcrumbs operate on the container they belong to.** The outermost
   bar's crumbs (and menu items) re-root there, keeping the target. In the
   target's own nav bar, a crumb shows that step in it; a step at or above
@@ -197,12 +254,14 @@ the title `0`), then its title.
   container's crumbs activate their node, like a title.
 - **Only clicking a border changes the target**: it toggles whether its
   container is the target, in place. Targeting never opens anything.
-- **Untargeted**: clicking a collapsed node **expands** it. It is drawn
-  inside its parent and becomes the active item; siblings drop out to make
-  room, and breadcrumbs don't change (`expanded` and `windows` in
-  `PlanOptions`; expanded nodes may go past the depth limit). Clicking a
-  node that is already shown, or that has no room, blinks the outer
-  border: some enclosure must be targeted first.
+- **Untargeted**: clicking a collapsed node (chip or segment) **expands**
+  it: it is drawn inside its parent, siblings drop out to make room, and
+  breadcrumbs don't change (`expanded` and `windows` in the layout spec;
+  expanded nodes may go past the depth limit). Clicking a key, or a nested
+  container's title, **toggles** its node: one that is expanded or shown
+  is **minified** (collapsed even when there is room); one that is
+  minified or collapsed is expanded. A click that changes nothing (no
+  room, or nowhere to collapse to) blinks the outer border.
 - **Paging arrows work in both states.** Escape shows the parent of what
   the target shows.
 

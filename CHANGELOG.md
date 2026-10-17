@@ -4,13 +4,30 @@
 
 - `@pocketview/view`: the viewer as an embeddable package. `mount(element,
   value, options)` fills a fixed-size element and returns a `Viewer`
-  (`show`, `setTheme`, `configure`, `destroy`; `onFocus` option). A
+  (`show`, `on`, `setTheme`, `configure`, `destroy`). A
   single-file bundle (`pocketview.js` and `pocketview.css`, with the Latin
   font subsets inlined) is built and served from the demo site at `lib/`,
   with an example page, `embed.html`. The demo uses the same API.
 - The viewer's colour schemes apply to the viewer element only, never to
   the embedding page.
 - Targeting a container no longer re-plans or drops expansions.
+- The viewer is a `Viewer` object owning the document, the layout spec
+  and the target. Every click goes through pure rules (`rules.ts`), then
+  one plan and one redraw, then one event: `viewer.on(type, listener)`
+  reports `target`, `open`, `expand`, `minify`, `page` and `refuse`, with
+  the node's JSON Pointer.
+- Untargeted, a key or a nested title toggles its node: shown or expanded
+  nodes are minified (collapsed even when there is room), minified ones
+  expanded. Minified nodes are a new list in the layout spec.
+- Core: `Planner.plan(spec, viewport)` takes a `LayoutSpec` (`views`,
+  `expanded`, `minified`, `windows`, `offsets`); the outermost frame is
+  the slot `""` in `views`, so re-rooting is opening into it. Re-rooting
+  keeps the annotations inside the new root.
+- Sizes are cached per document node, keyed by the layout spec inside the
+  node's subtree: navigating in one container keeps every other
+  container's sizes. Text and Markdown measurements are cached per viewer
+  and recomputed when a node's text changes (two viewers on a page no
+  longer share Markdown heights).
 
 ## 1.0.0
 

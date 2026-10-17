@@ -69,8 +69,11 @@ import { mount } from '@pocketview/view';
 
 ### API
 
-`mount(element, value?, options?)` returns a `Viewer`. With a `value`, the
-document is shown once the fonts have loaded.
+`mount(element, value?, options?)` (or `new Viewer(element, value?,
+options?)`) returns a `Viewer`. With a `value`, the document is shown once
+the fonts have loaded. Paths everywhere are JSON Pointers (RFC 6901) into
+the document: `""` is its root, and `/packages/0/role` is the `role` of the
+first package.
 
 | option | default | |
 |---|---|---|
@@ -78,14 +81,27 @@ document is shown once the fonts have loaded.
 | `theme` | `'pastel'` | `'pastel'`, `'lux'`, `'solar-dark'` or `'solar-light'` |
 | `align` | `'justify'` | long text justified, or `'left'` (ragged right) |
 | `diagnostics` | `false` | mark lines that could not be broken optimally |
-| `onFocus(ptr)` | | called with the JSON Pointer the target shows, when it changes |
 
 | `Viewer` method | |
 |---|---|
 | `show(value, label?)` | shows a new document and resets navigation; returns what was drawn and the time taken |
 | `setTheme(theme)` | switches colour scheme (sets `data-theme` on the element) |
 | `configure({ align, diagnostics })` | changes the text settings and redraws |
+| `on(type, listener)` | calls `listener(event)` after each change of that type (or `'*'` for all); returns an unsubscribe function |
+| `spec`, `target` | the current layout spec and target (read only; see DESIGN.md, "Mental model") |
 | `destroy()` | removes the drawing and stops observing the element |
+
+Events are delivered after the change has been drawn, as
+`{ type, viewer, path, slot? }`:
+
+| `type` | when | `path` |
+|---|---|---|
+| `target` | a border click targets or un-targets a container | what the target shows, or `null` |
+| `open` | a node opens into the target (re-rooting, when the target is the outermost frame) | the node; `slot` is the container it opened into (`""` for the outermost) |
+| `expand` | a node is expanded in place | the node |
+| `minify` | a node is collapsed even though there is room | the node |
+| `page` | an array container or the side bar moves by a page | the container |
+| `refuse` | a click changed nothing (the outer border blinks) | the node clicked |
 
 Call `show` only after `fontsReady()` has resolved, because the layout is
 measured in the bundled fonts. `mount` waits for them itself.

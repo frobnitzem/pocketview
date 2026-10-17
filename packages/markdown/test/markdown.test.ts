@@ -52,7 +52,7 @@ describe('markdownVariant', () => {
   it('displays Markdown strings as custom marks', () => {
     const metrics = { key: (s: string) => 7 * s.length, value: (s: string) => 8 * s.length, text: () => ({ height: () => 28 }) };
     const variant = markdownVariant({ height: () => 120 });
-    const plan = new Planner(buildTree({ doc: '# A\n- b\n- c', name: 'x' }), metrics, undefined, [variant]).plan('', { w: 900, h: 600 });
+    const plan = new Planner(buildTree({ doc: '# A\n- b\n- c', name: 'x' }), metrics, undefined, [variant]).plan({}, { w: 900, h: 600 });
     expect(plan.marks.find((m) => m.kind === 'custom')).toMatchObject({ ptr: '/doc', variant: 'markdown', rect: { h: 120 } });
   });
 });
