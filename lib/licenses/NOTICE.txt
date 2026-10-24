@@ -1,0 +1,5 @@
+pocketview
+Copyright 2026 David M. Rogers
+
+This product includes software developed by third parties; see
+THIRD_PARTY_NOTICES.md for their copyright notices and licences.
