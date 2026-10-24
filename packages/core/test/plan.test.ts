@@ -235,4 +235,29 @@ describe('planner', () => {
     expect(doc).toEqual({ a: { x: 1, y: { deep: true } }, b: [1, 2, 3], c: 'text' }); // never mutated
     expect(planner.update('/nowhere', 1)).toBe(false);
   });
+
+  it('paging forward starts at the first element that was not shown in full', () => {
+    const words = (n: number) => Array.from({ length: n }, (_, i) => `word${i % 17}`).join(' ');
+    const doc: Json = { chapters: Array.from({ length: 8 }, (_, i) => ({ n: i + 1, text: words(60 + 40 * (i % 3)) })) };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    let checked = 0;
+    let partial = 0;
+    for (let h = 300; h <= 1400; h += 50) {
+      const plan = planner.plan({ views: { '': '/chapters' } }, { w: 700, h });
+      const range = plan.marks.find((m) => m.kind === 'range');
+      const next = plan.marks.find((m) => m.kind === 'pager' && m.dir === 'next');
+      if (range?.kind !== 'range' || next?.kind !== 'pager' || next.disabled || !('window' in next.set)) continue;
+      // An element is cut short if its text scrolls or some of its keys collapsed into chips.
+      const cut = (i: number) => plan.marks.some((m) =>
+        (m.kind === 'text' && m.ptr === `/chapters/${i}/text` && m.scroll) ||
+        (m.kind === 'chip' && m.ptr.startsWith(`/chapters/${i}/`)));
+      let expected = range.end + 1;
+      for (let i = range.start + 1; i <= range.end; i++) if (cut(i)) { expected = i; break; }
+      expect(next.set.window).toEqual({ start: expected });
+      checked++;
+      if (expected <= range.end) partial++;
+    }
+    expect(checked).toBeGreaterThan(5);
+    expect(partial).toBeGreaterThan(0); // some page did end on an element cut short
+  });
 });

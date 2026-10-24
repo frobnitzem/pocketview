@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Array pages persist: opening an element pages its arrays to it, and
+  re-rooting keeps all paging, so going back up to an array shows the page
+  you left (open chapter V, click "chapters", and chapter V is first).
+- ▶ starts at the first element that was not shown in full, instead of
+  after the last one shown, so a partly shown element comes back whole.
+
 ## 2.0.0 (2026-10-17)
 
 Published to npm as `pocketview` and `@pocketview/view` (the embeddable viewer),

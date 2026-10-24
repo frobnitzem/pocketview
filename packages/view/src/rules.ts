@@ -120,24 +120,39 @@ function activate(ptr: string, state: State, ctx: Context): Outcome {
 export function open(ptr: string, state: State, ctx: Context): Outcome {
   const slot = state.target;
   if (slot === null || !find(ctx.tree, ptr) || !below(ptr, shown(state.spec, slot))) return { refuse: ptr };
-  if (slot === OUTER) return reroot(ptr, state);
-  return view(slot, ptr, state);
-}
-
-/** Points a nested slot at `ptr`: itself, or one of its descendants. */
-function view(slot: string, ptr: string, state: State): Outcome {
-  const views = { ...state.spec.views };
-  if (ptr === slot) delete views[slot];
-  else views[slot] = ptr;
-  return { state: { ...state, spec: { ...state.spec, views } }, change: { type: 'open', path: ptr, slot } };
+  if (slot === OUTER) return reroot(ptr, state, ctx);
+  return view(slot, ptr, state, ctx);
 }
 
 /**
- * The outermost frame shows `ptr`. Annotations outside it no longer apply
- * and are dropped. The target stays: untargeted stays untargeted, and a
- * nested target that is still inside is kept.
+ * Pages every array from `top` down to `ptr` so that the element on the
+ * way to `ptr` comes first: going back up later finds the same page.
  */
-function reroot(ptr: string, state: State): Outcome {
+function pagedTo(windows: Spec['windows'], tree: TreeNode, ptr: string, top = ''): Spec['windows'] {
+  const out = { ...windows };
+  for (let n = find(tree, ptr); n?.parent && within(n.parent.ptr, top); n = n.parent) {
+    if (n.parent.kind === 'array') out[n.parent.ptr] = { start: Number(n.label) };
+  }
+  return out;
+}
+
+/** Points a nested slot at `ptr`: itself, or one of its descendants. */
+function view(slot: string, ptr: string, state: State, ctx: Context): Outcome {
+  const views = { ...state.spec.views };
+  if (ptr === slot) delete views[slot];
+  else views[slot] = ptr;
+  const windows = pagedTo(state.spec.windows, ctx.tree, ptr, slot);
+  return { state: { ...state, spec: { ...state.spec, views, windows } }, change: { type: 'open', path: ptr, slot } };
+}
+
+/**
+ * The outermost frame shows `ptr`. Expansions, minifications and views
+ * outside it no longer apply and are dropped. Paging is kept everywhere,
+ * and the arrays on the way down to `ptr` page to it, so going back up
+ * shows the same pages. The target stays: untargeted stays untargeted,
+ * and a nested target that is still inside is kept.
+ */
+function reroot(ptr: string, state: State, ctx: Context): Outcome {
   const { spec } = state;
   const keep = <T>(rec: Record<string, T>) => Object.fromEntries(Object.entries(rec).filter(([k]) => within(k, ptr)));
   const views = keep(spec.views);
@@ -150,8 +165,8 @@ function reroot(ptr: string, state: State): Outcome {
         views,
         expanded: spec.expanded.filter((p) => within(p, ptr)),
         minified: spec.minified.filter((p) => within(p, ptr)),
-        windows: keep(spec.windows),
-        offsets: keep(spec.offsets),
+        windows: pagedTo(spec.windows, ctx.tree, ptr),
+        offsets: spec.offsets,
       },
     },
     change: { type: 'open', path: ptr, slot: OUTER },
@@ -165,9 +180,9 @@ function reroot(ptr: string, state: State): Outcome {
  * container's crumbs activate their node.
  */
 function crumb(slot: string, ptr: string, state: State, ctx: Context): Outcome {
-  if (slot === OUTER) return reroot(ptr, state);
+  if (slot === OUTER) return reroot(ptr, state, ctx);
   if (state.target !== slot) return activate(ptr, state, ctx);
-  return view(slot, within(slot, ptr) ? slot : ptr, state);
+  return view(slot, within(slot, ptr) ? slot : ptr, state, ctx);
 }
 
 /**
@@ -181,10 +196,7 @@ export function expand(ptr: string, state: State, ctx: Context): Outcome {
   const change: Change = { type: 'expand', path: ptr };
   const expect = (plan: Plan) => isShown(plan, ptr);
   if (spec.expanded.includes(ptr) && !hidden) return { state, change, expect }; // already: idempotent
-  const windows = { ...spec.windows };
-  for (let n = find(ctx.tree, ptr); n?.parent; n = n.parent) {
-    if (n.parent.kind === 'array') windows[n.parent.ptr] = { start: Number(n.label) };
-  }
+  const windows = pagedTo(spec.windows, ctx.tree, ptr);
   return {
     state: {
       ...state,
@@ -259,7 +271,7 @@ function up(state: State, ctx: Context): Outcome {
   const node = shown(state.spec, slot);
   const parent = find(ctx.tree, node)?.parent;
   if (!parent || (slot !== OUTER && node === slot)) return { refuse: node };
-  return slot === OUTER ? reroot(parent.ptr, state) : view(slot, parent.ptr, state);
+  return slot === OUTER ? reroot(parent.ptr, state, ctx) : view(slot, parent.ptr, state, ctx);
 }
 
 /**

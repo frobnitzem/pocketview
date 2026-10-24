@@ -139,4 +139,15 @@ describe('interaction rules', () => {
       spec: { views: { [OUTER]: '/a/b' }, expanded: ['/a/e', '/f/g'], minified: [], windows: {}, offsets: {} },
     });
   });
+
+  it('opening an element pages its arrays to it, and going back up keeps that page', () => {
+    const down = run([{ on: 'border', slot: OUTER }, { on: 'border', slot: OUTER }, { on: 'chip', ptr: '/list/30' }]);
+    expect(down.state.spec.windows['/list']).toEqual({ start: 30 });
+    const opened = run([{ on: 'title', ptr: '/a' }]).state;
+    const deep: State = { ...opened, spec: { ...opened.spec, views: { [OUTER]: '/list' } } };
+    const inside = run([{ on: 'key', ptr: '/list/12' }], deep).state; // open element 12
+    expect(inside.spec.views[OUTER]).toBe('/list/12');
+    const up = run([{ on: 'crumb', slot: OUTER, ptr: '/list' }], inside).state;
+    expect(up.spec.windows['/list']).toEqual({ start: 12 });
+  });
 });

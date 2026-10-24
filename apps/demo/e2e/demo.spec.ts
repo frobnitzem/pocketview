@@ -417,3 +417,19 @@ test('the embeddable bundle fills fixed-size boxes on a plain page', async ({ pa
   await page.screenshot({ path: 'test-results/embed.png', fullPage: true });
   expect(errors).toEqual([]);
 });
+
+test('an opened chapter keeps its page when going back up to the chapters', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await page.click('#settings-open');
+  await page.getByRole('button', { name: /Invisible Man/ }).click();
+  await page.waitForSelector('.pv-range');
+  await page.locator('.pv-title', { hasText: /^chapters$/ }).click(); // open the array
+  const range = page.locator('.pv-range');
+  for (let i = 0; i < 4; i++) await page.locator('.pv-pager[aria-label="Next page"]').click();
+  await expect(range).toHaveText(/^5–\d+ of 29$/);
+  await page.locator('.pv-title', { hasText: /^4$/ }).click(); // open chapter V
+  await expect(page.locator('.pv-title.outer')).toHaveText('4');
+  await page.locator('.pv-crumb', { hasText: /^chapters$/ }).click();
+  await expect(range).toHaveText(/^5–\d+ of 29$/);
+});

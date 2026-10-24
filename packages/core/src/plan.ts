@@ -5,7 +5,7 @@
  */
 import { bestFit } from './frontier.js';
 import { ancestors, find, isLeaf, replaceAt, type Json, type Kind, type TreeNode } from './json.js';
-import { badge, flow, Measurer, type ArrayWindow, type Option, type Row, type Rows, type Value } from './measure.js';
+import { badge, flow, growRows, Measurer, stretchOf, type ArrayWindow, type Option, type Row, type Rows, type Value } from './measure.js';
 import { defaultTheme, type ArchGeometry, type Metrics, type TextStyle, type Theme } from './theme.js';
 import type { Variant } from './variant.js';
 
@@ -289,14 +289,33 @@ export class Planner {
     if (windows.length) {
       const { point } = bestFit(windows, maxH);
       const first = marks.length;
-      this.placeValue(focus, point.data.content, cx, cy, focus, marks, Math.max(0, maxH - point.h));
+      const { start, end, content } = point.data;
+      const extra = Math.max(0, maxH - point.h);
+      this.placeValue(focus, content, cx, cy, focus, marks, extra);
       this.region(marks, first, { x: 0, y: g.bar, w: vp.w, h: vp.h - 2 * g.bar }, point.h + 2 * t.pad);
-      this.footer(focus, point.data.start, point.data.end, R, vp.w - R, vp.h - g.bar, g.bar, true, marks);
+      this.footer(focus, start, end, this.nextStart(content, start, end, extra), R, vp.w - R, vp.h - g.bar, g.bar, true, marks);
     }
   }
 
   /** An array container's bottom bar: the shown range, and ◀ ▶ when it overflows. */
-  private footer(node: TreeNode, start: number, end: number, left: number, right: number, y: number, bar: number, outer: boolean, marks: Mark[]): void {
+  /**
+   * Where ▶ goes from a window [start, end] drawn with `content` (given
+   * `extra` height): to the first element after `start` that was not shown
+   * in full (cut to a smaller display, or a scroll box not grown to its
+   * whole text), so nothing is skipped; past `end` when all were.
+   */
+  private nextStart(content: Option, start: number, end: number, extra: number): number {
+    if (content.v.t !== 'list') return end + 1;
+    const grow = growRows(content.v.rows, extra, (n) => this.measurer.prioritized(n));
+    for (const row of content.v.rows.rows) {
+      const i = Number(row.node.label);
+      if (i <= start || !row.opt) continue;
+      if (row.full === false || (grow.get(row) ?? 0) < stretchOf(row.opt)) return i;
+    }
+    return end + 1;
+  }
+
+  private footer(node: TreeNode, start: number, end: number, nextStart: number, left: number, right: number, y: number, bar: number, outer: boolean, marks: Mark[]): void {
     const t = this.theme;
     const total = node.children.length;
     const overflow = start > 0 || end < total - 1;
@@ -304,7 +323,7 @@ export class Planner {
     let rangeRight = right;
     if (overflow) {
       const next: Mark = {
-        kind: 'pager', ptr: node.ptr, dir: 'next', disabled: end >= total - 1, set: { window: { start: end + 1 } },
+        kind: 'pager', ptr: node.ptr, dir: 'next', disabled: end >= total - 1, set: { window: { start: nextStart } },
         type: node.kind, outer, rect: { x: right - pw, y, w: pw, h: bar },
       };
       const prev: Mark = {
@@ -420,14 +439,7 @@ export class Planner {
     const t = this.theme;
     const m = this.measurer;
     const shown = rows.rows.filter((r) => r.opt);
-    const grow = new Map<Row, number>();
-    const order = [...shown].sort((a, b) => Number(m.prioritized(b.node)) - Number(m.prioritized(a.node)));
-    let left = Math.min(extra, rows.stretch);
-    for (const row of order) {
-      const e = Math.min(left, row.opt!.stretch ?? 0);
-      if (e > 0) grow.set(row, e);
-      left -= e;
-    }
+    const grow = growRows(rows, extra, (n) => m.prioritized(n));
     let yy = y;
     shown.forEach((row, i) => {
       const opt = row.opt!;
@@ -536,7 +548,8 @@ export class Planner {
     });
     this.navBar(node, owner, x + v.w - R, v.w - 2 * R, y, g.bar, slot, marks);
     this.placeValue(node, v.content, x + t.pad, y + g.bar + t.pad, node, marks, extra);
-    this.footer(node, v.start, v.end, x + R, x + v.w - R, y + h - g.bar, g.bar, false, marks);
+    const next = this.nextStart(v.content, v.start, v.end, extra);
+    this.footer(node, v.start, v.end, next, x + R, x + v.w - R, y + h - g.bar, g.bar, false, marks);
   }
 
   /** `extra`: height to grow a stretchable option by (at most its `stretch`). */

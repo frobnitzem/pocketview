@@ -72,6 +72,8 @@ export interface Option {
 export interface Row {
   node: TreeNode;
   opt: Option | null;
+  /** In an array window: whether `opt` is the element's richest display. */
+  full?: boolean;
 }
 
 export interface Rows {
@@ -109,7 +111,24 @@ const CONTAINER_FACTOR = 0.95;
  */
 const FIRST_WEIGHT = 100;
 
-const stretchOf = (o: Option | null | undefined): number => o?.stretch ?? 0;
+export const stretchOf = (o: Option | null | undefined): number => o?.stretch ?? 0;
+
+/**
+ * How leftover height `extra` is shared among shown rows: expanded rows
+ * first, then in document order, each up to its option's stretch.
+ */
+export function growRows(rows: Rows, extra: number, prioritized: (node: TreeNode) => boolean): Map<Row, number> {
+  const grow = new Map<Row, number>();
+  const shown = rows.rows.filter((r) => r.opt);
+  const order = [...shown].sort((a, b) => Number(prioritized(b.node)) - Number(prioritized(a.node)));
+  let left = Math.min(extra, rows.stretch);
+  for (const row of order) {
+    const e = Math.min(left, stretchOf(row.opt));
+    if (e > 0) grow.set(row, e);
+    left -= e;
+  }
+  return grow;
+}
 
 /** Text longer than this (in characters) is shown in a row only in a scroll box. */
 const LONG_TEXT = 3000;
@@ -479,10 +498,11 @@ export class Measurer {
       const shown = c.depth > this.spec.limit && !boost ? [] : this.childOptions(c, W, valueW);
       if (shown.length === 0) break;
       const weight = step === 0 ? FIRST_WEIGHT : 1;
+      const richest = Math.max(...shown.map((o) => o.s));
       const next: Point<Chain>[] = [];
       for (const f of front) {
         for (const o of shown) {
-          const row = { node: c, opt: o };
+          const row = { node: c, opt: o, full: o.s >= richest - 1e-9 };
           next.push({ h: f.h + this.rowHeight(row) + t.gap, s: f.s + weight * o.s + boost, data: { row, prev: f.data } });
         }
       }
@@ -509,11 +529,7 @@ export class Measurer {
       // More elements follow only a first element shown in full: at its
       // richest option, with no stretch left.
       if (step === 0) {
-        const richest = Math.max(...shown.map((o) => o.s));
-        front = front.filter((f) => {
-          const o = f.data?.row.opt;
-          return !!o && stretchOf(o) === 0 && o.s >= richest - 1e-9;
-        });
+        front = front.filter((f) => !!f.data?.row.full && stretchOf(f.data.row.opt) === 0);
       }
       if (front.length === 0 || front[0]!.h > WINDOW_MAX) break;
     }

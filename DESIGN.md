@@ -228,9 +228,14 @@ are pastel green.
   doesn't fit uses a container.
 - **An opened array is always a container,** because a target needs
   breadcrumbs.
-- **Paging moves a page at a time.** ▶ starts after the last shown element.
-  ◀ lays out the page ending just before the first shown element.
-  Expanding an element pages its array so the element comes first.
+- **Paging moves a page at a time.** ▶ starts at the first element after
+  the current first one that was not shown in full (cut to a smaller
+  display, or a scroll box not grown to its whole text), or after the last
+  shown element if all were: nothing is skipped. ◀ lays out the page ending
+  just before the first shown element.
+- **Pages persist.** Expanding or opening an element pages its arrays so
+  the element comes first, and paging is never dropped when re-rooting, so
+  going back up (by a breadcrumb or Escape) shows the same page.
 
 ### Targeting, opening and expanding
 
