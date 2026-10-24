@@ -99,7 +99,7 @@ first package.
 | `open(path, notify?)` | opens a node into the target; it must lie under what the target shows |
 | `expand(path, notify?)` | expands a node in place |
 | `minify(path, notify?)` | collapses a node even when there is room |
-| `page(path, dir, notify?)` | pages an array container (`'next'`, `'prev'`) or the side bar (`'down'`, `'up'`) |
+| `page(path, dir, notify?)` | pages an array container (`'next'`, `'prev'`) or the side bar (`'down'`, `'up'`); for an array whose element a container shows, opens the neighbouring element there |
 | `refuse(path?, notify?)` | blinks the outer border, as a refused click does |
 | `update(path, value, notify?)` | replaces the node at `path` (`""` for the whole document), keeping the navigation |
 | `isShown(path)` | whether the node is drawn itself, rather than only as a chip, segment or breadcrumb |

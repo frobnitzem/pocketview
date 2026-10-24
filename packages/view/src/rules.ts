@@ -84,7 +84,7 @@ export function decide(input: Input, state: State, ctx: Context): Outcome {
     case 'key':
     case 'title': return activate(input.ptr, state, ctx);
     case 'crumb': return crumb(input.slot, input.ptr, state, ctx);
-    case 'pager': return page(input.mark, state);
+    case 'pager': return page(input.mark, state, ctx);
     case 'up': return up(state, ctx);
   }
 }
@@ -247,18 +247,27 @@ export function minify(ptr: string, state: State, ctx: Context): Outcome {
 
 /**
  * Pages the container `ptr` by one page: 'next' and 'prev' for an array
- * container, 'down' and 'up' for the outer side bar. It must be paged on
- * the page, with an arrow in that direction that is not disabled.
+ * container, 'down' and 'up' for the outer side bar. For an array whose
+ * element a container shows, 'next' and 'prev' open the neighbouring
+ * element there. It must have an arrow in that direction that is not disabled.
  */
 export function pageBy(ptr: string, dir: Pager['dir'], state: State, ctx: Context): Outcome {
   const mark = ctx.plan.marks.find((m): m is Pager => m.kind === 'pager' && m.ptr === ptr && m.dir === dir);
-  return mark ? page(mark, state) : { refuse: ptr };
+  return mark ? page(mark, state, ctx) : { refuse: ptr };
 }
 
-/** A paging arrow moves an array window or the side bar by a page. */
-function page(mark: Pager, state: State): Outcome {
+/**
+ * A paging arrow moves an array window or the side bar by a page, or
+ * (beside an array element's title) opens the neighbouring element in the
+ * same container.
+ */
+function page(mark: Pager, state: State, ctx: Context): Outcome {
   if (mark.disabled) return { refuse: mark.ptr };
   const { spec } = state;
+  if ('sibling' in mark.set) {
+    const { sibling, slot } = mark.set;
+    return slot === OUTER ? reroot(sibling, state, ctx) : view(slot, sibling, state, ctx);
+  }
   const next = 'offset' in mark.set
     ? { ...spec, offsets: { ...spec.offsets, [mark.ptr]: mark.set.offset } }
     : { ...spec, windows: { ...spec.windows, [mark.ptr]: mark.set.window } };

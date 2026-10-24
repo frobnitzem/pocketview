@@ -150,4 +150,19 @@ describe('interaction rules', () => {
     const up = run([{ on: 'crumb', slot: OUTER, ptr: '/list' }], inside).state;
     expect(up.spec.windows['/list']).toEqual({ start: 12 });
   });
+
+  it("an array element's arrows open its neighbour in the same container, keeping the array's page", () => {
+    const rooted = run([{ on: 'title', ptr: '/a' }]).state;
+    const at: State = { ...rooted, spec: { ...rooted.spec, views: { [OUTER]: '/list/5' } } };
+    const plan = planner.plan(at.spec, VP);
+    const next = plan.marks.find((m) => m.kind === 'pager' && m.dir === 'next' && 'sibling' in m.set);
+    if (next?.kind !== 'pager') throw new Error('no arrow');
+    const { state, outcomes } = run([{ on: 'pager', mark: next }], at);
+    expect(outcomes[0]).toMatchObject({ change: { type: 'open', path: '/list/6', slot: OUTER } });
+    expect(state.spec.views[OUTER]).toBe('/list/6');
+    expect(state.spec.windows['/list']).toEqual({ start: 6 });
+    expect(pageBy('/list', 'prev', state, { tree, plan: planner.plan(state.spec, VP) })).toMatchObject({
+      state: { spec: { views: { [OUTER]: '/list/5' } } },
+    });
+  });
 });

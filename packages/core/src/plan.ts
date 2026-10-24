@@ -21,7 +21,12 @@ export type ArchVariant = 'LT' | 'RT' | 'LB' | 'RB' | 'LTR' | 'T' | 'TB';
 export type FrameVariant = 'arch' | 'frame' | 'container' | 'bar';
 
 /** What a paging arrow sets: an array container's window, or a side bar's offset. */
-export type PageSet = { window: ArrayWindow } | { offset: number };
+/**
+ * What a paging arrow changes: an array container's window, the outer side
+ * bar's offset, or (beside the title of an array element) which element its
+ * container shows: `sibling`, opened into `slot`.
+ */
+export type PageSet = { window: ArrayWindow } | { offset: number } | { sibling: string; slot: string };
 
 export interface Rect {
   x: number;
@@ -209,10 +214,7 @@ export class Planner {
       type: focus.kind, variant: 'arch', outer: true, targetable: true, slot: OUTER,
     };
     marks.push(frame);
-    const path = ancestors(focus);
-    const title = this.title(focus, g.side + g.inner, vp.w - g.outer, g.bar, path.length > 0);
-    marks.push(title);
-    this.crumbs(path, g.side + g.inner, title.rect.x - t.gap, 0, g.bar, OUTER, marks);
+    this.outerBar(focus, g.side + g.inner, vp.w - g.outer, g.bar, marks);
 
     const cx = g.side + t.pad;
     const cy = g.bar + t.pad;
@@ -276,10 +278,7 @@ export class Planner {
       type: focus.kind, variant: 'container', outer: true, targetable: true, slot: OUTER,
     };
     marks.push(frame);
-    const path = ancestors(focus);
-    const title = this.title(focus, R, vp.w - R, g.bar, path.length > 0);
-    marks.push(title);
-    this.crumbs(path, R, title.rect.x - t.gap, 0, g.bar, OUTER, marks);
+    this.outerBar(focus, R, vp.w - R, g.bar, marks);
 
     const cw = Math.min(t.listMax, vp.w - 2 * t.pad);
     const cx = Math.round((vp.w - this.measurer.snap(cw)) / 2);
@@ -319,7 +318,7 @@ export class Planner {
     const t = this.theme;
     const total = node.children.length;
     const overflow = start > 0 || end < total - 1;
-    const pw = Math.round(bar * 1.5) + t.segGap; // with half the gap on each side
+    const pw = this.arrowWidth(bar);
     let rangeRight = right;
     if (overflow) {
       const next: Mark = {
@@ -350,9 +349,7 @@ export class Planner {
         kind: 'frame', ptr: focus.ptr, rect: { x: 0, y: 0, w: vp.w, h: g.bar }, arch: 'T', geom: g, depth: focus.depth,
         type: focus.kind, variant: 'bar', outer: true, targetable: false, slot: OUTER,
       });
-      const title = this.title(focus, g.bar / 2, vp.w - g.bar / 2, g.bar, true);
-      marks.push(title);
-      this.crumbs(ancestors(focus), g.bar / 2, title.rect.x - t.gap, 0, g.bar, OUTER, marks);
+      this.outerBar(focus, g.bar / 2, vp.w - g.bar / 2, g.bar, marks);
       top = g.bar + 2 * t.pad;
     }
     const avail = vp.h - top - t.pad;
@@ -380,14 +377,64 @@ export class Planner {
   }
 
   /**
-   * The node's own label, at the right end of the bar span [left, right].
-   * With breadcrumbs, room is kept for at least the menu button; a long
-   * title is cut short (the renderer truncates its text).
+   * The outermost frame's top bar: breadcrumbs (ancestors), then arrows to
+   * the neighbouring elements when the focus is an array element, then the
+   * title.
    */
-  private title(node: TreeNode, left: number, right: number, bar: number, crumbs: boolean): Extract<Mark, { kind: 'title' }> {
+  private outerBar(focus: TreeNode, left: number, right: number, bar: number, marks: Mark[]): void {
+    const t = this.theme;
+    const path = ancestors(focus);
+    const menu = path.length ? bar + t.segGap + t.gap : 0; // room for at least the menu button
+    const arrows = this.arrowsWidth(focus, OUTER, bar, right - left - menu);
+    const title = this.title(focus, left, right, bar, menu + arrows);
+    marks.push(title);
+    const x1 = this.siblingArrows(focus, OUTER, title.rect.x - t.gap, 0, bar, arrows, marks);
+    this.crumbs(path, left, x1, 0, bar, OUTER, marks);
+  }
+
+  /**
+   * Width (with its gap) of the ◀ ▶ pair beside the title of `node`, shown
+   * in `slot`: only for an array element that is not the slot's own node,
+   * and only if it fits in `room`; 0 otherwise.
+   */
+  private arrowsWidth(node: TreeNode, slot: string, bar: number, room: number): number {
+    if (node.parent?.kind !== 'array' || node.ptr === slot) return 0;
+    const w = 2 * this.arrowWidth(bar) + this.theme.gap;
+    return w <= room ? w : 0;
+  }
+
+  /** A paging arrow segment's width, with half the segment gap on each side. */
+  private arrowWidth(bar: number): number {
+    return Math.round(bar * 1.5) + this.theme.segGap;
+  }
+
+  /**
+   * The ◀ ▶ pair ending at `right` (when `width` is not 0): they open the
+   * previous and next element of `node`'s array in the same slot. Returns
+   * where the space to their left ends.
+   */
+  private siblingArrows(node: TreeNode, slot: string, right: number, y: number, bar: number, width: number, marks: Mark[]): number {
+    const array = node.parent;
+    if (!width || !array) return right;
+    const i = Number(node.label);
+    const pw = this.arrowWidth(bar);
+    const arrow = (dir: 'prev' | 'next', j: number, x: number): Mark => ({
+      kind: 'pager', ptr: array.ptr, dir, disabled: j < 0 || j >= array.children.length,
+      set: { sibling: array.children[Math.max(0, Math.min(array.children.length - 1, j))]!.ptr, slot },
+      type: array.kind, outer: slot === OUTER, rect: { x, y, w: pw, h: bar },
+    });
+    marks.push(arrow('prev', i - 1, right - 2 * pw), arrow('next', i + 1, right - pw));
+    return right - width;
+  }
+
+  /**
+   * The node's own label, at the right end of the bar span [left, right],
+   * keeping `reserve` free at the left (for the menu button and arrows); a
+   * long title is cut short (the renderer truncates its text).
+   */
+  private title(node: TreeNode, left: number, right: number, bar: number, reserve: number): Extract<Mark, { kind: 'title' }> {
     const t = this.theme;
     const natural = Math.ceil(this.metrics.key(node.label) * t.titleScale) + 2 * t.pad;
-    const reserve = crumbs ? bar + 4 + t.gap : 0;
     const w = Math.max(0, Math.min(natural, right - left - reserve));
     return {
       kind: 'title', ptr: node.ptr, text: node.label, trail: [crumb(node)], scale: t.titleScale, outer: true, slot: OUTER,
@@ -507,13 +554,14 @@ export class Planner {
       trail.unshift(crumb(n));
       if (n !== node) path.unshift(n);
     }
-    const reserve = path.length ? bar + t.segGap + t.gap : 0;
+    const menu = path.length ? bar + t.segGap + t.gap : 0;
+    const arrows = this.arrowsWidth(node, slot.ptr, bar, maxW - menu);
     const natural = Math.ceil(this.metrics.key(node.label)) + 2 * t.pad;
-    const w = Math.max(0, Math.min(natural, maxW - reserve));
+    const w = Math.max(0, Math.min(natural, maxW - menu - arrows));
     const title: Mark = { kind: 'title', ptr: node.ptr, text: node.label, trail, scale: 1, outer: false, slot: slot.ptr, rect: { x: right - w, y, w, h: bar } };
     marks.push(title);
     const x0 = right - maxW;
-    const x1 = title.rect.x - t.gap;
+    const x1 = this.siblingArrows(node, slot.ptr, title.rect.x - t.gap, y, bar, arrows, marks);
     if (x1 - x0 >= bar + t.segGap) this.crumbs(path, x0, x1, y, bar, slot.ptr, marks); // else the title alone
   }
 

@@ -260,4 +260,26 @@ describe('planner', () => {
     expect(checked).toBeGreaterThan(5);
     expect(partial).toBeGreaterThan(0); // some page did end on an element cut short
   });
+
+  it('an array element shown in a container gets arrows to its neighbours', () => {
+    const doc: Json = { list: [{ a: 1 }, { a: 2 }, { a: 3 }], box: { items: ['x', 'y'] } };
+    const planner = new Planner(buildTree(doc), fakeMetrics);
+    const arrows = (plan: ReturnType<typeof planner.plan>) => plan.marks.filter((m) => m.kind === 'pager' && 'sibling' in m.set);
+    // The outermost frame showing /list/1: ◀ opens /list/0, ▶ opens /list/2.
+    const outer = arrows(planner.plan({ views: { '': '/list/1' } }, { w: 900, h: 600 }));
+    expect(outer.map((m) => m.kind === 'pager' && [m.dir, m.set, m.disabled])).toEqual([
+      ['prev', { sibling: '/list/0', slot: '' }, false],
+      ['next', { sibling: '/list/2', slot: '' }, false],
+    ]);
+    // At the end, ▶ is disabled.
+    const last = arrows(planner.plan({ views: { '': '/list/2' } }, { w: 900, h: 600 }));
+    expect(last.map((m) => m.kind === 'pager' && m.disabled)).toEqual([false, true]);
+    // A nested container opened to an element of an array inside it.
+    const nested = arrows(planner.plan({ views: { '/box': '/box/items/0' } }, { w: 900, h: 600 }));
+    expect(nested.map((m) => m.kind === 'pager' && m.set)).toEqual([
+      { sibling: '/box/items/0', slot: '/box' }, { sibling: '/box/items/1', slot: '/box' },
+    ]);
+    // Not for the document root, nor an element in a plain list (its own frame is its container).
+    expect(arrows(planner.plan({}, { w: 900, h: 600 }))).toEqual([]);
+  });
 });

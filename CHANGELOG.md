@@ -5,6 +5,9 @@
 - Array pages persist: opening an element pages its arrays to it, and
   re-rooting keeps all paging, so going back up to an array shows the page
   you left (open chapter V, click "chapters", and chapter V is first).
+- When a container shows an array element, ◀ ▶ beside its title open the
+  neighbouring elements in the same container (core: a pager whose
+  `PageSet` is `{ sibling, slot }`).
 - ▶ starts at the first element that was not shown in full, instead of
   after the last one shown, so a partly shown element comes back whole.
 

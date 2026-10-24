@@ -155,7 +155,9 @@ function draw(mark: Mark, ctx: DrawContext, isTarget: (slot: string) => boolean)
       el.classList.add(typeClass(mark.type), mark.dir === 'up' || mark.dir === 'down' ? 'v' : 'h');
       if (mark.outer && isTarget(OUTER)) el.classList.add('target');
       button(el, ctx, { on: 'pager', mark });
-      el.setAttribute('aria-label', { up: 'Previous segments', down: 'More segments', prev: 'Previous page', next: 'Next page' }[mark.dir]);
+      el.setAttribute('aria-label', 'sibling' in mark.set
+        ? (mark.dir === 'prev' ? 'Previous element' : 'Next element')
+        : { up: 'Previous segments', down: 'More segments', prev: 'Previous page', next: 'Next page' }[mark.dir]);
       if (mark.disabled) {
         el.classList.add('disabled');
         el.tabIndex = -1;

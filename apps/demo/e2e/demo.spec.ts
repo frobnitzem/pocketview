@@ -433,3 +433,26 @@ test('an opened chapter keeps its page when going back up to the chapters', asyn
   await page.locator('.pv-crumb', { hasText: /^chapters$/ }).click();
   await expect(range).toHaveText(/^5–\d+ of 29$/);
 });
+
+test("an opened chapter's title has arrows to the neighbouring chapters", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await ready(page);
+  await page.click('#settings-open');
+  await page.getByRole('button', { name: /Invisible Man/ }).click();
+  await page.waitForSelector('.pv-range');
+  await page.locator('.pv-title', { hasText: /^chapters$/ }).click();
+  await page.locator('.pv-title', { hasText: /^0$/ }).click(); // open chapter I
+  const prev = page.locator('.pv-pager[aria-label="Previous element"]');
+  const next = page.locator('.pv-pager[aria-label="Next element"]');
+  await expect(prev).toHaveClass(/disabled/);
+  await next.click();
+  await expect(page.locator('.pv-title.outer')).toHaveText('1');
+  await next.click();
+  await expect(page.locator('.pv-title.outer')).toHaveText('2');
+  await page.screenshot({ path: 'test-results/sibling-arrows.png' });
+  await prev.click();
+  await expect(page.locator('.pv-title.outer')).toHaveText('1');
+  // The chapters page follows: going up shows chapter II first.
+  await page.locator('.pv-crumb', { hasText: /^chapters$/ }).click();
+  await expect(page.locator('.pv-range')).toHaveText(/^2–\d+ of 29$/);
+});

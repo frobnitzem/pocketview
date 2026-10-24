@@ -233,6 +233,12 @@ are pastel green.
   display, or a scroll box not grown to its whole text), or after the last
   shown element if all were: nothing is skipped. ◀ lays out the page ending
   just before the first shown element.
+- **Neighbours are one click away.** When a container shows an element of
+  an array (the outermost frame after opening chapter V, or a nested
+  container opened to one), ◀ ▶ beside its title open the previous and next
+  element in the same container. They are paging arrows on the array, so
+  `page(array, 'next')` does the same. An element in a plain list has none:
+  its own frame is its container.
 - **Pages persist.** Expanding or opening an element pages its arrays so
   the element comes first, and paging is never dropped when re-rooting, so
   going back up (by a breadcrumb or Escape) shows the same page.
